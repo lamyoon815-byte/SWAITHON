@@ -180,6 +180,6 @@ SWAITHON/
 - [기술 검토 및 구현 계획 초안](docs/tech-review.md)
 - [BE 구현 체크리스트](https://github.com/lamyoon815-byte/SWAITHON/issues/2)
 
-`tech-review.md`의 회원가입 제외 항목은 이후 결정과 다릅니다. 현재 BE에는 회원가입·로그인과 계정별 프로필 저장이 구현되어 있습니다.
+`tech-review.md`에는 AI 답변과 회원가입·로그인 포함 결정을 반영했습니다. 새 AI 프로필 규격과 현재 회원 API 사이의 코드 이행, 보정 실행 위치·명패 API 사용 범위는 아직 확인이 필요합니다.
 개발 통합은 `develop`에서 관리하며, 기능 작업은 `feature/*` 브랜치로 분리합니다.
 커밋은 `feat:`, `fix:`, `test:`, `docs:`, `chore:` 등의 영문 접두어와 한국어 설명을 사용합니다.
