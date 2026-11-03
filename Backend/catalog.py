@@ -44,6 +44,9 @@ class ArtworkMetadata(BaseModel):
     title: str = Field(min_length=1)
     artist: str = Field(min_length=1)
     year: str | None = None
+    # 소장번호처럼 문자나 앞자리 0이 있을 수 있어 문자열로 저장한다.
+    number: str | None = Field(default=None, min_length=1)
+    museum: str | None = Field(default=None, min_length=1)
     background: str | None = None
     source_url: str | None = None
     license: str | None = None
@@ -99,6 +102,16 @@ class CatalogStore:
             ).fetchone()
         return self._decode(row) if row else None
 
+    def find_by_number(self, number: str, museum: str | None = None) -> list[dict]:
+        query = "SELECT metadata_json, image_filename FROM artworks WHERE json_extract(metadata_json, '$.number') = ?"
+        parameters = [number]
+        if museum is not None:
+            query += " AND json_extract(metadata_json, '$.museum') = ?"
+            parameters.append(museum)
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            rows = connection.execute(f"{query} ORDER BY id", parameters).fetchall()
+        return [self._decode(row) for row in rows]
+
     def export_records(self) -> list[dict]:
         """로컬 관리자 스크립트 전용. 미검수 해설을 포함한 카탈로그를 내보낸다."""
         with closing(sqlite3.connect(self.db_path)) as connection:
@@ -148,6 +161,15 @@ class CatalogStore:
 
         self.initialize()
         with closing(sqlite3.connect(self.db_path)) as connection:
+            rows = connection.execute(
+                "SELECT id, json_extract(metadata_json, '$.museum'), json_extract(metadata_json, '$.number') FROM artworks"
+            ).fetchall()
+            # 이번에 갱신되는 작품은 새 값으로 비교한다.
+            numbers = {row[0]: (row[1], row[2]) for row in rows}
+            numbers.update({metadata.id: (metadata.museum, metadata.number) for metadata, _, _ in prepared})
+            assigned = [value for value in numbers.values() if value[1] is not None]
+            if len(set(assigned)) != len(assigned):
+                raise ValueError("같은 미술관에 중복된 작품 번호가 있습니다.")
             with connection:
                 for metadata, source, filename in prepared:
                     destination = self.images_dir / filename

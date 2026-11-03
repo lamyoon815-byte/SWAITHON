@@ -2,6 +2,11 @@
 
 Python 3.12, FastAPI, SQLite 기반 서버. 아래 명령은 `Backend` 폴더에서 실행한다.
 
+AI 담당자에게 전달할 레포·코드 위치·개발 환경·카탈로그 JSON 예시는
+[AI 코드·데이터 연동 안내](ai/README.md)에 정리했다.
+합의한 모델·시각 프로필·함수 규격과 회원가입·로그인 범위는
+[기술 검토 문서](../docs/tech-review.md)를 기준으로 한다.
+
 ## 설치와 실행
 
 ```bash
@@ -67,6 +72,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | `GET /health` | 서버 상태 확인 |
 | `POST /upload` | multipart 필드 `image` 수신, 검증 후 RGB JPEG로 변환, 결과 메타데이터 반환 |
 | `GET /artworks?limit=20&offset=0` | 작품 목록과 전체 개수 (`limit`: 1~100) |
+| `GET /artworks/by-number?number=...&museum=...` | 작품 번호로 상세 조회. `museum`은 선택이며 번호가 여러 미술관에 있으면 필수 |
 | `GET /artworks/{id}` | 작품 정보·검수된 해설·원본 이미지 URL, 없는 ID는 404 |
 | `GET /images/{filename}` | 등록된 원본 이미지 제공 |
 | `POST /auth/register` | 이메일 회원가입 및 세션 발급 |
@@ -81,6 +87,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | `POST /analyze` | 미등록 작품 실시간 분석 (인증 필요, Gemini 설정 필요) |
 
 `/upload`는 사용자 사진을 저장하거나 작품 DB에 등록하지 않는다.
+작품 번호 조회의 요청·응답 및 FE 오류 처리 규칙은 [FE 전달 내용](../docs/fe-handoff.md)을 참고한다.
 JPEG·PNG·WebP·HEIC/HEIF 입력을 JPEG로 변환한다. 한도는 업로드 10MiB, 2,500만 화소다.
 카탈로그 원본은 브라우저에서 표시할 수 있는 JPEG·PNG·WebP를 그대로 제공한다.
 원본 이미지는 촬영본 전처리와 구분하며 재압축하지 않는다.

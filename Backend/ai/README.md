@@ -57,6 +57,8 @@ UTF-8 JSON **배열**로 저장합니다. 아래는 이 폴더에 `catalog.json`
     "id": "mona-lisa",
     "title": "모나리자",
     "artist": "레오나르도 다 빈치",
+    "number": "INV 779",
+    "museum": "루브르 박물관",
     "year": null,
     "background": null,
     "source_url": null,
@@ -76,7 +78,8 @@ UTF-8 JSON **배열**로 저장합니다. 아래는 이 폴더에 `catalog.json`
 - 실제 수집 작품은 `source_url`, `license`에 개별 이미지 출처·퍼블릭 도메인 근거를 기재합니다. 위의 빈 값은 로컬 데모용입니다.
 - `description`: 생성 전에는 `null`. 생성 후 `facts`, `interpretations`, `regions`, `mood_keywords`를 가진 JSON입니다.
 - `review_status`: 기본 `pending`. 사람이 검수한 해설이 있을 때만 `reviewed`로 등록합니다.
-- 현재 로컬 BE 작업본에는 선택 필드 `number`(작품 번호 문자열), `museum`(미술관)이 추가 중입니다. 이 문서 작성 시 원격 develop 미반영 상태이므로 수집·등록에 사용하기 전 반영 여부를 확인합니다.
+- 현재 로컬 BE 작업본은 선택 필드 `number`(작품 번호 문자열), `museum`(미술관)을 지원합니다. 앞자리 0이나 문자를 보존하도록 번호는 문자열로 전달합니다. 같은 미술관에서 같은 번호를 여러 작품에 중복 등록할 수 없습니다. `museum` 없이 등록한 번호도 서로 중복할 수 없습니다.
+- `number`, `museum` 변경은 아직 로컬 작업본에 있으므로 원격 레포에서 작업할 때는 해당 변경이 공유됐는지 확인합니다.
 
 프로젝트 최상위에서 등록:
 

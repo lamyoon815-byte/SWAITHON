@@ -103,6 +103,49 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(self.client.get("/artworks?limit=101").status_code, 422)
         self.assertEqual(self.client.get("/artworks?offset=-1").status_code, 422)
 
+    def test_find_by_number(self):
+        self.import_records([self.record(number="007", museum="테스트 미술관")])
+        response = self.client.get("/artworks/by-number", params={"number": "007"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], "sample-artwork")
+        self.assertEqual(response.json()["number"], "007")
+        self.assertEqual(response.json()["museum"], "테스트 미술관")
+        self.assertIn("image_url", response.json())
+        self.assertEqual(self.client.get("/artworks/sample-artwork").json()["number"], "007")
+        self.assertEqual(self.client.get("/artworks/by-number", params={"number": "7"}).status_code, 404)
+        self.assertEqual(
+            self.client.get("/artworks/by-number", params={"number": "007", "museum": "다른 미술관"}).status_code, 404
+        )
+        self.assertEqual(self.client.get("/artworks/by-number").status_code, 422)
+
+    def test_same_number_in_two_museums_needs_museum(self):
+        self.import_records([
+            self.record(id="a", number="1", museum="가 미술관"),
+            self.record(id="b", number="1", museum="나 미술관"),
+        ])
+        self.assertEqual(self.client.get("/artworks/by-number", params={"number": "1"}).status_code, 409)
+        response = self.client.get("/artworks/by-number", params={"number": "1", "museum": "나 미술관"})
+        self.assertEqual(response.json()["id"], "b")
+
+    def test_duplicate_number_in_museum_is_rejected(self):
+        self.import_records([self.record(id="a", number="1", museum="가 미술관")])
+        with self.assertRaises(ValueError):
+            self.import_records([self.record(id="b", number="1", museum="가 미술관")])
+        self.assertEqual(self.client.get("/artworks").json()["total"], 1)
+        # 한 번의 등록에서 번호를 맞바꾸는 갱신은 허용한다.
+        self.import_records([self.record(id="b", number="2", museum="가 미술관")])
+        self.import_records([
+            self.record(id="a", number="2", museum="가 미술관"),
+            self.record(id="b", number="1", museum="가 미술관"),
+        ])
+        response = self.client.get("/artworks/by-number", params={"number": "2"})
+        self.assertEqual(response.json()["id"], "a")
+
+    def test_records_without_number_are_still_valid(self):
+        self.import_records([self.record(id="a"), self.record(id="b")])
+        self.assertIsNone(self.client.get("/artworks/a").json()["number"])
+        self.assertEqual(self.client.get("/artworks/by-number", params={"number": "1"}).status_code, 404)
+
     def test_upload_and_health_still_work(self):
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})
         self.assertEqual(self.client.get("/docs").status_code, 200)

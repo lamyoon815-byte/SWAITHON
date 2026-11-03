@@ -134,11 +134,36 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None) -
             "offset": offset,
         }
 
+    # /artworks/{artwork_id}보다 먼저 등록해야 by-number가 작품 ID로 해석되지 않는다.
+    @application.get(
+        "/artworks/by-number", response_model=ArtworkDetail, tags=["작품 조회"],
+        summary="작품 번호로 작품 조회",
+        description=(
+            "작품 번호로 작품 상세 정보를 조회합니다. 응답 형식은 작품 상세 조회와 같습니다. "
+            "번호는 미술관별로 고유하므로, 여러 미술관에 같은 번호가 있으면 `museum`을 함께 보내야 합니다."
+        ),
+        responses={
+            404: {"description": "해당 번호로 등록된 작품이 없음"},
+            409: {"description": "여러 미술관에 같은 번호가 있어 museum 지정이 필요함"},
+        },
+    )
+    def get_artwork_by_number(
+        request: Request,
+        number: Annotated[str, Query(min_length=1, description="작품 번호", examples=["INV 779"])],
+        museum: Annotated[str | None, Query(min_length=1, description="미술관 이름", examples=["루브르 박물관"])] = None,
+    ):
+        records = store.find_by_number(number, museum)
+        if not records:
+            raise HTTPException(status_code=404, detail="등록된 작품을 찾을 수 없습니다.")
+        if len(records) > 1:
+            raise HTTPException(status_code=409, detail="같은 번호의 작품이 여러 미술관에 있습니다. museum을 지정해 주세요.")
+        return public_artwork(records[0], request)
+
     @application.get(
         "/artworks/{artwork_id}", response_model=ArtworkDetail, tags=["작품 조회"],
         summary="작품 상세 정보 조회",
         description=(
-            "작품 ID로 제목·작가·제작 시기·배경·출처·이용 조건과 원본 이미지 URL을 조회합니다. "
+            "작품 ID로 제목·작가·제작 시기·작품 번호·미술관·배경·출처·이용 조건과 원본 이미지 URL을 조회합니다. "
             "사람이 검수한 해설이 있으면 함께 반환하며, 미검수 상태이면 해설은 `null`입니다. "
             "예시 작품 ID는 `mona-lisa`입니다."
         ),
