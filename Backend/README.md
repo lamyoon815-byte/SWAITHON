@@ -22,6 +22,23 @@ uv pip install --python .venv/bin/python -r requirements.txt
 - API 문서: http://127.0.0.1:8000/docs
 - 작품 목록: http://127.0.0.1:8000/artworks
 
+### 지금 이 프로젝트에서 서버 켜기
+
+터미널에서 프로젝트 폴더를 연 뒤 실행한다. 이미 가상환경과 의존성이 설치된 현재 작업 환경에서는 다음 두 줄이면 된다.
+
+```bash
+cd Backend
+./.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+터미널을 열어둔 동안 실행되며 `Ctrl+C`로 종료한다. PC에서는 http://127.0.0.1:8000/docs 를 연다.
+같은 Wi-Fi의 휴대폰에서는 `http://맥의_로컬_IP:8000`을 FE API 주소로 설정한다.
+다른 네트워크라면 별도 터미널에서 `ngrok http 8000`을 실행하고 발급된 HTTPS 주소를 사용한다.
+
+Gemini를 사용할 때는 `Backend/.env.example`을 `Backend/.env`로 복사해 실제 키·검증한 모델 ID를 넣는다.
+기존 `.env`가 있다면 덮어쓰지 않고 필요한 항목만 추가한다. `.env` 변경 후에는 서버를 재시작한다.
+키가 없어도 회원·프로필·카탈로그·등록된 검수 해설 API는 사용할 수 있다.
+
 ## 회원가입·로그인 및 개인화
 
 `/docs`에서 다음 순서로 확인한다.
@@ -67,6 +84,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 ## API
 
+FE에 전달할 전체 요청·응답·인증·오류 규격은 [FE API 명세서](../docs/api-spec.md)에 있다.
+도구에서 가져올 OpenAPI 파일은 [openapi.json](../docs/openapi.json)이다.
+
 | API | 동작 |
 |---|---|
 | `GET /health` | 서버 상태 확인 |
@@ -80,11 +100,13 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | `POST /auth/logout` | 현재 세션 로그아웃 (인증 필요) |
 | `GET /me` | 내 회원 정보 (인증 필요) |
 | `GET /me/profile`, `PUT /me/profile` | 내 시각 프로필 조회·전체 저장 (인증 필요) |
+| `GET /me/ai-profile`, `PUT /me/ai-profile` | AI 6필드 프로필 조회·전체 저장. 최초 조회는 `null` (인증 필요) |
 | `POST /me/history`, `GET /me/history` | 내 관람 기록 등록·목록 조회 (인증 필요) |
 | `DELETE /me/history/{id}` | 내 관람 기록 삭제 (인증 필요) |
 | `POST /recognize` | 작품 사진 또는 명패로 후보 상위 3개 검색 (인증 필요) |
 | `GET /artworks/{id}/narration` | 감상 모드에 맞춘 검수 해설 텍스트 (인증 필요) |
 | `POST /analyze` | 미등록 작품 실시간 분석 (인증 필요, Gemini 설정 필요) |
+| `POST /correction` | 원본 작품 ID 또는 촬영본과 AI 프로필로 JPEG 보정. AI 함수 연결 전에는 503 (인증 필요) |
 
 `/upload`는 사용자 사진을 저장하거나 작품 DB에 등록하지 않는다.
 작품 번호 조회의 요청·응답 및 FE 오류 처리 규칙은 [FE 전달 내용](../docs/fe-handoff.md)을 참고한다.
@@ -116,6 +138,11 @@ uv pip install --python .venv/bin/python -r requirements-ai.txt
 흐림·반사 경고는 규칙 기반 참고값이다. 실제 촬영본으로 정확도·임계값을 평가해야 한다.
 데모 1점으로는 작품 간 구별이나 미등록 작품 거부 성능을 평가할 수 없다.
 
+AI 평가 후 `CLIP_MATCH_THRESHOLD`에 -1~1의 임계값을 설정하고 서버를 재시작한다.
+사진 모드에서 최고 점수가 기준값보다 낮으면 `status=no_match`, `candidates=[]`를 반환한다.
+같거나 높으면 기존처럼 후보 확인이 필요하다. 설정을 비워두면 임계값으로 거부하지 않는다.
+명패 점수에는 이 임계값을 적용하지 않는다.
+
 ## Gemini 명패 인식·해설
 
 `Backend/.env` 또는 실행 환경에 다음 값을 설정한 뒤 서버를 재시작한다.
@@ -129,6 +156,10 @@ GEMINI_MODEL=AI_담당자가_검증한_모델_ID
 `.env`는 자동 로드하며 Git에는 올리지 않는다. 키는 앱에 포함하지 않는다.
 `mode=placard`에서는 Gemini로 제목·작가를 읽고 카탈로그와 퍼지 매칭한다.
 미등록 작품은 `/analyze`를 호출한다. 결과는 미검수 상태이며 작가·제목을 추측하지 않도록 요청한다.
+해설 JSON 검증 실패 시 1회 재시도하고, 다시 실패하면 기본 문구와 `fallback=true`를 반환한다.
+총 외부 호출은 한 요청당 최대 2회이며 HTTP 일시 오류 재시도도 이 횟수 안에 포함한다.
+키 미설정·한도 초과·연결 실패·시간 초과는 기존 HTTP 오류로 반환한다.
+명패 JSON 검증도 1회 재시도하지만 실패 문구로 작품을 매칭하지 않고 502로 반환한다.
 Gemini에는 사진의 축소본이 전송되며, 서버는 사용자 촬영본을 영구 저장하지 않는다.
 외부 API는 호출량에 따른 비용이 발생할 수 있다. 동시 호출은 프로세스당 2개, 사용자당 분당 5회로 제한한다.
 
@@ -140,6 +171,7 @@ Gemini에는 사진의 축소본이 전송되며, 서버는 사용자 촬영본�
 
 생성 결과를 직접 검수하고 `review_status`를 `reviewed`로 변경한 뒤 등록한다.
 기존 해설이 있는 작품은 재생성하지 않고, 기존 출력 파일을 덮어쓰지 않는다.
+기본 안내 문구가 반환된 경우에는 검수용 파일을 생성하지 않고 실패로 종료한다.
 
 ```bash
 ./.venv/bin/python import_catalog.py data/review/catalog.json

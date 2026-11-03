@@ -18,6 +18,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
 from pwdlib import PasswordHash
 
+if __package__:
+    from .ai.profile import AIProfile
+else:
+    from ai.profile import AIProfile
+
 
 class Credentials(BaseModel):
     email: EmailStr
@@ -72,6 +77,7 @@ class HistoryEntry(BaseModel):
     id: str
     artwork_id: str
     profile: VisualProfile
+    ai_profile: AIProfile | None = None
     viewed_at: str
 
 
@@ -117,8 +123,29 @@ class AccountStore:
                     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     artwork_id TEXT NOT NULL, profile_json TEXT NOT NULL, viewed_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS ai_profiles (
+                    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    profile_json TEXT NOT NULL
+                );
                 CREATE INDEX IF NOT EXISTS history_user_time ON history(user_id, viewed_at DESC);
             """)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(history)")}
+            if "ai_profile_json" not in columns:
+                connection.execute("ALTER TABLE history ADD COLUMN ai_profile_json TEXT")
+
+    def ai_profile(self, user_id: str):
+        with closing(self.connect()) as connection:
+            row = connection.execute("SELECT profile_json FROM ai_profiles WHERE user_id = ?", (user_id,)).fetchone()
+        return AIProfile.model_validate_json(row[0]) if row else None
+
+    def set_ai_profile(self, user_id: str, profile: AIProfile):
+        with closing(self.connect()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO ai_profiles VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET profile_json=excluded.profile_json",
+                    (user_id, profile.model_dump_json()),
+                )
+        return profile
 
     @staticmethod
     def public_user(row):
@@ -185,20 +212,25 @@ class AccountStore:
         return profile
 
     def add_history(self, user_id: str, data: HistoryInput):
+        ai_profile = self.ai_profile(user_id)
         entry = {"id": str(uuid4()), "artwork_id": data.artwork_id,
                  "profile": (data.profile or self.profile(user_id)).model_dump(),
+                 "ai_profile": ai_profile.model_dump() if ai_profile else None,
                  "viewed_at": datetime.now(timezone.utc).isoformat()}
         with closing(self.connect()) as connection:
             with connection:
-                connection.execute("INSERT INTO history VALUES (?, ?, ?, ?, ?)",
-                    (entry["id"], user_id, entry["artwork_id"], json.dumps(entry["profile"]), entry["viewed_at"]))
+                connection.execute("INSERT INTO history (id, user_id, artwork_id, profile_json, viewed_at, ai_profile_json) VALUES (?, ?, ?, ?, ?, ?)",
+                    (entry["id"], user_id, entry["artwork_id"], json.dumps(entry["profile"]), entry["viewed_at"],
+                     ai_profile.model_dump_json() if ai_profile else None))
         return entry
 
     def history(self, user_id: str, limit: int, offset: int):
         with closing(self.connect()) as connection:
             total = connection.execute("SELECT COUNT(*) FROM history WHERE user_id = ?", (user_id,)).fetchone()[0]
             rows = connection.execute("SELECT * FROM history WHERE user_id = ? ORDER BY viewed_at DESC, id LIMIT ? OFFSET ?", (user_id, limit, offset)).fetchall()
-        return {"items": [{"id": row["id"], "artwork_id": row["artwork_id"], "profile": json.loads(row["profile_json"]), "viewed_at": row["viewed_at"]} for row in rows], "total": total, "limit": limit, "offset": offset}
+        return {"items": [{"id": row["id"], "artwork_id": row["artwork_id"], "profile": json.loads(row["profile_json"]),
+                           "ai_profile": json.loads(row["ai_profile_json"]) if row["ai_profile_json"] else None,
+                           "viewed_at": row["viewed_at"]} for row in rows], "total": total, "limit": limit, "offset": offset}
 
     def delete_history(self, user_id: str, history_id: str):
         with closing(self.connect()) as connection:
@@ -283,6 +315,15 @@ def create_account_router(accounts: AccountStore, catalog):
         if catalog.get(data.artwork_id) is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
         return accounts.add_history(user["id"], data)
+
+    @router.get("/me/ai-profile", response_model=AIProfile | None, tags=["시각 프로필"], summary="AI 보정 프로필 조회 (미설정 시 null)")
+    def get_ai_profile(user: Annotated[dict, Depends(current_user)]):
+        return accounts.ai_profile(user["id"])
+
+    @router.put("/me/ai-profile", response_model=AIProfile, tags=["시각 프로필"], summary="AI 보정 프로필 전체 저장",
+                description="6필드 AI 규격. 생략한 필드는 기본값으로 저장합니다. 기존 /me/profile과 독립적이며 밝기 단위를 자동 변환하지 않습니다.")
+    def put_ai_profile(profile: AIProfile, user: Annotated[dict, Depends(current_user)]):
+        return accounts.set_ai_profile(user["id"], profile)
 
     @router.get("/me/history", response_model=HistoryList, tags=["관람 기록"], summary="내 관람 기록 목록 조회")
     def history(user: Annotated[dict, Depends(current_user)], limit: Annotated[int, Query(ge=1, le=100)] = 20,

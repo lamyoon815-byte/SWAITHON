@@ -9,8 +9,8 @@
 - 최신 결정·미합의 사항: [기술 검토 문서](../../docs/tech-review.md)
 - BE 실행·키 설정·데이터 등록: [BE README](../README.md)
 
-이 폴더에는 아직 AI 함수가 구현되지 않았습니다. `correction.py`, `description.py`, `evaluation.py` 등으로 나눠 구현할 수 있습니다.
-프로필·함수 규격은 AI 제안이며 현재 회원 API의 구규격과 다릅니다.
+이 폴더의 `profile.py`에는 AI 입력 스키마가 있습니다. 보정·해설·평가 함수는 아직 구현되지 않았으며 `correction.py`, `description.py`, `evaluation.py` 등으로 나눠 구현할 수 있습니다.
+AI 6필드 프로필은 `GET/PUT /me/ai-profile`로 별도 저장합니다. 기존 `/me/profile`의 앱 규격과 독립적이며 밝기를 자동 변환하지 않습니다.
 코드 import만으로 모델 다운로드·외부 API 호출·데이터 생성이 실행되지 않도록 작성합니다.
 
 ## 설치와 테스트
@@ -39,7 +39,7 @@ describe_artwork(image, mode, artwork_info=None) -> description_json
 ```
 
 - 보정 입력 프로필: `color_type`, `severity`, `contrast`, `brightness`, `sharpness`, `edge`.
-- 입력 이미지와 같은 크기의 JPEG를 반환한다는 규격입니다. Python 이미지 타입·JPEG 반환 타입은 확정이 필요합니다. BE는 RGB JPEG `bytes`를 준비합니다.
+- 보정 계약은 동기 `correct_image(image: bytes, profile: dict) -> bytes`입니다. RGB JPEG 바이트와 6필드 dict를 받아 같은 크기의 JPEG 바이트를 반환합니다. `Backend/ai/correction.py`에 구현하면 `/correction`이 호출합니다. 함수가 없으면 503을 반환합니다.
 - 보정 함수를 서버 서비스에 사용할지, 기존 FE Skia 구현의 비교·검증용으로 사용할지는 확인 필요입니다.
 - 해설 공용 모델: `Backend/catalog.py`의 `Description`, `Region`.
 - 해설 모드: 현재 BE의 `facts`, `interpretations`, `both`와 AI 함수의 모드를 맞춰야 합니다.
@@ -79,7 +79,7 @@ UTF-8 JSON **배열**로 저장합니다. 아래는 이 폴더에 `catalog.json`
 - `description`: 생성 전에는 `null`. 생성 후 `facts`, `interpretations`, `regions`, `mood_keywords`를 가진 JSON입니다.
 - `review_status`: 기본 `pending`. 사람이 검수한 해설이 있을 때만 `reviewed`로 등록합니다.
 - 현재 로컬 BE 작업본은 선택 필드 `number`(작품 번호 문자열), `museum`(미술관)을 지원합니다. 앞자리 0이나 문자를 보존하도록 번호는 문자열로 전달합니다. 같은 미술관에서 같은 번호를 여러 작품에 중복 등록할 수 없습니다. `museum` 없이 등록한 번호도 서로 중복할 수 없습니다.
-- `number`, `museum` 변경은 아직 로컬 작업본에 있으므로 원격 레포에서 작업할 때는 해당 변경이 공유됐는지 확인합니다.
+- `number`, `museum`과 번호 조회 API는 `develop`의 `ee75118`에 반영됐습니다. 새 AI 프로필·보정 API는 이 문서와 함께 커밋한 코드에 포함됩니다. 배포 반영은 별도 확인합니다.
 
 프로젝트 최상위에서 등록:
 
@@ -107,4 +107,4 @@ UTF-8 JSON **배열**로 저장합니다. 아래는 이 폴더에 `catalog.json`
 작품 20점의 실제 촬영본 60장과 미등록 작품 사진 10장으로 평가할 예정입니다.
 BE 기본 설정은 `CLIP_MODEL=ViT-B-32-quickgelu`, `CLIP_PRETRAINED=openai`입니다.
 결과와 함께 모델·가중치·전처리·카탈로그 버전, Top-1·Top-3, 미등록 오매칭·등록 오거부, 점수 분포, 임계값·비교 규칙을 공유합니다.
-임계값 전달 전에는 기존 BE가 후보 확인 응답을 반환하며, 자동 미등록 판정이 구현된 상태가 아닙니다.
+임계값 전달 전에는 BE가 후보 확인 응답을 반환합니다. 평가값을 `CLIP_MATCH_THRESHOLD`에 설정하면 최고 점수가 기준 미만일 때 `no_match`와 빈 후보를 반환합니다. 같으면 후보 확인을 유지합니다.

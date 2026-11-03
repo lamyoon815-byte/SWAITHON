@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 if __package__:
     from .catalog import Description
@@ -24,6 +24,15 @@ class PlacardText(BaseModel):
     title: str
     artist: str
     text: str
+
+
+class GeminiSchemaError(HTTPException):
+    def __init__(self):
+        super().__init__(502, "AI 분석 결과가 정해진 JSON 형식에 맞지 않습니다.")
+
+
+class FallbackDescription(Description):
+    fallback: bool = Field(default=True, exclude=True)
 
 
 class GeminiService:
@@ -90,7 +99,9 @@ class GeminiService:
                 except URLError:
                     raise HTTPException(502, "AI API에 연결할 수 없습니다.") from None
                 except (ValueError, KeyError, IndexError, TypeError, ValidationError):
-                    raise HTTPException(502, "AI 분석 결과가 정해진 JSON 형식에 맞지 않습니다.") from None
+                    if attempt == 0:
+                        continue
+                    raise GeminiSchemaError() from None
         finally:
             self.slots.release()
 
@@ -111,4 +122,10 @@ class GeminiService:
             prompt += "다음 작품 메타데이터만 배경 정보의 근거로 사용하세요: " + json.dumps(known, ensure_ascii=False)
         else:
             prompt += "미등록 작품입니다. 작가, 제목, 제작 연도나 역사적 배경을 추측하지 마세요."
-        return self.generate(content, prompt, Description)
+        try:
+            return self.generate(content, prompt, Description)
+        except GeminiSchemaError:
+            return FallbackDescription(
+                facts=["해설을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."],
+                interpretations=[], regions=[], mood_keywords=[],
+            )

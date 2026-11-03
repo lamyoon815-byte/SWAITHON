@@ -74,6 +74,10 @@ class RecognitionService:
         self.lock = RLock()
         self.cached_index = None
         self.cached_stat = None
+        configured = os.environ.get("CLIP_MATCH_THRESHOLD", "").strip()
+        self.match_threshold = float(configured) if configured else None
+        if self.match_threshold is not None and not -1 <= self.match_threshold <= 1:
+            raise ValueError("CLIP_MATCH_THRESHOLD는 -1~1 사이의 유한한 값이어야 합니다.")
 
     def build_index(self):
         records, _ = self.catalog.list(100000, 0)

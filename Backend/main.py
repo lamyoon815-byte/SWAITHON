@@ -32,7 +32,7 @@ def health_check():
     return {"status": "ok"}
 
 
-def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None) -> FastAPI:
+def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, corrector=None) -> FastAPI:
     store = CatalogStore(data_dir)
     accounts = AccountStore(store.data_dir)
     recognition = recognition if recognition is not None else RecognitionService(store)
@@ -74,13 +74,13 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None) -
     @application.middleware("http")
     async def private_cache_control(request: Request, call_next):
         response = await call_next(request)
-        if request.headers.get("authorization") or request.url.path.startswith(("/me", "/auth", "/analyze", "/recognize")):
+        if request.headers.get("authorization") or request.url.path.startswith(("/me", "/auth", "/analyze", "/recognize", "/correction")):
             response.headers["Cache-Control"] = "no-store"
         return response
 
     account_router, current_user = create_account_router(accounts, store)
     application.include_router(account_router)
-    application.include_router(create_ai_router(store, accounts, current_user, recognition, gemini))
+    application.include_router(create_ai_router(store, accounts, current_user, recognition, gemini, corrector))
     application.add_api_route(
         "/health", health_check, methods=["GET"], tags=["서버 상태"],
         summary="서버 상태 확인",

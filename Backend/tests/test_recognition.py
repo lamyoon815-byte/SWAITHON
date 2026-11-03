@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from fastapi import HTTPException
 import numpy as np
@@ -24,6 +25,16 @@ class FixtureEncoder:
 
 
 class RecognitionTests(unittest.TestCase):
+    def test_threshold_configuration_validation(self):
+        with patch.dict("os.environ", {"CLIP_MATCH_THRESHOLD": "0.42"}):
+            with TemporaryDirectory() as directory:
+                service = RecognitionService(CatalogStore(Path(directory)), encoder=FixtureEncoder())
+                self.assertEqual(service.match_threshold, 0.42)
+        for value in ["nan", "inf", "1.1", "-1.1", "invalid"]:
+            with patch.dict("os.environ", {"CLIP_MATCH_THRESHOLD": value}), TemporaryDirectory() as directory:
+                with self.assertRaises(ValueError):
+                    RecognitionService(CatalogStore(Path(directory)), encoder=FixtureEncoder())
+
     def setUp(self):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

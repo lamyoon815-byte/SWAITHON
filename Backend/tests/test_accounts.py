@@ -1,3 +1,4 @@
+from contextlib import closing
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -33,7 +34,7 @@ class AccountTests(unittest.TestCase):
         data, headers = self.register()
         self.assertEqual(data["token_type"], "bearer")
         self.assertEqual(self.client.get("/me", headers=headers).json()["email"], "first@example.com")
-        with self.app.state.accounts.connect() as connection:
+        with closing(self.app.state.accounts.connect()) as connection, connection:
             hashed = connection.execute("SELECT password_hash FROM users").fetchone()[0]
             token = connection.execute("SELECT token_hash FROM sessions").fetchone()[0]
         self.assertTrue(hashed.startswith("$argon2"))
@@ -59,7 +60,7 @@ class AccountTests(unittest.TestCase):
 
     def test_expired_or_missing_session(self):
         _, headers = self.register()
-        with self.app.state.accounts.connect() as connection:
+        with closing(self.app.state.accounts.connect()) as connection, connection:
             connection.execute("UPDATE sessions SET expires_at = 0")
         for route in ["/me", "/me/profile", "/me/history"]:
             self.assertEqual(self.client.get(route).status_code, 401)
@@ -77,6 +78,36 @@ class AccountTests(unittest.TestCase):
         self.assertEqual(self.client.put("/me/profile", headers=headers, json={"contrast": 10}).status_code, 422)
         self.assertEqual(self.client.put("/me/profile", headers=headers, json={"unknown": 1}).status_code, 422)
 
+    def test_ai_profile_isolated_persisted_and_independent(self):
+        first, headers = self.register()
+        _, other = self.register("second@example.com")
+        self.assertEqual(self.client.get("/me/ai-profile").status_code, 401)
+        self.assertIsNone(self.client.get("/me/ai-profile", headers=headers).json())
+        response = self.client.put("/me/ai-profile", headers=headers, json={"color_type": "deutan", "brightness": 25, "edge": 0.5})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.app.state.accounts.ai_profile(first["user"]["id"]).brightness, 25)
+        self.assertIsNone(self.client.get("/me/ai-profile", headers=other).json())
+        self.assertEqual(self.client.get("/me/profile", headers=headers).json()["brightness"], 0)
+        for data in [{"brightness": 51}, {"severity": -1}, {"edge": 2}, {"color_type": "deuteranopia"}, {"unknown": 1}]:
+            self.assertEqual(self.client.put("/me/ai-profile", headers=headers, json=data).status_code, 422)
+
+    def test_existing_history_database_migrates_without_losing_records(self):
+        data, headers = self.register()
+        with closing(self.app.state.accounts.connect()) as connection, connection:
+            connection.execute("DROP TABLE ai_profiles")
+            connection.execute("ALTER TABLE history DROP COLUMN ai_profile_json")
+            connection.execute("INSERT INTO history VALUES (?, ?, ?, ?, ?)",
+                               ("old-entry", data["user"]["id"], "old-artwork", "{}", "2026-11-01T00:00:00+00:00"))
+        self.app.state.accounts.initialize()
+        self.app.state.accounts.initialize()
+        with closing(self.app.state.accounts.connect()) as connection, connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM users").fetchone()[0], 1)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(history)")}
+        self.assertIn("ai_profile_json", columns)
+        history = self.client.get("/me/history", headers=headers).json()
+        self.assertEqual(history["items"][0]["id"], "old-entry")
+        self.assertIsNone(history["items"][0]["ai_profile"])
+
     def test_history_ownership_and_profile_snapshot(self):
         _, headers = self.register()
         _, other_headers = self.register("second@example.com")
@@ -86,12 +117,16 @@ class AccountTests(unittest.TestCase):
         manifest.write_text(json.dumps([{"id": "sample", "title": "작품", "artist": "작가", "image_path": "sample.png"}]))
         self.app.state.catalog.import_manifest(manifest)
         self.client.put("/me/profile", headers=headers, json={"contrast": 1.5})
+        self.client.put("/me/ai-profile", headers=headers, json={"edge": 0.7})
         created = self.client.post("/me/history", headers=headers, json={"artwork_id": "sample"})
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.json()["profile"]["contrast"], 1.5)
+        self.assertEqual(created.json()["ai_profile"]["edge"], 0.7)
+        self.client.put("/me/ai-profile", headers=headers, json={"edge": 0})
         self.client.put("/me/profile", headers=headers, json={"contrast": 1})
         listing = self.client.get("/me/history", headers=headers).json()
         self.assertEqual(listing["items"][0]["profile"]["contrast"], 1.5)
+        self.assertEqual(listing["items"][0]["ai_profile"]["edge"], 0.7)
         self.assertEqual(self.client.get("/me/history", headers=other_headers).json()["total"], 0)
         path = "/me/history/" + created.json()["id"]
         self.assertEqual(self.client.delete(path, headers=other_headers).status_code, 404)

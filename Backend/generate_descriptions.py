@@ -38,6 +38,8 @@ def main():
         for record in records:
             if record["description"] is None:
                 description = generator.describe(Path(record["image_path"]).read_bytes(), record)
+                if getattr(description, "fallback", False):
+                    raise HTTPException(502, "해설 스키마 검증에 실패했습니다. 기본 안내 문구는 검수 파일에 저장하지 않습니다.")
                 record["description"] = description.model_dump(mode="json")
                 record["review_status"] = "pending"
                 print(f"해설 생성: {record['id']}")

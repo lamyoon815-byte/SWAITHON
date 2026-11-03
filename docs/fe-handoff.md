@@ -1,6 +1,8 @@
-# FE 전달 — 작품 번호·미술관 조회
+# FE 전달 — 작품 조회·AI 프로필·보정·해설
 
-2026-11-03 현재 로컬 백엔드 작업본에 구현되어 있습니다. 원격 푸시·배포 여부는 별도 확인이 필요합니다.
+전체 API의 요청·응답·인증·오류 규격은 [FE API 명세서](api-spec.md)를 참고합니다.
+
+2026-11-03 기준, 이 문서와 함께 커밋한 백엔드 코드에 구현되어 있습니다. 배포 여부는 별도 확인이 필요합니다.
 
 ## 추가 필드
 
@@ -87,3 +89,72 @@ curl --get 'http://127.0.0.1:8000/artworks/by-number' \
 ```
 
 기존 DB에 번호 없는 데모를 등록했다면 위 등록 명령을 다시 실행해야 번호가 반영됩니다.
+
+## AI 프로필 저장
+
+`GET /me/ai-profile`, `PUT /me/ai-profile`은 로그인 필요입니다. 처음 조회하면 `null`이며 아직 설정하지 않았다는 뜻입니다.
+PUT은 전체 저장이며 생략 필드는 아래 기본값으로 채웁니다. 기본값은 진단 결과가 아닌 사용자 설정 시작값입니다.
+
+```json
+{
+  "color_type": "normal",
+  "severity": 0,
+  "contrast": 1,
+  "brightness": 0,
+  "sharpness": 0,
+  "edge": 0
+}
+```
+
+- `color_type`: `normal | protan | deutan | tritan`
+- `severity`, `edge`: 0~1, `contrast`: 0.5~2, `brightness`: -50~50, `sharpness`: 0~2.
+- 기존 `GET/PUT /me/profile`의 앱 설정과 독립적입니다. 이전 밝기(-1~1)를 자동 변환하지 않습니다.
+- `POST /me/history`는 저장된 AI 프로필도 `ai_profile`로 스냅샷 저장합니다. 기존 기록·미설정 상태는 `null`입니다.
+
+## 보정 이미지 API
+
+`POST /correction`, Bearer 인증, multipart/form-data로 전송합니다.
+
+| 필드 | 값 |
+|---|---|
+| `artwork_id` | 등록 작품 ID. 등록 원본으로 보정할 때 사용 |
+| `image` | 미등록 촬영본 파일. `artwork_id`와 둘 중 하나만 전송 |
+| `profile` | 선택. AI 프로필 JSON 문자열. 생략하면 계정의 저장된 AI 프로필 사용 |
+
+성공 응답은 JSON이 아닌 `image/jpeg` 바이너리입니다. 촬영본은 EXIF 회전 보정 후의 입력 크기를 유지합니다.
+등록 원본도 회전·RGB 전처리 후 보정 함수로 전달합니다. 촬영본·보정본은 영구 저장하지 않습니다.
+직접 전달한 `profile`은 요청에만 적용하며 계정에 저장하지 않습니다.
+
+```ts
+const body = new FormData();
+body.append("artwork_id", "mona-lisa");
+const response = await fetch(`${API_BASE_URL}/correction`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}` },
+  body,
+});
+// Content-Type은 직접 지정하지 않아야 multipart boundary가 설정됩니다.
+// 성공 시 JPEG 바이너리를 앱 이미지 로딩 방식에 맞게 사용합니다.
+```
+
+오류: `401` 로그인 필요, `404` 작품 없음, `409` AI 프로필 미설정,
+`422` 입력 조합·프로필 오류, `413` 업로드 크기 초과, `415` 미지원 이미지,
+`429` 호출 제한, `502` 보정 함수 출력 계약 오류, `503` AI 함수 미연결.
+현재 AI의 `correct_image()` 구현은 없으므로 정상 입력도 **503**입니다. 기존 앱 Skia 보정은 계속 사용할 수 있습니다.
+
+## CLIP 미등록 분기
+
+`POST /recognize` 응답에 `match_threshold: number | null`을 추가했습니다.
+서버에서 평가한 `CLIP_MATCH_THRESHOLD`를 설정하면 사진 모드의 최고 점수가 기준 미만일 때
+`status: "no_match"`, `candidates: []`를 반환합니다. 기준 이상이면 `needs_confirmation`입니다.
+기준이 없으면 기존 후보 확인 방식이며, 명패 모드에는 CLIP 기준을 적용하지 않습니다.
+`no_match`이면 사용자에게 미등록 해설을 안내하고 촬영본으로 `/analyze`를 호출합니다.
+이 호출은 FE가 명시적으로 수행하며 `/recognize`가 Gemini까지 자동 호출하지 않습니다.
+
+## 해설 실패 표시
+
+`POST /analyze` 응답에 `fallback: boolean`을 추가했습니다.
+JSON 스키마 검증이 두 번 실패하면 HTTP 200으로 기본 안내와 `fallback: true`를 반환합니다.
+이때 `description.facts`는 안내 문구이고 나머지 배열은 비어 있습니다. 작품 해설로 완료 표시하거나 저장하지 말고 재시도 안내로 보여주세요.
+정상 생성은 `fallback: false`, 둘 다 `review_status: "unreviewed"`입니다.
+API 키 미설정(503), 한도(429), 연결 오류(502), 시간 초과(504)는 별도 HTTP 오류로 처리합니다.
