@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -45,7 +45,7 @@ export default function MuseumScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <BackButton label="뒤로" palette={palette} scheme={scheme} onPress={goBack} />
+        <BackButton label="뒤로" palette={palette} onPress={goBack} />
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
           미술관을 선택해 주세요
         </Text>
@@ -68,7 +68,7 @@ export default function MuseumScreen() {
                   styles.item,
                   {
                     backgroundColor: palette.surface,
-                    borderColor: current ? palette.accent : Colors[scheme].backgroundSelected,
+                    borderColor: current ? palette.accent : palette.fill,
                     borderWidth: current ? 3 : 2,
                     opacity: pressed ? 0.8 : 1,
                   },
@@ -83,9 +83,7 @@ export default function MuseumScreen() {
                   style={[
                     styles.pill,
                     {
-                      backgroundColor: current
-                        ? Colors[scheme].backgroundSelected
-                        : palette.accent,
+                      backgroundColor: current ? palette.fill : palette.accent,
                     },
                   ]}>
                   <Text

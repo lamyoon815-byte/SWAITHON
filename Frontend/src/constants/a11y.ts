@@ -11,6 +11,8 @@ import { Colors } from '@/constants/theme';
 export type Palette = {
   background: string;
   surface: string;
+  /** Secondary fill: voice/back buttons, number tiles, image placeholders, pressed rows. */
+  fill: string;
   text: string;
   textSecondary: string;
   /** Primary button fill. */
@@ -31,6 +33,7 @@ export const Yellow = '#FFD60A';
 export const HighContrast: Palette = {
   background: '#000000',
   surface: '#000000',
+  fill: '#333333',
   text: '#FFFFFF',
   textSecondary: '#FFFFFF',
   accent: Yellow,
@@ -48,6 +51,7 @@ export function getPalette(scheme: 'light' | 'dark', highContrast: boolean): Pal
   return {
     background: c.background,
     surface: c.backgroundElement,
+    fill: c.backgroundSelected,
     text: c.text,
     textSecondary: c.textSecondary,
     accent: dark ? Mustard : Charcoal, // button text contrast: dark 8.2:1, light 12.3:1

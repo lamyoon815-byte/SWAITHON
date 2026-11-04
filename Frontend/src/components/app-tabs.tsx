@@ -11,6 +11,7 @@ import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getPalette, type Palette } from '@/constants/a11y';
+import { Shadow } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarBottom } from '@/hooks/use-tab-bar-inset';
 
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 40,
     borderWidth: 1,
-    boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+    boxShadow: Shadow.floating,
   },
   tab: {
     minWidth: 84,

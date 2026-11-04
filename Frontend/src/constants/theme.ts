@@ -63,5 +63,11 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/** Elevation for things that float over content (tab bar, toast). */
+export const Shadow = {
+  floating: '0 10px 30px rgba(0,0,0,0.35)',
+  toast: '0 8px 24px rgba(0,0,0,0.5)',
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

@@ -1,18 +1,21 @@
+import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { FontSize, type Palette } from '@/constants/a11y';
+import { Spacing } from '@/constants/theme';
 import type { Artwork } from '@/types/artwork';
 
 type Props = {
   artwork: Artwork;
   palette: Palette;
-  scheme: 'light' | 'dark';
   onPress: () => void;
 };
 
-/** 작품 한 줄: 번호 · 제목 · 작가와 연도 · "보기". 줄 전체가 하나의 버튼이다 (1, 4-1, 7). */
-export function ArtworkCard({ artwork, palette, scheme, onPress }: Props) {
+/**
+ * 작품 한 줄: 번호 · 제목 · 작가와 연도. 줄 전체가 하나의 버튼이다 (1, 4-1, 7).
+ * 강조색은 현재 미술관과 선택된 탭에만 쓰고, 여기서는 "›" 아이콘으로 누를 수 있음만 알린다.
+ */
+export function ArtworkCard({ artwork, palette, onPress }: Props) {
   const byline = [artwork.artist, artwork.year].filter(Boolean).join(' · ');
 
   return (
@@ -21,16 +24,22 @@ export function ArtworkCard({ artwork, palette, scheme, onPress }: Props) {
       accessibilityLabel={`${artwork.number}번, ${artwork.title}, ${byline}`}
       accessibilityHint="작품 감상 화면으로 이동해요"
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: Colors[scheme].backgroundSelected }]}>
-      <View style={[styles.number, { backgroundColor: Colors[scheme].backgroundSelected }]}>
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: palette.fill }]}>
+      <View style={[styles.number, { backgroundColor: palette.fill }]}>
         <Text style={[styles.numberText, { color: palette.text }]}>{artwork.number}</Text>
       </View>
       <View style={styles.body}>
         <Text style={[styles.title, { color: palette.text }]}>{artwork.title}</Text>
         <Text style={[styles.byline, { color: palette.textSecondary }]}>{byline}</Text>
       </View>
-      <View style={[styles.pill, { backgroundColor: palette.accent }]}>
-        <Text style={[styles.pillText, { color: palette.accentText }]}>보기</Text>
+      {/* An icon, not a "›" glyph: glyphs change shape with the font and grow with system text size. */}
+      <View style={styles.chevron}>
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={22}
+          weight="bold"
+          tintColor={palette.textSecondary}
+        />
       </View>
     </Pressable>
   );
@@ -72,17 +81,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 500,
   },
-  pill: {
-    minHeight: 44,
-    minWidth: MinTouchTarget,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillText: {
-    fontSize: 16,
-    fontWeight: 800,
+  chevron: {
+    paddingHorizontal: Spacing.two,
   },
 });

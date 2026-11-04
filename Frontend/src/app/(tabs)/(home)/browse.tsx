@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -92,7 +92,7 @@ export default function BrowseScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <View style={styles.header}>
-        <BackButton label="작품 목록으로" palette={palette} scheme={scheme} />
+        <BackButton label="작품 목록으로" palette={palette} />
         <View style={styles.headerCenter}>
           {!!museum && (
             <Text numberOfLines={1} style={[styles.headerMuseum, { color: metaColor }]}>
@@ -137,7 +137,6 @@ export default function BrowseScreen() {
                 width={cardWidth}
                 height={cardHeight}
                 palette={palette}
-                scheme={scheme}
                 onPress={() => (i === index ? openArtwork(item) : goTo(i))}
               />
             )}
@@ -163,7 +162,6 @@ export default function BrowseScreen() {
               a11yLabel={atFirst ? '이전 작품, 첫 작품이에요' : '이전 작품'}
               disabled={atFirst}
               palette={palette}
-              scheme={scheme}
               onPress={() => goTo(index - 1)}
             />
             <Pressable
@@ -181,7 +179,6 @@ export default function BrowseScreen() {
               a11yLabel={atLast ? '다음 작품, 마지막 작품이에요' : '다음 작품'}
               disabled={atLast}
               palette={palette}
-              scheme={scheme}
               onPress={() => goTo(index + 1)}
             />
           </View>
@@ -197,11 +194,10 @@ type CardProps = {
   width: number;
   height: number;
   palette: Palette;
-  scheme: 'light' | 'dark';
   onPress: () => void;
 };
 
-function Card({ artwork, current, width, height, palette, scheme, onPress }: CardProps) {
+function Card({ artwork, current, width, height, palette, onPress }: CardProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -213,7 +209,7 @@ function Card({ artwork, current, width, height, palette, scheme, onPress }: Car
         {
           width,
           height,
-          backgroundColor: Colors[scheme].backgroundSelected,
+          backgroundColor: palette.fill,
           borderColor: current ? palette.highlight : 'transparent',
           opacity: current ? 1 : 0.45,
           transform: [{ scale: current ? 1 : SIDE_SCALE }],
@@ -247,11 +243,10 @@ type RoundButtonProps = {
   a11yLabel: string;
   disabled: boolean;
   palette: Palette;
-  scheme: 'light' | 'dark';
   onPress: () => void;
 };
 
-function RoundButton({ direction, a11yLabel, disabled, palette, scheme, onPress }: RoundButtonProps) {
+function RoundButton({ direction, a11yLabel, disabled, palette, onPress }: RoundButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -262,7 +257,7 @@ function RoundButton({ direction, a11yLabel, disabled, palette, scheme, onPress 
       style={({ pressed }) => [
         styles.round,
         {
-          backgroundColor: Colors[scheme].backgroundSelected,
+          backgroundColor: palette.fill,
           opacity: disabled ? 0.35 : pressed ? 0.7 : 1,
         },
       ]}>

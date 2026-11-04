@@ -18,7 +18,7 @@ import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
@@ -109,7 +109,7 @@ export default function ArtworkScreen() {
         edges={['top']}
         style={[styles.screen, { backgroundColor: palette.background }]}>
         <View style={styles.plainHeader}>
-          <BackButton label="작품 목록으로" palette={palette} scheme={scheme} />
+          <BackButton label="작품 목록으로" palette={palette} />
         </View>
         {!!error && (
           <Text style={[styles.message, { color: palette.text }]}>
@@ -143,7 +143,7 @@ export default function ArtworkScreen() {
             />
           </Pressable>
           <View style={styles.heroBack}>
-            <BackButton label="작품 목록으로" palette={palette} scheme={scheme} />
+            <BackButton label="작품 목록으로" palette={palette} />
           </View>
           <Pressable
             accessibilityRole="button"
@@ -248,7 +248,6 @@ export default function ArtworkScreen() {
               small
               disabled={sizeStep === 0}
               palette={palette}
-              scheme={scheme}
               onPress={() => setSizeStep((s) => Math.max(0, s - 1))}
             />
             <SizeButton
@@ -256,7 +255,6 @@ export default function ArtworkScreen() {
               a11yLabel="글자 크게"
               disabled={sizeStep === DESC_SIZES.length - 1}
               palette={palette}
-              scheme={scheme}
               onPress={() => setSizeStep((s) => Math.min(DESC_SIZES.length - 1, s + 1))}
             />
           </View>
@@ -326,7 +324,6 @@ export default function ArtworkScreen() {
               a11yLabel={prev ? `이전 작품, ${prev.title}` : '이전 작품 없음'}
               disabled={!prev}
               palette={palette}
-              scheme={scheme}
               onPress={() => prev && openSibling(prev)}
             />
             <SiblingButton
@@ -335,7 +332,6 @@ export default function ArtworkScreen() {
               a11yLabel={next ? `다음 작품, ${next.title}` : '다음 작품 없음'}
               disabled={!next}
               palette={palette}
-              scheme={scheme}
               onPress={() => next && openSibling(next)}
             />
           </View>
@@ -350,7 +346,6 @@ type SmallButtonProps = {
   a11yLabel: string;
   disabled: boolean;
   palette: Palette;
-  scheme: 'light' | 'dark';
   onPress: () => void;
 };
 
@@ -365,7 +360,7 @@ function SizeButton({ small, ...p }: SmallButtonProps & { small?: boolean }) {
       style={({ pressed }) => [
         styles.size,
         {
-          backgroundColor: Colors[p.scheme].backgroundSelected,
+          backgroundColor: p.palette.fill,
           opacity: p.disabled ? 0.35 : pressed ? 0.7 : 1,
         },
       ]}>
@@ -399,7 +394,7 @@ function SiblingButton({ direction, ...p }: SmallButtonProps & { direction: 'pre
       style={({ pressed }) => [
         styles.sibling,
         {
-          backgroundColor: Colors[p.scheme].backgroundSelected,
+          backgroundColor: p.palette.fill,
           opacity: p.disabled ? 0.35 : pressed ? 0.7 : 1,
         },
       ]}>
