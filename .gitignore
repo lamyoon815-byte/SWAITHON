@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# 환경 변수 (API 키 등)
+.env
+.env.*
+!.env.example
+
+# Python (Backend)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Backend runtime catalog and original images
+/Backend/data/
