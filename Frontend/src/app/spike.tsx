@@ -9,7 +9,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { A11yPanel } from '@/components/spike/a11y-panel';
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { CameraPanel } from '@/components/spike/camera-panel';
 import { CorrectionCanvas } from '@/components/spike/correction-canvas';
 import { LabeledSlider } from '@/components/spike/labeled-slider';

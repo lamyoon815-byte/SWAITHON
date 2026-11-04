@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Platform, Text, useWindowDimensions } from 'react-native';
 
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
 import { FontSize, type Palette } from '@/constants/a11y';
 

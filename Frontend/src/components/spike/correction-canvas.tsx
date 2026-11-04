@@ -33,7 +33,7 @@ import {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';

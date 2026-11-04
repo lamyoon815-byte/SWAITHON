@@ -6,7 +6,7 @@ import * as Speech from 'expo-speech';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
 
