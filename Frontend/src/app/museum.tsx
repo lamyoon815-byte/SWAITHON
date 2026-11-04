@@ -9,7 +9,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
-import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
+import { FontSize, getPalette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
@@ -151,10 +151,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 500,
   },
+  // Fixed width so "✓ 현재" and "선택" line up down the list instead of following their text.
   pill: {
+    width: 96,
     minHeight: 44,
-    minWidth: MinTouchTarget,
-    paddingHorizontal: 18,
+    paddingHorizontal: 6,
     paddingVertical: 8,
     borderRadius: 22,
     alignItems: 'center',
