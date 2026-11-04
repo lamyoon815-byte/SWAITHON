@@ -7,20 +7,22 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// Charcoal instead of pure black, near-neutral off-white instead of pure white: less glare,
+// still AAA (7:1+) for all text. Keep the off-white neutral so artwork colors are not tinted.
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#26282D',
+    background: '#FAFAF7',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#ECECE7',
+    textSecondary: '#4B4E55',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#EDEDEF',
+    background: '#1C1D21',
+    backgroundElement: '#2A2C31',
+    backgroundSelected: '#3A3D44',
+    textSecondary: '#B4B8C0',
   },
 } as const;
 

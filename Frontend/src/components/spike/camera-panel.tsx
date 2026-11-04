@@ -7,7 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRef, useState } from 'react';
 import { AccessibilityInfo, Image, StyleSheet, View } from 'react-native';
 
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
 import { fileSize, kb, resizeLongSide, uploadImage } from '@/lib/resize';

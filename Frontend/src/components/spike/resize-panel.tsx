@@ -5,7 +5,7 @@
 import { Asset } from 'expo-asset';
 import { useState } from 'react';
 
-import { BigButton } from '@/components/spike/big-button';
+import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
 import { fileSize, kb, LONG_SIDE, resizeLongSide, uploadImage } from '@/lib/resize';
