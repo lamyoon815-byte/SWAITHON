@@ -11,14 +11,14 @@ from dotenv import load_dotenv
 from starlette.concurrency import run_in_threadpool
 
 if __package__:
-    from .catalog import ArtworkDetail, ArtworkList, CatalogStore
+    from .catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from .images import normalize_image, upload_image
     from .accounts import AccountStore, create_account_router
     from .recognition import RecognitionService
     from .gemini import GeminiService
     from .ai_routes import create_ai_router
 else:
-    from catalog import ArtworkDetail, ArtworkList, CatalogStore
+    from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
     from accounts import AccountStore, create_account_router
     from recognition import RecognitionService
@@ -69,7 +69,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"])
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"])
 
     @application.middleware("http")
     async def private_cache_control(request: Request, call_next):
@@ -112,6 +112,11 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
         record["image_url"] = str(request.url_for("artwork-images", path=filename))
         return record
 
+    @application.get("/museums", response_model=MuseumList, tags=["작품 조회"], summary="등록 작품이 있는 미술관 목록")
+    def list_museums(limit: Annotated[int, Query(ge=1, le=100)] = 20,
+                     offset: Annotated[int, Query(ge=0)] = 0):
+        return store.museums(limit, offset)
+
     @application.get(
         "/artworks", response_model=ArtworkList, tags=["작품 조회"],
         summary="등록된 작품 목록 조회",
@@ -123,10 +128,11 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     )
     def list_artworks(
         request: Request,
+        museum_id: Annotated[str | None, Query(min_length=1)] = None,
         limit: Annotated[int, Query(ge=1, le=100, description="한 번에 가져올 작품 수 (1~100)")] = 20,
         offset: Annotated[int, Query(ge=0, description="앞에서 건너뛸 작품 수 (0부터 시작)")] = 0,
     ):
-        records, total = store.list(limit, offset)
+        records, total = store.list(limit, offset, museum_id)
         return {
             "items": [public_artwork(record, request) for record in records],
             "total": total,
@@ -140,23 +146,24 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
         summary="작품 번호로 작품 조회",
         description=(
             "작품 번호로 작품 상세 정보를 조회합니다. 응답 형식은 작품 상세 조회와 같습니다. "
-            "번호는 미술관별로 고유하므로, 여러 미술관에 같은 번호가 있으면 `museum`을 함께 보내야 합니다."
+            "번호는 미술관별로 고유하므로, 여러 미술관에 같은 번호가 있으면 `museum_id`를 함께 보내야 합니다. 기존 `museum` 이름 필터도 지원합니다."
         ),
         responses={
             404: {"description": "해당 번호로 등록된 작품이 없음"},
-            409: {"description": "여러 미술관에 같은 번호가 있어 museum 지정이 필요함"},
+            409: {"description": "여러 미술관에 같은 번호가 있어 museum_id 지정이 필요함"},
         },
     )
     def get_artwork_by_number(
         request: Request,
         number: Annotated[str, Query(min_length=1, description="작품 번호", examples=["INV 779"])],
+        museum_id: Annotated[str | None, Query(min_length=1, description="미술관 목록에서 받은 ID")] = None,
         museum: Annotated[str | None, Query(min_length=1, description="미술관 이름", examples=["루브르 박물관"])] = None,
     ):
-        records = store.find_by_number(number, museum)
+        records = store.find_by_number(number, museum, museum_id)
         if not records:
             raise HTTPException(status_code=404, detail="등록된 작품을 찾을 수 없습니다.")
         if len(records) > 1:
-            raise HTTPException(status_code=409, detail="같은 번호의 작품이 여러 미술관에 있습니다. museum을 지정해 주세요.")
+            raise HTTPException(status_code=409, detail="같은 번호의 작품이 여러 미술관에 있습니다. museum_id를 지정해 주세요.")
         return public_artwork(records[0], request)
 
     @application.get(

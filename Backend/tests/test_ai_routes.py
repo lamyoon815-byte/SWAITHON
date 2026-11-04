@@ -176,6 +176,19 @@ class GeminiTests(unittest.TestCase):
         self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
         self.assertIn("responseJsonSchema", json.loads(request.data)["generationConfig"])
 
+    def test_generated_region_links_and_invalid_reference_retry(self):
+        data = {**DESCRIPTION,
+                "regions": [{"label": "형태", "bbox": [0, 0, 0.5, 0.5], "color": "빨강"}],
+                "fact_region_indices": [0], "interpretation_region_indices": [None]}
+        with patch("Backend.gemini.urlopen", return_value=self.response(data)):
+            result = self.service.describe(self.content)
+        self.assertEqual(result.fact_region_indices, [0])
+        invalid = {**data, "fact_region_indices": [1]}
+        with patch("Backend.gemini.urlopen", side_effect=[self.response(invalid), self.response(data)]) as transport:
+            result = self.service.describe(self.content)
+        self.assertEqual(transport.call_count, 2)
+        self.assertEqual(result.fact_region_indices, [0])
+
     def test_missing_configuration_and_malformed_response(self):
         self.service.key = ""
         with self.assertRaises(HTTPException) as error:

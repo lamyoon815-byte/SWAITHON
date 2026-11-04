@@ -274,6 +274,8 @@ export type Description = {
   interpretations: string[];  // 분위기와 가능한 감정적 해석
   regions: Region[];          // 영역 터치, 위치 안내
   mood_keywords: string[];    // 배경음악 추천 (P2)
+  fact_region_indices: (number | null)[] | null;
+  interpretation_region_indices: (number | null)[] | null;
 };
 
 export type Artwork = {
@@ -281,6 +283,9 @@ export type Artwork = {
   title: string;
   artist: string;
   year: string | null;
+  number: string | null;
+  museum_id: string | null;
+  museum: string | null;
   background: string | null;  // 제작 배경
   source_url: string | null;  // 원본 출처 페이지 (저작권 표시용)
   license: string | null;
@@ -293,7 +298,7 @@ export type Artwork = {
 - `description`이 `null`이면 "아직 해설이 준비되지 않았어요"를 보여주고 해설 버튼을 비활성화합니다 (데모용 모나리자도 현재 `null`).
 - 사실(`facts`)과 해석(`interpretations`)은 화면과 음성 모두에서 **섞지 않고 따로** 보여줍니다.
 - **썸네일은 따로 없습니다.** 목록에서도 `image_url`을 `expo-image`로 작게 띄웁니다. 느리면 BE에 썸네일을 요청합니다.
-- **와이어프레임에는 있지만 BE에 없는 필드**: 작품 번호(`번호 01`), 소속 미술관. BE에 요청했습니다 (9장 BE 요청 1번). 그 전까지 mock에서는 `number`, `museum_id`를 추가 필드로 쓰고 `// TODO(BE)` 주석을 답니다.
+- 작품 번호·미술관 ID는 BE에 반영됐습니다. FE의 기존 mock 타입·API 연결 시 `number`, `museum_id`, `museum`의 null을 처리합니다. 번호는 문자열로 유지하며 숫자로 바꾸지 않습니다.
 - mock 데이터는 `src/mocks/artworks.json`(위 모양 그대로), 이미지는 `assets/images/artworks/<id>.jpg`. 공공 도메인 작품만 씁니다.
 
 ### 6.2 해설
@@ -304,7 +309,7 @@ export type Artwork = {
 export type Narration = {
   artwork_id: string;
   mode: 'facts' | 'interpretations' | 'both';
-  segments: { type: 'fact' | 'interpretation'; text: string }[];
+  segments: { type: 'fact' | 'interpretation'; text: string; region_index: number | null }[];
   text: string;               // segments를 줄바꿈으로 합친 것
   review_status: 'reviewed';
 };
@@ -312,7 +317,7 @@ export type Narration = {
 
 - 해설 재생(3)은 `segments`를 **한 문장씩** `expo-speech`로 읽습니다. 그래야 반복, 진행 바, 지금 읽는 문장 표시를 할 수 있습니다.
 - 해석 문장은 BE가 앞에 "가능한 감정적 해석입니다."를 붙여서 줍니다. FE에서 다시 붙이지 않습니다.
-- 와이어프레임 3의 "지금 설명하는 영역"은 `segments`와 `regions`가 연결되어 있지 않아 지금은 만들 수 없습니다 → 9장 BE 요청 4번.
+- "지금 설명하는 영역"은 `region_index`로 작품 상세 `description.regions`를 참조합니다(0부터). null은 강조하지 않습니다. 기존 해설은 연결 검수 전까지 null입니다.
 - 해설이 없으면 409가 옵니다.
 
 ### 6.3 촬영 인식
@@ -324,13 +329,19 @@ export type RecognitionResult = {
   mode: 'artwork' | 'placard';
   candidates: { artwork_id: string; title: string; artist: string; score: number; image_url: string }[]; // 최대 3개
   score_type: 'cosine_similarity' | 'fuzzy_text_similarity';
-  status: 'needs_confirmation' | 'no_match';
-  quality: { laplacian_variance: number; highlight_ratio: number; warnings: string[]; note: string };
+  status: 'matched' | 'needs_confirmation' | 'no_match';
+  confidence: 'high' | 'medium' | 'low';
+  match_threshold: number | null;
+  quality: {
+    laplacian_variance: number; highlight_ratio: number; warnings: string[]; note: string;
+    artwork_bbox: [number, number, number, number] | null; // 회전 보정 촬영본의 xywh 비율
+    framing_hint: 'move_left' | 'move_right' | 'move_up' | 'move_down' | 'move_closer' | 'move_back' | 'hold_still' | null;
+  };
 };
 ```
 
-- **신뢰도 구분은 BE에 요청했습니다** (9장 BE 요청 3번). 응답에 `confidence: 'high' | 'medium' | 'low'`가 들어오면 FE는 그 값으로 4 / 4-1 / 4-2만 고릅니다. **FE에서 점수로 기준을 만들지 않습니다.**
-- 들어오기 전까지: `status`가 `no_match`면 4-2(낮음), 후보가 있으면 **항상 4-1 확인 시트**(중간)로 처리합니다.
+- `confidence`가 high면 바로 작품으로 이동, medium이면 4-1 확인 시트, low면 4-2 미등록 안내입니다. **FE에서 점수로 기준을 만들지 않습니다.**
+- 실제 촬영 평가 기준이 없으면 BE는 후보를 medium으로 반환합니다. high 기준은 평가 후 서버 환경변수로 설정합니다.
 - `score`는 확률이 아닙니다. 화면에 퍼센트로 보여주지 않습니다.
 - `quality.warnings`가 있으면(흐림, 반사) 재촬영 안내 문구로 씁니다.
 
@@ -341,7 +352,8 @@ export type RecognitionResult = {
 - `confidence`가 `high`이거나 후보가 나오면 촬영을 멈추고 결과로 넘어갑니다. `quality.warnings`만 있으면 안내 문구를 바꾸고 계속 찍습니다.
 - **일정 시간(예: 15초) 안에 못 찾으면** 멈추고 4-2 시트를 띄웁니다. 계속 찍으면 배터리와 서버 요청이 낭비됩니다.
 - 화면을 떠나거나 앱이 백그라운드로 가면 촬영을 반드시 멈춥니다.
-- 위치 안내("조금 왼쪽으로")는 사진 안에서 작품이 어디 있는지 알아야 해서 지금 응답으로는 못 만듭니다. P0는 고정 문구("화면 안에 작품이 가득 차게 맞춰 주세요")로 하고, 위치 안내는 9장 BE 요청 2번이 들어오면 붙입니다 (P1).
+- 위치 안내는 `quality.framing_hint`가 있을 때 사용합니다. move_left는 카메라를 왼쪽으로 이동하라는 뜻입니다. bbox·힌트가 null이면 고정 문구("화면 안에 작품이 가득 차게 맞춰 주세요")를 사용합니다.
+- 자동 반복은 artwork 모드만 사용합니다. 사진은 60회/60초이며 혼잡 시 503 + Retry-After: 2, 한도 초과 시 429 + Retry-After: 60입니다. 해당 초만큼 기다린 뒤 재개합니다. 명패는 기존 공유 5회/분 제한을 유지합니다.
 - 미등록 작품은 `POST /analyze` (multipart `image`) → `{ description, review_status: 'unreviewed', warning }`. `warning` 문구를 화면과 음성으로 반드시 알립니다.
 
 ### 6.4 시각 프로필
@@ -413,7 +425,7 @@ export type DeviceSettings = {
 | GET / POST / DELETE | `/me/history` | 필요 | 2(기록 저장), 7 |
 | POST | `/auth/register`, `/auth/login` | | 로그인, 회원가입 |
 | POST | `/auth/logout` · GET `/me` | 필요 | 8 마이페이지 |
-| - | 미술관 목록, 번호로 작품 조회, QR 내용 해석 | | 1-0, 1-1, 1-2 → **BE에 요청함**, 9장 BE 요청 1번 |
+| GET | `/museums`, `/artworks?museum_id=...`, `/artworks/by-number?museum_id=...&number=...` | | 1-0, 1-1. QR은 `swaithon://artwork/<id>`에서 ID 추출 후 상세 조회. FE 연결은 별도 |
 
 ---
 
@@ -524,22 +536,24 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 | 항목 | 결정 | 반영 |
 |---|---|---|
 | 로그인 | **로그인·회원가입 화면을 만든다.** BE 계정 API를 그대로 쓰고 프로필은 서버에 저장한다. 온보딩(5)의 "가입 없이 이 기기에만 저장돼요" 문구는 고친다 | 5.1, 5.2, 6.4 |
-| 촬영 방식 | **자동 촬영을 넣는다**. 디자인에는 셔터 버튼이 있어 지금은 셔터로 찍는다. 자동 촬영을 붙인 뒤 셔터를 남길지는 9.3에서 정한다. [tech-review 1-1](../docs/tech-review.md#1-결정-사항)의 "자동 촬영 제외"와 다르므로 BE 담당에게 알려 그 문서도 고친다 | 6.3 |
+| 촬영 방식 | **자동 촬영을 넣는다**. 디자인에는 셔터 버튼이 있어 지금은 셔터로 찍는다. 자동 촬영을 붙인 뒤 셔터를 남길지는 9.3에서 정한다. [tech-review 1-1](../docs/tech-review.md#1-결정-사항)도 자동 촬영 지원으로 반영됨 | 6.3 |
 | 음성으로 작품 찾기 | **버튼은 화면에 넣는다.** 누르면 "준비 중" 안내만 하고, 기능(음성 인식)은 dev build로 바꿀 때 붙인다 | 3, 5.2 |
 | 하단 탭 | **홈 · 카메라 · 마이** (디자인). 화면 위에 떠 있는 알약 모양. 선택된 탭은 머스터드 배경 (디자인의 회색은 라이트 모드에서 안 보여서 바꿈). 관람 기록은 마이페이지에서 들어감 | 4 |
 | 디자인 vs 와이어프레임 | 다르면 **디자인**([docs/design/](docs/design/))을 따른다. 색은 디자인의 `#FFB800`·검정 배경 대신 `constants/a11y.ts` 팔레트(머스터드·차콜, 라이트/다크)를 쓴다 | 1, 7 |
 | 담당 | 홈 · 1-0 · 번호 입력을 A에서 B로 옮김 | 5.1 |
 | 인식 신뢰도 | **BE가 나눠서 준다.** FE는 기준값을 갖지 않는다 | 6.3 |
 
-### 9.2 BE 요청 (보낸 뒤 상태를 고칩니다)
+### 9.2 BE 요청 및 반영 상태
 
 | # | 요청 | 쓰는 화면 | 상태 |
 |---|---|---|---|
-| 1 | 미술관 목록 API, 작품에 `museum_id`와 미술관별 작품 번호 필드, **미술관 + 번호로 작품 조회** API, QR 내용 형식 합의 (`swaithon://artwork/<id>` 딥링크 vs 작품 id 문자열. 앱 scheme은 `swaithon`) | 1, 1-0, 1-1, 1-2 | TODO 요청 |
-| 2 | (P1) 자동 촬영 위치 안내용: 사진 안에서 작품이 차지하는 영역(bbox)이나 "왼쪽/오른쪽/가까이" 같은 방향 힌트를 `/recognize`의 `quality`에 추가 | 4 | TODO 요청 |
-| 3 | `/recognize` 응답에 `confidence: "high" \| "medium" \| "low"` 추가. 기준은 실제 촬영본으로 BE·AI가 정함 (tech-review 6.3 신뢰도 보정). 기준이 없을 때는 `medium`으로 | 4, 4-1, 4-2 | TODO 요청 |
-| 4 | (P1) `/narration`의 `segments`마다 해당 `regions` 번호 (`region_index`) — 해설 중 "지금 설명하는 영역" 표시용 | 3 | TODO 요청 (AI와) |
-| 5 | 자동 촬영은 1~2초마다 `/recognize`를 부르므로, 요청 횟수 제한이 걸리지 않는지 확인 (현재 `artwork` 모드는 제한 없음, `placard`는 분당 5회) | 4 | TODO 확인 |
+| 1 | 미술관 목록 API, 작품에 `museum_id`와 미술관별 작품 번호 필드, **미술관 + 번호로 작품 조회** API, QR 내용 형식 합의 (`swaithon://artwork/<id>` 딥링크 vs 작품 id 문자열. 앱 scheme은 `swaithon`) | 1, 1-0, 1-1, 1-2 | BE 구현: `/museums`, `museum_id`, `number`, ID+번호 조회. QR은 `swaithon://artwork/<id>`로 확정. FE 연결 별도 |
+| 2 | (P1) 자동 촬영 위치 안내용: 사진 안에서 작품이 차지하는 영역(bbox)이나 "왼쪽/오른쪽/가까이" 같은 방향 힌트를 `/recognize`의 `quality`에 추가 | 4 | BE 구현: `quality.artwork_bbox`, `framing_hint`. 원본과 특징점 대응 검증 성공 시만 제공, 그 외 null |
+| 3 | `/recognize` 응답에 `confidence: "high" \| "medium" \| "low"` 추가. 기준은 실제 촬영본으로 BE·AI가 정함 (tech-review 6.3 신뢰도 보정). 기준이 없을 때는 `medium`으로 | 4, 4-1, 4-2 | BE 구현: 후보는 기본 medium, 후보 없음 low. 실제 촬영 평가 후 환경변수로 high 기준 설정 |
+| 4 | (P1) `/narration`의 `segments`마다 해당 `regions` 번호 (`region_index`) — 해설 중 "지금 설명하는 영역" 표시용 | 3 | BE·AI 생성 스키마 반영: segment마다 `region_index`(0 기반 또는 null). 기존 해설은 연결 검수 후 재등록 필요 |
+| 5 | 자동 촬영은 1~2초마다 `/recognize`를 부르므로, 요청 횟수 제한이 걸리지 않는지 확인 (`artwork`는 60회/60초, `placard`는 분당 5회 공유) | 4 | 1초 간격 계약 테스트 통과. 진행 중 요청은 겹치지 않음. 429/503은 Retry-After 대기. 실제 배포 서버·촬영본 부하 검증은 별도 |
+
+세부 응답·null 처리·호출 제한은 [API 명세](../docs/api-spec.md), 실측 범위는 [부하 기록](../docs/recognition-load.md)을 참고합니다.
 
 ### 9.3 미결정
 

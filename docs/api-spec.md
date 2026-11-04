@@ -1,7 +1,7 @@
 # SWAITHON FE API 명세서
 
-기준일: 2026-11-03. **이 문서와 함께 커밋한 백엔드 코드 기준**입니다. 배포 서버의 반영 상태는 별도로 확인합니다.
-AI 프로필·보정·해설 fallback·CLIP 임계값 분기를 포함합니다.
+기준일: 2026-11-04. **이 문서와 함께 커밋한 백엔드 코드 기준**입니다. 배포 서버의 반영 상태는 별도로 확인합니다.
+미술관·번호·QR, confidence, 자동 촬영 호출 제한, 위치 힌트·해설 영역 연결과 기존 AI 계약을 포함합니다.
 `POST /correction`은 라우트와 입력·출력 계약만 준비됐으며 실제 AI 함수 미연결로 정상 입력에도 503을 반환합니다.
 
 ## 1. 접속 및 공통 규칙
@@ -42,6 +42,7 @@ AI 프로필·보정·해설 fallback·CLIP 임계값 분기를 포함합니다.
 | PUT | `/me/profile` | 필요 | 200 | 앱 설정 전체 저장 |
 | GET | `/me/ai-profile` | 필요 | 200 | AI 6필드 프로필 조회 |
 | PUT | `/me/ai-profile` | 필요 | 200 | AI 프로필 전체 저장 |
+| GET | `/museums` | 불필요 | 200 | 등록 작품이 있는 미술관 목록 |
 | GET | `/artworks` | 불필요 | 200 | 등록 작품 목록 |
 | GET | `/artworks/by-number` | 불필요 | 200 | 작품 번호·미술관 조회 |
 | GET | `/artworks/{artwork_id}` | 불필요 | 200 | 작품 상세 |
@@ -191,6 +192,7 @@ PUT은 전체 교체이며 생략 필드는 기본값으로 저장합니다. 응
   "year": null,
   "number": "INV 779",
   "museum": "루브르 박물관",
+  "museum_id": "louvre",
   "background": null,
   "source_url": null,
   "license": null,
@@ -201,15 +203,25 @@ PUT은 전체 교체이며 생략 필드는 기본값으로 저장합니다. 응
 ```
 
 - `id`, `title`, `artist`, `image_url`: string.
-- `year`, `number`, `museum`, `background`, `source_url`, `license`: string 또는 null. `year`는 숫자 타입이 아닙니다.
+- `year`, `number`, `museum`, `museum_id`, `background`, `source_url`, `license`: string 또는 null. `year`는 숫자 타입이 아닙니다.
 - `number`는 소장번호이며 문자열입니다. `007`을 `7`로 변환하지 않습니다.
 - `review_status`: `pending | reviewed`. 미검수이면 `description=null`입니다.
 - `description`: 7장의 공통 해설 객체 또는 null.
 - `image_url`은 반환된 URL을 사용합니다. `/images/{filename}`은 JPEG·PNG·WebP 바이너리이며 없는 파일은 404입니다.
 
+### GET /museums
+
+인증 불필요. Query `limit` 기본 20(1~100), `offset` 기본 0(0 이상).
+성공 **200** 예: `{"items":[{"id":"louvre","name":"루브르 박물관","area":"","artwork_count":1}],"total":1,"limit":20,"offset":0}`.
+등록 작품이 있는 미술관만 ID 오름차순으로 반환합니다. `area`는 현재 수집하지 않아 빈 문자열입니다.
+카탈로그에 `museum_id`를 명시하는 것을 권장합니다. 기존 미술관명만 있는 데이터는 서버 시작 시
+`museum-` + 미술관명 UTF-8 SHA256 앞 20자리로 ID를 자동 생성합니다. 이름을 바꾸더라도 발급된 ID를 유지합니다.
+미술관 없는 작품은 `museum_id=null`이며 목록에 포함하지 않습니다.
+
 ### GET /artworks
 
-Query: `limit` 기본 20(1~100), `offset` 기본 0(0 이상).
+Query: `limit` 기본 20(1~100), `offset` 기본 0(0 이상), `museum_id` 선택(미술관 목록의 ID).
+미술관을 지정하면 해당 작품만 조회하며 없는 ID는 빈 목록입니다.
 성공 **200**: `{ "items": ArtworkDetail[], "total": number, "limit": number, "offset": number }`.
 작품 ID 오름차순이며 비어 있으면 `items=[]`, `total=0`입니다. 오류 **422**.
 
@@ -222,14 +234,24 @@ Path: `artwork_id` string. 성공 **200**: `ArtworkDetail`. 오류 **404** 작�
 | Query | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | `number` | string, 1자 이상 | 필수 | 작품 번호. 정확히 일치하는 값 |
-| `museum` | string, 1자 이상 | 선택 | 미술관명. 정확히 일치하는 값 |
+| `museum_id` | string, 1자 이상 | 선택 | `/museums`에서 받은 ID. 새 FE는 이 필드 사용 |
+| `museum` | string, 1자 이상 | 선택 | 기존 연동용 미술관명. ID와 함께 보내면 두 조건 모두 적용 |
 
-예: `/artworks/by-number?number=007`. 한글·공백은 `URLSearchParams`로 인코딩합니다.
+예: `/artworks/by-number?museum_id=louvre&number=007`. 한글·공백은 `URLSearchParams`로 인코딩합니다.
 `museum` 미선택 시 빈 문자열 대신 파라미터를 생략합니다. 입력 앞뒤 공백은 FE에서 제거합니다.
 성공 **200**: `ArtworkDetail`.
 오류: **404** 해당 번호·미술관 조합 없음 / **409** 여러 미술관의 번호 중복, 미술관 지정 필요 / **422** 번호 누락·빈 값.
-409 응답에는 미술관 후보 목록이 없으며 전용 미술관 목록 API도 없습니다.
+409 응답에는 후보 목록이 없으므로 `/museums`에서 미술관을 선택합니다.
 404는 번호 조회 실패이며 촬영 이미지의 미등록 판정을 뜻하지 않습니다.
+
+### QR 내용 계약
+
+QR 내용은 **`swaithon://artwork/<artwork_id>`**로 확정합니다. 예: `swaithon://artwork/mona-lisa`.
+`artwork_id`는 작품 번호가 아니라 카탈로그 ID(`[a-z0-9][a-z0-9_-]{0,79}`)입니다.
+FE는 scheme=`swaithon`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
+`GET /artworks/{artwork_id}`를 호출합니다. query·fragment·추가 경로와 단순 ID 문자열은 지원하지 않습니다.
+다른 URL을 열거나 그대로 API 주소로 사용하지 않습니다. 미등록 ID는 404 안내로 연결합니다.
+이 계약은 QR 페이로드이며 OS 딥링크 라우팅·카메라 스캔은 FE에서 연결합니다.
 
 ## 6. 이미지 입력·작품 인식
 
@@ -281,10 +303,13 @@ Bearer 인증, multipart:
   ],
   "score_type": "cosine_similarity",
   "status": "needs_confirmation",
+  "confidence": "medium",
   "quality": {
     "laplacian_variance": 150,
     "highlight_ratio": 0.05,
     "warnings": [],
+    "artwork_bbox": null,
+    "framing_hint": null,
     "note": "품질 경고는 규칙 기반 참고값이며 인식을 차단하지 않습니다."
   },
   "match_threshold": null
@@ -294,9 +319,15 @@ Bearer 인증, multipart:
 - `candidates`: 점수 내림차순 최대 3개. 비어 있을 수 있습니다. 작품 전체 정보는 상세 API로 조회합니다.
 - 사진 `score_type=cosine_similarity`, 명패 `score_type=fuzzy_text_similarity`.
 - 점수는 확률이 아니므로 정확도 %로 표시하지 않습니다. 사진 점수 범위 -1~1, 명패 점수 0~1입니다.
-- `needs_confirmation`: FE에서 사용자가 후보 작품을 확인·선택하도록 합니다. 자동 확정 상태는 없습니다.
+- `confidence=high`: 바로 첫 후보 작품으로 이동. `status=matched`.
+- `confidence=medium`: 후보 확인 시트. `status=needs_confirmation`.
+- `confidence=low`: 후보 없음·미등록 안내. `status=no_match`, `candidates=[]`.
+- 사진 모드에서 실제 촬영본 평가 후 `CLIP_MATCH_THRESHOLD`(미만이면 low), `CLIP_HIGH_CONFIDENCE_THRESHOLD`(이상이면 high)를 설정합니다. high는 match 이상이어야 합니다. 기준 미설정이면 후보가 있는 응답은 항상 medium입니다. 명패도 후보가 있으면 medium, OCR 매칭 후보가 없으면 low입니다.
+- 현재 실제 촬영 평가값이 없어 두 환경변수 기본값은 비어 있습니다. 임의의 high 기준은 넣지 않습니다.
 - `no_match`: 후보 없음. 사진 모드에서 임계값이 설정되고 최고 점수가 기준보다 낮아도 이 상태와 빈 후보를 반환합니다.
 - `match_threshold`: 설정된 사진 임계값 또는 null. 명패는 항상 null. 평가 전 임의 기준값을 넣지 않습니다.
+- `quality.artwork_bbox`: 회전 보정된 **촬영본** 대비 `[x,y,width,height]`, 0~1 비율. 등록 원본과 최고 후보의 ORB 특징점·RANSAC 투영이 충분히 검증될 때만 반환합니다. 명패·후보 없음·특징 부족·작품 잘림·위치 추정 실패는 null입니다. confidence와 별개인 보조 정보이며 작품 확정 근거로 쓰지 않습니다.
+- `quality.framing_hint`: 카메라를 움직일 방향. `move_left`(조금 왼쪽), `move_right`, `move_up`, `move_down`, `move_closer`, `move_back`, `hold_still` 또는 null. bbox가 확인되지 않으면 null입니다. 중심이 0.4~0.6 밖이면 중심 맞춤을 우선하고, 중앙에서는 면적 25% 미만이면 가까이, 너비·높이 95% 초과면 뒤로 안내합니다. 기기 기울기/회전 각도는 제공하지 않습니다.
 - `quality.warnings`: 흐림·반사 가능성 안내용 문자열 배열. 재촬영을 안내할 수 있으며 서버는 인식을 차단하지 않습니다.
 - 미등록 해설을 원하면 FE가 촬영본을 다시 `/analyze`로 전송합니다. 이 API가 Gemini 해설까지 자동 생성하지 않습니다.
 
@@ -314,7 +345,9 @@ Bearer 인증, multipart:
   "regions": [
     {"label": "붉은 형태", "bbox": [0.1, 0.2, 0.3, 0.4], "color": "붉은색"}
   ],
-  "mood_keywords": ["따뜻함"]
+  "mood_keywords": ["따뜻함"],
+  "fact_region_indices": [0],
+  "interpretation_region_indices": [null]
 }
 ```
 
@@ -322,6 +355,10 @@ Bearer 인증, multipart:
 `bbox=[왼쪽 x, 위쪽 y, 너비, 높이]`는 전체 이미지 대비 0~1 비율입니다. `[x1,y1,x2,y2]`가 아닙니다.
 너비·높이는 양수이고 이미지 경계를 넘지 않습니다. 등록 작품은 원본, 실시간 분석은 회전 보정한 촬영본 기준입니다.
 화면에 배치할 때 이미지의 실제 표시 영역·여백·줌 변환을 반영합니다.
+`fact_region_indices`, `interpretation_region_indices`는 각각 문장 배열과 길이가 같은 영역 연결 배열입니다.
+항목은 `regions`의 0부터 시작하는 인덱스 또는 null(전체 설명·연결 불명)입니다.
+배열 자체도 null일 수 있습니다(기존 데이터). 길이·인덱스 범위는 AI 응답과 카탈로그 등록 시 검증합니다.
+AI가 생성한 영역 연결도 사람이 검수한 뒤 등록합니다.
 
 ### GET /artworks/{artwork_id}/narration
 
@@ -334,8 +371,8 @@ Query `mode`: `facts | interpretations | both`, 선택. 생략 시 계정 `/me/p
   "artwork_id": "mona-lisa",
   "mode": "both",
   "segments": [
-    {"type": "fact", "text": "붉은 형태가 있습니다."},
-    {"type": "interpretation", "text": "가능한 감정적 해석입니다. 따뜻하게 느껴질 수 있습니다."}
+    {"type": "fact", "text": "붉은 형태가 있습니다.", "region_index": 0},
+    {"type": "interpretation", "text": "가능한 감정적 해석입니다. 따뜻하게 느껴질 수 있습니다.", "region_index": null}
   ],
   "text": "붉은 형태가 있습니다.\n가능한 감정적 해석입니다. 따뜻하게 느껴질 수 있습니다.",
   "review_status": "reviewed"
@@ -344,6 +381,9 @@ Query `mode`: `facts | interpretations | both`, 선택. 생략 시 계정 `/me/p
 
 DB의 검수 해설만 읽으며 Gemini를 호출하지 않습니다. 음성 파일은 반환하지 않습니다.
 `text` 또는 `segments`를 FE의 expo-speech로 재생합니다.
+각 segment의 `region_index`는 작품 상세 `description.regions`의 인덱스입니다.
+null이면 영역을 강조하지 않습니다. 모드를 필터해도 인덱스는 바뀌지 않습니다.
+기존 해설에 연결 데이터가 없으면 null이며 문장 순서로 위치를 추측하지 않습니다.
 오류: **404** 작품 없음 / **409** 검수 해설 없음 / **422** 잘못된 mode.
 
 ### POST /analyze
@@ -508,7 +548,11 @@ Bearer 인증. Path `history_id`: 관람 기록 ID. 요청 본문 없음.
 
 등록·로그인은 서버가 인식하는 클라이언트 IP 기준 **분당 10회 공유**입니다.
 `/analyze`, 명패 `/recognize`, `/correction`은 사용자 기준 **분당 5회 공유**입니다.
-사진 모드 `/recognize`는 이 AI 호출 제한을 사용하지 않습니다.
+사진 모드 `/recognize`는 별도로 사용자당 **60초 동안 60회**를 허용합니다. 1~2초 자동 촬영을 지원하며 초과 시 429 + `Retry-After: 60`입니다.
+사진 처리 전체(전처리·CLIP·위치 추정)는 프로세스당 **1개**만 실행합니다. 처리 중 추가 요청은 대기열에 넣지 않고 **503 + `Retry-After: 2`**로 반환합니다.
+FE는 응답이 끝난 뒤 다음 촬영을 예약하고 429/503에서는 Retry-After만큼 대기합니다. 확인 시트·화면 이탈·앱 백그라운드에서는 촬영을 중단합니다.
+자동 반복은 `mode=artwork`에만 사용합니다. Gemini를 호출하는 명패 모드는 수동 요청으로 유지합니다.
+실측 범위와 배포 전 검증은 [자동 촬영 부하 기록](recognition-load.md)을 참고합니다.
 Gemini 외부 호출 동시 실행은 프로세스당 2개입니다. 제한은 단일 서버 프로세스 기준입니다.
 FE는 자동 무한 재시도를 하지 않고 대기·수동 재시도를 제공합니다.
 
@@ -516,10 +560,97 @@ FE는 자동 무한 재시도를 하지 않고 대기·수동 재시도를 제�
 
 1. 회원가입 또는 로그인 → 토큰 저장 → `/me/profile`, `/me/ai-profile` 조회.
 2. 앱 설정은 `/me/profile`, AI 보정 설정은 `/me/ai-profile`에 각각 저장.
-3. 작품 번호 입력은 `/artworks/by-number`, 사진·명패는 `/recognize`로 조회.
-4. 후보 선택 후 작품 ID로 상세·원본 조회 → `/narration` 텍스트를 TTS 재생.
+3. `/museums`에서 미술관 선택 → `/artworks?museum_id=...` 또는 `/artworks/by-number?museum_id=...&number=...`. QR은 ID 추출 후 작품 상세 조회. 사진·명패는 `/recognize`.
+4. confidence에 따라 바로 이동·후보 확인·미등록 안내로 분기. 선택 후 작품 ID로 상세·원본 조회 → `/narration` 텍스트를 TTS 재생.
 5. `no_match`라면 촬영본으로 `/analyze` 호출 → 미검수·fallback 상태를 구분해 표시.
 6. 등록 작품 감상 시 `/me/history` 등록. 미등록 감상 저장은 현재 지원하지 않음.
 7. AI 보정 함수 연결 전까지 `/correction`의 503을 처리하고 앱 Skia 보정 사용.
 
 개발 서버 실행 방법은 [Backend README](../Backend/README.md)를 참고합니다.
+
+## 12. React Native 연결 예시
+
+### 서버 주소 설정
+
+명세의 `BASE_URL`은 FE에서 정하는 서버 주소입니다. 휴대폰에서 `127.0.0.1`은 휴대폰 자신을 가리키므로
+PC의 로컬 IP 또는 공유된 ngrok 주소를 사용합니다. ngrok 주소가 바뀌면 FE 설정도 갱신합니다.
+기존 FE의 `EXPO_PUBLIC_UPLOAD_URL`은 전처리 테스트용 `/upload` 전체 URL이며 전체 API Base URL과 구분합니다.
+`EXPO_PUBLIC_API_URL`은 현재 FE의 공통 설정입니다.
+
+```dotenv
+EXPO_PUBLIC_API_URL=https://공유받은주소.ngrok-free.app
+```
+
+```ts
+const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL;
+if (!configuredBaseUrl) throw new Error("API 서버 주소를 설정해 주세요.");
+const BASE_URL = configuredBaseUrl.replace(/\/+$/, "");
+```
+
+공개 FE 환경변수에는 서버 주소만 넣습니다. Gemini 키는 서버에서 관리합니다.
+웹 FE의 출처가 달라지면 BE의 `CORS_ORIGINS`에도 해당 웹 출처를 추가해야 합니다.
+
+### 촬영본으로 작품 인식 요청
+
+아래는 기존 FE 파일 업로드 방식과 같은 React Native FormData 예시입니다.
+`uri`, `name`, `type`은 실제 파일 형식과 일치시킵니다. JPEG로 리사이즈한 결과를 보내는 경우의 예시입니다.
+
+```ts
+async function recognizePhoto(uri: string, token: string) {
+  const body = new FormData();
+  body.append("image", {
+    uri,
+    name: "capture.jpg",
+    type: "image/jpeg",
+  } as unknown as Blob);
+  body.append("mode", "artwork");
+
+  const response = await fetch(`${BASE_URL}/recognize`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    // 실제 앱에서는 status와 detail을 10장의 규칙에 따라 화면 상태로 매핑
+    throw new Error(`작품 인식 실패 (${response.status})`);
+  }
+  return data;
+}
+```
+
+`as unknown as Blob`은 React Native의 `{ uri, name, type }` 파일 객체를 DOM 타입 선언과 맞추기 위한 단언입니다.
+웹에서는 이 객체 대신 실제 `File` 또는 `Blob`을 append합니다.
+`/analyze`도 같은 `image` 파일 필드로 전송하며, 명패 인식은 `mode=placard`로 변경합니다.
+
+### 응답 종류별 분기
+
+| 요청 | 성공 본문 읽기 | 주의 |
+|---|---|---|
+| JSON API | `response.json()` | 먼저 status로 성공·실패 구분. 200의 fallback도 확인 |
+| 로그아웃·기록 삭제 | 읽지 않음 | 204는 JSON 본문 없음 |
+| `/correction` | JPEG 바이너리 | 성공만 바이너리. 오류는 detail을 가진 JSON |
+| `image_url` | 이미지 컴포넌트의 source | API JSON으로 파싱하지 않음 |
+
+네트워크 단절·프록시 오류는 JSON이 아닐 수 있으므로 공통 요청 함수는 JSON 파싱 실패도 처리합니다.
+
+## 13. 요청 재시도와 화면 상태
+
+| 상황 | FE 동작 |
+|---|---|
+| 앱 시작 | 저장된 토큰이 있으면 `/me` 등 인증 API로 확인. 401이면 토큰 정리·재로그인 |
+| 프로필 저장 | 전체 객체를 전송하고 성공 응답을 캐시에 반영. 여러 저장 요청이 겹치지 않게 처리 |
+| 인식 결과 | `confidence` high는 바로 이동, medium은 확인 시트 유지, low는 미등록 안내 |
+| 미등록·후보 없음 | `no_match`이면 작품명 확정 없이 촬영본 분석 또는 재촬영 선택 제공 |
+| 미검수 해설 | `fallback=false`여도 `unreviewed` 표시. 검수된 등록 해설과 구분 |
+| 해설 생성 실패 | `fallback=true`이면 기본 안내 표시·수동 재시도 제공 |
+| 화면 이탈·요청 취소 | 늦게 도착한 응답이 다른 작품 화면을 덮어쓰지 않게 처리 |
+
+관람 기록 등록에는 중복 방지 키가 없으며 같은 요청을 다시 보내면 새 기록이 생깁니다.
+네트워크 오류로 성공 여부를 모를 때 무조건 자동 재전송하지 않습니다. 로그아웃·기록 삭제를 다시 호출하면
+각각 401·404가 나올 수 있습니다. 프로필 PUT은 같은 값을 재전송할 수 있지만 생략 필드가 기본값으로 돌아가는 점에 유의합니다.
+FE에서 요청을 취소해도 서버의 Gemini 작업·사용량까지 취소된다고 보장하지 않습니다.
+
+현재 지원하지 않는 API는 토큰 갱신, 비밀번호 재설정, 회원 탈퇴,
+미등록 작품 관람 기록, 관람 기록 수정, FE의 작품 카탈로그 업로드·등록입니다.
+카탈로그 등록은 BE 관리자 CLI로 수행합니다. 시각 프로필은 사용자 설정이며 색각 진단 결과 API는 없습니다.

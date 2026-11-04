@@ -92,7 +92,8 @@ FE에 전달할 전체 요청·응답·인증·오류 규격은 [FE API 명세�
 | `GET /health` | 서버 상태 확인 |
 | `POST /upload` | multipart 필드 `image` 수신, 검증 후 RGB JPEG로 변환, 결과 메타데이터 반환 |
 | `GET /artworks?limit=20&offset=0` | 작품 목록과 전체 개수 (`limit`: 1~100) |
-| `GET /artworks/by-number?number=...&museum=...` | 작품 번호로 상세 조회. `museum`은 선택이며 번호가 여러 미술관에 있으면 필수 |
+| `GET /museums` | 등록 작품이 있는 미술관 목록 |
+| `GET /artworks/by-number?number=...&museum_id=...` | 미술관 ID + 번호로 상세 조회. 기존 `museum` 이름 필터도 지원 |
 | `GET /artworks/{id}` | 작품 정보·검수된 해설·원본 이미지 URL, 없는 ID는 404 |
 | `GET /images/{filename}` | 등록된 원본 이미지 제공 |
 | `POST /auth/register` | 이메일 회원가입 및 세션 발급 |
@@ -140,7 +141,7 @@ uv pip install --python .venv/bin/python -r requirements-ai.txt
 
 AI 평가 후 `CLIP_MATCH_THRESHOLD`에 -1~1의 임계값을 설정하고 서버를 재시작한다.
 사진 모드에서 최고 점수가 기준값보다 낮으면 `status=no_match`, `candidates=[]`를 반환한다.
-같거나 높으면 기존처럼 후보 확인이 필요하다. 설정을 비워두면 임계값으로 거부하지 않는다.
+같거나 높으면 기본 medium이며, 추가로 평가한 `CLIP_HIGH_CONFIDENCE_THRESHOLD` 이상이면 high를 반환한다. 설정을 비워두면 임계값으로 거부하지 않는다.
 명패 점수에는 이 임계값을 적용하지 않는다.
 
 ## Gemini 명패 인식·해설
@@ -210,3 +211,17 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 ```bash
 ./Backend/.venv/bin/python -m unittest discover -s Backend/tests -v
 ```
+
+
+## FE 요청 API (README 9.2)
+
+- `GET /museums?limit=20&offset=0`: `{items:[{id,name,area,artwork_count}],total,limit,offset}`. 등록 작품이 있는 미술관만 반환하며 지역 미수집 시 area는 빈 문자열.
+- 작품의 `museum_id`로 `GET /artworks?museum_id=...`, `GET /artworks/by-number?museum_id=...&number=007` 조회. `number`는 앞자리 0을 보존하는 문자열. 기존 `museum` 이름 필터도 지원.
+- 카탈로그에는 `museum_id`와 `museum`을 함께 등록. 기존 이름만 있는 데이터는 시작 시 결정적인 ID로 자동 보완. 같은 ID는 같은 이름, 번호는 ID 내 고유. 이름 변경 시 기존 ID를 명시하여 유지.
+- QR 페이로드는 `swaithon://artwork/<id>`로 확정. FE에서 ID 검증 후 작품 상세 조회.
+- `/recognize`의 `confidence`: high는 바로 이동, medium은 확인, low는 후보 없음. 실제 촬영본으로 평가한 `CLIP_MATCH_THRESHOLD`, `CLIP_HIGH_CONFIDENCE_THRESHOLD`가 없으면 후보는 medium. 후보가 없으면 low.
+- 사진 자동 촬영은 사용자당 60회/60초. 처리 중 추가 요청은 503 + Retry-After: 2로 거부하여 CPU 대기열을 만들지 않음. FE는 진행 중 요청을 겹치지 않고 1~2초 간격으로 예약. 명패 자동 반복은 지원하지 않음(기존 Gemini 공유 5회/분).
+- `quality.artwork_bbox`는 회전 보정된 촬영본 대비 정규화 xywh. 최고 후보 원본과 ORB/RANSAC 위치 검증에 성공할 때 `framing_hint`도 제공. 실패·명패·후보 없음은 둘 다 null.
+- Description의 `fact_region_indices`, `interpretation_region_indices`는 해당 문장 배열과 같은 길이의 0 기반 regions 인덱스/null 배열. 생략하면 null. Gemini 생성 및 import 시 길이·범위 검증 후 narration의 각 `region_index`로 전달. 기존 검수 해설의 누락 연결은 추측하지 않고 null.
+
+실측 범위·배포 검증은 [부하 기록](../docs/recognition-load.md), FE 전체 계약은 [API 명세](../docs/api-spec.md) 참고.

@@ -108,3 +108,12 @@ UTF-8 JSON **배열**로 저장합니다. 아래는 이 폴더에 `catalog.json`
 BE 기본 설정은 `CLIP_MODEL=ViT-B-32-quickgelu`, `CLIP_PRETRAINED=openai`입니다.
 결과와 함께 모델·가중치·전처리·카탈로그 버전, Top-1·Top-3, 미등록 오매칭·등록 오거부, 점수 분포, 임계값·비교 규칙을 공유합니다.
 임계값 전달 전에는 BE가 후보 확인 응답을 반환합니다. 평가값을 `CLIP_MATCH_THRESHOLD`에 설정하면 최고 점수가 기준 미만일 때 `no_match`와 빈 후보를 반환합니다. 같으면 후보 확인을 유지합니다.
+
+
+## FE 9.2 추가 AI 계약
+
+- 카탈로그 작품은 `museum_id`(안정적인 영문 소문자·숫자·하이픈·밑줄 ID), `museum`(표시명), `number`(미술관 내 고유 문자열)를 함께 등록합니다. 미술관 ID 미지정 시 이름에서 생성하므로 새 데이터는 명시적 ID를 권장합니다.
+- 실제 촬영본 평가 전 confidence는 후보가 있으면 medium, 없으면 low. 평가한 거부 기준을 `CLIP_MATCH_THRESHOLD`, 바로 이동할 기준을 `CLIP_HIGH_CONFIDENCE_THRESHOLD`에 설정하며 high >= match여야 합니다. 두 기준이 없으면 high는 반환하지 않습니다. 명패는 medium/low만 반환합니다.
+- 촬영본 위치는 BE가 최고 후보 원본과 ORB/RANSAC으로 검증합니다. `quality.artwork_bbox`는 회전 보정 촬영본의 xywh 비율, 검증 실패는 null. CLIP 유사도에서 bbox를 추측하지 않습니다.
+- Gemini `Description`에는 `fact_region_indices`, `interpretation_region_indices`를 추가했습니다. 각각 facts/interpretations와 같은 길이이며 각 값은 regions의 0 기반 인덱스 또는 null입니다. 전체 설명·불확실한 연결은 null로 둡니다. 잘못된 길이/범위는 스키마 오류로 재시도/기존 fallback 흐름을 따릅니다.
+- 검수 시 문장과 영역 연결도 함께 확인합니다. 기존 해설은 배열 누락을 허용하며 narration의 region_index는 null입니다. 연결을 보완하려면 관리자 검수 JSON에 배열을 추가하고 재등록합니다.

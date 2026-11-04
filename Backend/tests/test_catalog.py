@@ -72,7 +72,8 @@ class CatalogTests(unittest.TestCase):
         self.assertIsNone(self.client.get("/artworks/sample-artwork").json()["description"])
         self.import_records([self.record(description=description, review_status="reviewed")])
         self.assertEqual(
-            self.client.get("/artworks/sample-artwork").json()["description"], description
+            self.client.get("/artworks/sample-artwork").json()["description"],
+            {**description, "fact_region_indices": None, "interpretation_region_indices": None}
         )
 
     def test_reimport_updates_without_duplicates_and_persists(self):
@@ -145,6 +146,25 @@ class CatalogTests(unittest.TestCase):
         self.import_records([self.record(id="a"), self.record(id="b")])
         self.assertIsNone(self.client.get("/artworks/a").json()["number"])
         self.assertEqual(self.client.get("/artworks/by-number", params={"number": "1"}).status_code, 404)
+
+    def test_museum_api_id_filter_and_number_uniqueness(self):
+        self.assertEqual(self.client.get("/museums").json()["items"], [])
+        self.import_records([
+            self.record(id="a", museum_id="one", museum="가", number="007"),
+            self.record(id="b", museum_id="two", museum="나", number="007"),
+        ])
+        result = self.client.get("/museums?limit=1&offset=1").json()
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["items"], [{"id": "two", "name": "나", "area": "", "artwork_count": 1}])
+        response = self.client.get("/artworks/by-number", params={"museum_id": "one", "number": "007"})
+        self.assertEqual(response.json()["id"], "a")
+        self.assertEqual(self.client.get("/artworks?museum_id=two").json()["items"][0]["id"], "b")
+        self.assertEqual(self.client.get("/artworks/by-number?museum_id=one&museum=나&number=007").status_code, 404)
+        with self.assertRaises(ValueError):
+            self.import_records([self.record(id="c", museum_id="one", museum="가", number="007")])
+        with self.assertRaises(ValueError):
+            self.import_records([self.record(id="c", museum_id="one", museum="다른 이름")])
+        self.assertEqual(self.client.get("/museums?limit=101").status_code, 422)
 
     def test_upload_and_health_still_work(self):
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})

@@ -35,6 +35,21 @@ class Description(BaseModel):
     interpretations: list[str]
     regions: list[Region]
     mood_keywords: list[str]
+    # facts/interpretations와 같은 길이. null은 특정 영역과 연결되지 않은 문장.
+    fact_region_indices: list[int | None] | None = None
+    interpretation_region_indices: list[int | None] | None = None
+
+    @model_validator(mode="after")
+    def validate_region_links(self):
+        for texts, indices in ((self.facts, self.fact_region_indices),
+                               (self.interpretations, self.interpretation_region_indices)):
+            if indices is None:
+                continue
+            if len(indices) != len(texts):
+                raise ValueError("해설 영역 인덱스는 해당 문장 배열과 길이가 같아야 합니다.")
+            if any(index is not None and not 0 <= index < len(self.regions) for index in indices):
+                raise ValueError("해설 영역 인덱스가 regions 범위를 벗어났습니다.")
+        return self
 
 
 class ArtworkMetadata(BaseModel):
@@ -47,6 +62,7 @@ class ArtworkMetadata(BaseModel):
     # 소장번호처럼 문자나 앞자리 0이 있을 수 있어 문자열로 저장한다.
     number: str | None = Field(default=None, min_length=1)
     museum: str | None = Field(default=None, min_length=1)
+    museum_id: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
     background: str | None = None
     source_url: str | None = None
     license: str | None = None
@@ -55,6 +71,11 @@ class ArtworkMetadata(BaseModel):
 
     @model_validator(mode="after")
     def require_reviewed_description(self):
+        if self.museum_id is not None and self.museum is None:
+            raise ValueError("museum_id에는 미술관명 museum이 필요합니다.")
+        if self.museum is not None and self.museum_id is None:
+            # 기존 카탈로그도 동일 이름이면 동일 ID. 이름 변경 시에는 명시적 ID를 유지한다.
+            self.museum_id = "museum-" + sha256(self.museum.encode()).hexdigest()[:20]
         if self.review_status == "reviewed" and self.description is None:
             raise ValueError("검수 완료 작품에는 해설이 필요합니다.")
         return self
@@ -70,6 +91,20 @@ class ArtworkDetail(ArtworkMetadata):
 
 class ArtworkList(BaseModel):
     items: list[ArtworkDetail]
+    total: int
+    limit: int
+    offset: int
+
+
+class Museum(BaseModel):
+    id: str
+    name: str
+    area: str = ""
+    artwork_count: int
+
+
+class MuseumList(BaseModel):
+    items: list[Museum]
     total: int
     limit: int
     offset: int
@@ -93,6 +128,13 @@ class CatalogStore:
                         image_filename TEXT NOT NULL
                     )"""
                 )
+                # 기존 JSON에도 ID를 저장해 ID 필터가 재등록 없이 동작하게 한다.
+                for artwork_id, raw in connection.execute("""SELECT id, metadata_json FROM artworks
+                    WHERE json_extract(metadata_json, '$.museum') IS NOT NULL
+                    AND json_extract(metadata_json, '$.museum_id') IS NULL""").fetchall():
+                    metadata = ArtworkMetadata.model_validate_json(raw)
+                    connection.execute("UPDATE artworks SET metadata_json = ? WHERE id = ?",
+                                       (metadata.model_dump_json(), artwork_id))
 
     def get(self, artwork_id: str) -> dict | None:
         with closing(sqlite3.connect(self.db_path)) as connection:
@@ -102,12 +144,15 @@ class CatalogStore:
             ).fetchone()
         return self._decode(row) if row else None
 
-    def find_by_number(self, number: str, museum: str | None = None) -> list[dict]:
+    def find_by_number(self, number: str, museum: str | None = None, museum_id: str | None = None) -> list[dict]:
         query = "SELECT metadata_json, image_filename FROM artworks WHERE json_extract(metadata_json, '$.number') = ?"
         parameters = [number]
         if museum is not None:
             query += " AND json_extract(metadata_json, '$.museum') = ?"
             parameters.append(museum)
+        if museum_id is not None:
+            query += " AND json_extract(metadata_json, '$.museum_id') = ?"
+            parameters.append(museum_id)
         with closing(sqlite3.connect(self.db_path)) as connection:
             rows = connection.execute(f"{query} ORDER BY id", parameters).fetchall()
         return [self._decode(row) for row in rows]
@@ -118,14 +163,26 @@ class CatalogStore:
             rows = connection.execute("SELECT metadata_json, image_filename FROM artworks ORDER BY id").fetchall()
         return [{**json.loads(row[0]), "image_path": str(self.images_dir / row[1])} for row in rows]
 
-    def list(self, limit: int, offset: int) -> tuple[list[dict], int]:
+    def list(self, limit: int, offset: int, museum_id: str | None = None) -> tuple[list[dict], int]:
+        where = " WHERE json_extract(metadata_json, '$.museum_id') = ?" if museum_id is not None else ""
+        params = [museum_id] if museum_id is not None else []
         with closing(sqlite3.connect(self.db_path)) as connection:
-            total = connection.execute("SELECT COUNT(*) FROM artworks").fetchone()[0]
+            total = connection.execute("SELECT COUNT(*) FROM artworks" + where, params).fetchone()[0]
             rows = connection.execute(
-                "SELECT metadata_json, image_filename FROM artworks ORDER BY id LIMIT ? OFFSET ?",
-                (limit, offset),
+                "SELECT metadata_json, image_filename FROM artworks" + where + " ORDER BY id LIMIT ? OFFSET ?",
+                [*params, limit, offset],
             ).fetchall()
         return [self._decode(row) for row in rows], total
+
+    def museums(self, limit: int, offset: int):
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            rows = connection.execute("""SELECT json_extract(metadata_json, '$.museum_id'),
+                MIN(json_extract(metadata_json, '$.museum')), COUNT(*) FROM artworks
+                WHERE json_extract(metadata_json, '$.museum_id') IS NOT NULL
+                GROUP BY json_extract(metadata_json, '$.museum_id') ORDER BY 1""").fetchall()
+        return {"items": [{"id": row[0], "name": row[1], "area": "", "artwork_count": row[2]}
+                          for row in rows[offset:offset + limit]],
+                "total": len(rows), "limit": limit, "offset": offset}
 
     @staticmethod
     def _decode(row) -> dict:
@@ -161,15 +218,20 @@ class CatalogStore:
 
         self.initialize()
         with closing(sqlite3.connect(self.db_path)) as connection:
-            rows = connection.execute(
-                "SELECT id, json_extract(metadata_json, '$.museum'), json_extract(metadata_json, '$.number') FROM artworks"
-            ).fetchall()
-            # 이번에 갱신되는 작품은 새 값으로 비교한다.
-            numbers = {row[0]: (row[1], row[2]) for row in rows}
-            numbers.update({metadata.id: (metadata.museum, metadata.number) for metadata, _, _ in prepared})
-            assigned = [value for value in numbers.values() if value[1] is not None]
+            # 검증과 쓰기를 하나의 트랜잭션에 묶어 동시 import의 중복도 막는다.
+            connection.execute("BEGIN IMMEDIATE")
+            metadata_by_id = {row[0]: ArtworkMetadata.model_validate_json(row[1]) for row in
+                              connection.execute("SELECT id, metadata_json FROM artworks").fetchall()}
+            metadata_by_id.update({metadata.id: metadata for metadata, _, _ in prepared})
+            assigned = [(m.museum_id, m.number) for m in metadata_by_id.values() if m.number is not None]
             if len(set(assigned)) != len(assigned):
                 raise ValueError("같은 미술관에 중복된 작품 번호가 있습니다.")
+            museum_names = {}
+            for m in metadata_by_id.values():
+                if m.museum_id is not None:
+                    if m.museum_id in museum_names and museum_names[m.museum_id] != m.museum:
+                        raise ValueError("같은 museum_id에 서로 다른 미술관명이 있습니다.")
+                    museum_names[m.museum_id] = m.museum
             with connection:
                 for metadata, source, filename in prepared:
                     destination = self.images_dir / filename

@@ -1,6 +1,7 @@
 from typing import Annotated, Literal
 from io import BytesIO
 from importlib import import_module
+from threading import BoundedSemaphore
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from PIL import Image
@@ -11,13 +12,15 @@ if __package__:
     from .accounts import RateLimiter
     from .images import MAX_UPLOAD_BYTES, normalize_image
     from .recognition import image_quality
-    from .catalog import Description
+    from .catalog import Description, Coordinate
+    from .framing import locate_artwork
     from .ai.profile import AIProfile
 else:
     from accounts import RateLimiter
     from images import MAX_UPLOAD_BYTES, normalize_image
     from recognition import image_quality
-    from catalog import Description
+    from catalog import Description, Coordinate
+    from framing import locate_artwork
     from ai.profile import AIProfile
 
 
@@ -34,13 +37,16 @@ class QualityResult(BaseModel):
     highlight_ratio: float
     warnings: list[str]
     note: str
+    artwork_bbox: tuple[Coordinate, Coordinate, Coordinate, Coordinate] | None = None
+    framing_hint: Literal["move_left", "move_right", "move_up", "move_down", "move_closer", "move_back", "hold_still"] | None = None
 
 
 class RecognitionResult(BaseModel):
     mode: Literal["artwork", "placard"]
     candidates: list[RecognitionCandidate]
     score_type: Literal["cosine_similarity", "fuzzy_text_similarity"]
-    status: Literal["needs_confirmation", "no_match"]
+    status: Literal["matched", "needs_confirmation", "no_match"]
+    confidence: Literal["high", "medium", "low"]
     quality: QualityResult
     match_threshold: float | None = None
 
@@ -53,6 +59,7 @@ class AnalysisResult(BaseModel):
 
 
 class NarrationSegment(BaseModel):
+    region_index: int | None = Field(default=None, ge=0)
     type: Literal["fact", "interpretation"]
     text: str
 
@@ -104,6 +111,9 @@ def correct_jpeg(content: bytes, profile: AIProfile, corrector=None):
 def create_ai_router(catalog, accounts, current_user, recognition, gemini, corrector=None):
     router = APIRouter()
     ai_limiter = RateLimiter(attempts=5, window=60)
+    photo_limiter = RateLimiter(attempts=60, window=60)
+    # 대기열을 만들지 않는다. 정규화·품질 검사·추론·위치 추정 전체에 적용.
+    photo_slot = BoundedSemaphore(1)
 
     @router.post("/correction", tags=["이미지 보정"], summary="등록 원본 또는 촬영본에 AI 프로필 보정 적용",
                  response_class=Response,
@@ -143,32 +153,56 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 await image.close()
 
     @router.post("/recognize", response_model=RecognitionResult, tags=["작품 인식"], summary="촬영 사진·명패로 작품 후보 상위 3개 조회",
-                 description="로그인 필요. mode=artwork는 CLIP 코사인 유사도, placard는 명패 텍스트 매칭 점수입니다. 점수는 확률이 아니며 후보 확인이 필요합니다. 사진은 저장하지 않습니다.")
+                 description="로그인 필요. mode=artwork는 CLIP 코사인 유사도, placard는 명패 텍스트 매칭 점수입니다. 점수는 확률이 아닙니다. confidence로 화면을 분기합니다. 기준 미설정 시 후보는 medium입니다. 사진은 저장하지 않습니다.")
     async def recognize(
         request: Request,
         user: Annotated[dict, Depends(current_user)],
         image: Annotated[UploadFile, File(description="작품 또는 명패 사진")],
         mode: Annotated[Literal["artwork", "placard"], Form()] = "artwork",
     ):
-        normalized = await read_upload(image)
-        quality = await run_in_threadpool(image_quality, normalized.content)
-        if mode == "artwork":
-            candidates = await run_in_threadpool(recognition.recognize_artwork, normalized.content)
-            score_type = "cosine_similarity"
-        else:
-            ai_limiter.check(user["id"])
-            extracted = await run_in_threadpool(gemini.read_placard, normalized.content)
-            candidates = await run_in_threadpool(recognition.match_placard, extracted.title, extracted.artist, extracted.text)
-            score_type = "fuzzy_text_similarity"
-        threshold = getattr(recognition, "match_threshold", None) if mode == "artwork" else None
-        if threshold is not None and candidates and max(candidate["score"] for candidate in candidates) < threshold:
-            candidates = []
-        for candidate in candidates:
-            record = await run_in_threadpool(catalog.get, candidate["artwork_id"])
-            candidate["image_url"] = str(request.url_for("artwork-images", path=record["image_filename"]))
-        return {"mode": mode, "candidates": candidates, "score_type": score_type,
-                "status": "needs_confirmation" if candidates else "no_match", "quality": quality,
-                "match_threshold": threshold}
+        acquired = False
+        try:
+            if mode == "artwork":
+                photo_limiter.check(user["id"])
+                acquired = photo_slot.acquire(blocking=False)
+                if not acquired:
+                    raise HTTPException(503, "작품 인식이 처리 중입니다. 잠시 후 다시 시도해 주세요.",
+                                        headers={"Retry-After": "2"})
+            else:
+                ai_limiter.check(user["id"])
+            normalized = await read_upload(image)
+            quality = await run_in_threadpool(image_quality, normalized.content)
+            if mode == "artwork":
+                candidates = await run_in_threadpool(recognition.recognize_artwork, normalized.content)
+                score_type = "cosine_similarity"
+            else:
+                extracted = await run_in_threadpool(gemini.read_placard, normalized.content)
+                candidates = await run_in_threadpool(recognition.match_placard, extracted.title, extracted.artist, extracted.text)
+                score_type = "fuzzy_text_similarity"
+            threshold = getattr(recognition, "match_threshold", None) if mode == "artwork" else None
+            if threshold is not None and candidates and max(candidate["score"] for candidate in candidates) < threshold:
+                candidates = []
+            confidence = "medium" if candidates else "low"
+            high_threshold = getattr(recognition, "high_confidence_threshold", None) if mode == "artwork" else None
+            if candidates and threshold is not None and high_threshold is not None and candidates[0]["score"] >= high_threshold:
+                confidence = "high"
+            for i, candidate in enumerate(candidates):
+                record = await run_in_threadpool(catalog.get, candidate["artwork_id"])
+                if record is None:
+                    raise HTTPException(503, "작품 목록이 변경됐습니다. 인덱스를 다시 생성해 주세요.")
+                candidate["image_url"] = str(request.url_for("artwork-images", path=record["image_filename"]))
+                if mode == "artwork" and i == 0:
+                    reference = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
+                    location = await run_in_threadpool(locate_artwork, normalized.content, reference)
+                    if location is not None:
+                        quality.update(location)
+            return {"mode": mode, "candidates": candidates, "score_type": score_type,
+                    "status": "matched" if confidence == "high" else ("needs_confirmation" if candidates else "no_match"),
+                    "confidence": confidence, "quality": quality, "match_threshold": threshold}
+        finally:
+            if acquired:
+                photo_slot.release()
+            await image.close()
 
     @router.post("/analyze", response_model=AnalysisResult, tags=["작품 해설"], summary="미등록 작품의 실시간 한국어 해설 생성",
                  description="로그인 필요. Gemini로 사실·감정 해석·영역·분위기 키워드를 생성합니다. 미검수 결과임을 표시하고 사진과 결과는 DB에 저장하지 않습니다.")
@@ -193,9 +227,13 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
         description = record["description"]
         segments = []
         if selected in {"facts", "both"}:
-            segments.extend({"type": "fact", "text": text} for text in description["facts"])
+            indices = description.get("fact_region_indices") or [None] * len(description["facts"])
+            segments.extend({"type": "fact", "text": text, "region_index": index}
+                            for text, index in zip(description["facts"], indices))
         if selected in {"interpretations", "both"}:
-            segments.extend({"type": "interpretation", "text": "가능한 감정적 해석입니다. " + text} for text in description["interpretations"])
+            indices = description.get("interpretation_region_indices") or [None] * len(description["interpretations"])
+            segments.extend({"type": "interpretation", "text": "가능한 감정적 해석입니다. " + text, "region_index": index}
+                            for text, index in zip(description["interpretations"], indices))
         return {"artwork_id": artwork_id, "mode": selected, "segments": segments,
                 "text": "\n".join(segment["text"] for segment in segments), "review_status": "reviewed"}
 

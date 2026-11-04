@@ -116,6 +116,8 @@ class GeminiService:
             "regions에는 명확히 식별되는 영역의 label, color와 bbox=[왼쪽 x,위쪽 y,너비,높이]를 넣으세요. "
             "bbox는 회전 보정된 전체 이미지 기준 0~1 비율이며 경계를 벗어나지 않아야 합니다. "
             "정확한 위치를 알 수 없으면 regions는 빈 배열로 두세요. mood_keywords는 분위기 키워드 배열입니다. "
+            "fact_region_indices와 interpretation_region_indices는 각각 facts와 interpretations와 같은 길이의 배열입니다. "
+            "각 문장이 설명하는 regions의 0부터 시작하는 인덱스를 넣고, 전체 설명이거나 불확실하면 null을 넣으세요. "
         )
         if metadata:
             known = {key: metadata.get(key) for key in ("title", "artist", "year", "background")}

@@ -11,7 +11,7 @@
 |---|---|
 | 회원 인증 | **회원가입·로그인·로그아웃을 포함**합니다. 이메일·비밀번호 방식으로 BE 구현 완료. 세션은 만료·폐기 가능한 Bearer 토큰입니다. |
 | 사용자 데이터 | 시각 프로필과 관람 기록·당시 보정 설정을 **서버의 회원 계정에 연결해 저장**합니다. 기기 저장소는 캐시 용도로 사용할 수 있습니다. FE 연결은 미완료입니다. |
-| 작품 입력 | 작품 사진 또는 명패 촬영을 지원하는 BE 경로가 있습니다. 음성 촬영 안내·자동 촬영은 제외합니다. 명패의 외부 API 사용 범위는 2장에서 확인합니다. |
+| 작품 입력 | 작품 사진 또는 명패 촬영을 지원하는 BE 경로가 있습니다. 자동 촬영을 지원합니다(사진 모드 1~2초 간격, 응답 완료 후 다음 요청). 음성 위치 안내는 검증된 bbox·방향 힌트가 있을 때 제공합니다. 명패의 외부 API 사용 범위는 2장에서 확인합니다. |
 | 보정 대상 | 등록 작품은 DB에 등록한 원본을 보정의 바탕 이미지로 사용합니다. 미등록 작품은 촬영본을 사용합니다. |
 | 보정 실행 위치 | 기존 **앱 Skia 실시간 보정**을 유지하며, AI 함수 연동용 서버 `POST /correction`도 준비했습니다. 실제 AI 함수는 미연결로 503을 반환하며 FE 사용 위치는 별도 조율합니다. |
 | 확대 | 앱의 핀치 줌과 확대·축소 버튼으로 제공합니다. |
@@ -246,14 +246,14 @@ POST   /analyze                       미등록 작품 해설 (Gemini 설정 필
 | `title`, `artist` | 필수, 공백이 아닌 작품명·작가명 문자열. |
 | `image_path` | 필수. JSON 파일 위치 기준 상대 경로 또는 절대 경로. JPEG·PNG·WebP 원본. |
 | `year`, `background` | 선택 문자열 또는 `null`. 제작 시기·배경 설명. |
-| `number`, `museum` | 선택 문자열 또는 `null`. 소장번호·미술관. 번호는 문자열로 보존하며 같은 미술관 내 중복 번호는 거부. 미술관 없는 번호끼리도 중복 불가. |
+| `number`, `museum`, `museum_id` | 선택 문자열 또는 `null`. 소장번호·미술관. 번호는 문자열로 보존하며 같은 museum_id 내 중복 번호는 거부. 미술관 없는 번호끼리도 중복 불가. |
 | `source_url`, `license` | 스키마상 선택 문자열 또는 `null`. 실제 수집 데이터에는 개별 이미지 출처와 퍼블릭 도메인 근거를 기재. |
 | `description` | 생성 전 `null`. 생성 후 3.3의 해설 JSON. |
 | `review_status` | 기본 `pending`. 팀 검수 후 해설과 함께 `reviewed`로 등록. 해설 없이 `reviewed` 등록 불가. |
 
 복사해서 사용할 JSON 예시와 설치·등록·인덱스 생성 명령은
 [AI 코드·데이터 연동 안내](../Backend/ai/README.md)에 있습니다.
-`number`, `museum` 지원은 현재 로컬 작업본 기준이며, 원격 반영 여부는 별도 확인해야 합니다.
+`number`, `museum` 조회는 기존 develop에 반영되어 있습니다. FE 9.2의 ID 기반 추가 계약은 8장을 참고합니다.
 
 ### 8.2 문서 반영 후 남은 코드 작업
 
@@ -266,3 +266,19 @@ POST   /analyze                       미등록 작품 해설 (Gemini 설정 필
 - 보정 실행 위치와 Gemini 명패 예외 여부 확인 후 API 계약 확정.
 
 API별 요청·응답 및 보정 함수 미연결 상태는 [FE 전달 문서](fe-handoff.md)를 참고합니다. 기존 회원 DB는 서버 시작 시 AI 프로필 테이블과 관람 기록 스냅샷 열을 자동 추가하며 기존 기록은 유지합니다.
+
+
+## 8. FE README 9.2 API 반영
+
+- 미술관: `GET /museums`, `GET /artworks?museum_id=...`, `GET /artworks/by-number?museum_id=...&number=...`.
+- QR 형식: `swaithon://artwork/<artwork_id>`. 앱에서 ID를 검증한 뒤 상세 API 조회.
+- 인식: `confidence=high|medium|low`를 반환. 기준 미설정 시 후보는 medium, 후보 없음은 low.
+  실제 촬영본 평가 후 match/high 임계값을 설정하며 아직 임의로 high를 활성화하지 않았습니다.
+- 자동 촬영: 사용자당 60회/60초, 사진 처리 1개/프로세스, 초과·혼잡 시 Retry-After 제공.
+  명패의 Gemini 제한(공유 5회/분)은 유지하며 자동 반복은 사진 모드만 사용합니다.
+- 촬영 안내: 최고 후보 원본과 ORB 특징점·RANSAC으로 촬영본의 위치를 추정.
+  신뢰할 기하 정보가 없으면 `quality.artwork_bbox`, `framing_hint`는 null입니다.
+- 해설: AI/검수 JSON의 `fact_region_indices`, `interpretation_region_indices`를
+  narration 각 segment의 `region_index`로 전달. 연결 없는 기존 문장은 null.
+
+세부 계약은 [API 명세](api-spec.md), 성능 확인 범위는 [부하 기록](recognition-load.md)을 따릅니다.

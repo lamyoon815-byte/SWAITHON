@@ -35,6 +35,15 @@ class RecognitionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     RecognitionService(CatalogStore(Path(directory)), encoder=FixtureEncoder())
 
+    def test_high_confidence_requires_valid_calibrated_thresholds(self):
+        for value in ["nan", "inf", "-0.1", "1.1", "invalid"]:
+            with patch.dict("os.environ", {"CLIP_MATCH_THRESHOLD": "0.5", "CLIP_HIGH_CONFIDENCE_THRESHOLD": value}):
+                with self.assertRaises(ValueError):
+                    RecognitionService(self.store, encoder=FixtureEncoder())
+        with patch.dict("os.environ", {"CLIP_MATCH_THRESHOLD": "", "CLIP_HIGH_CONFIDENCE_THRESHOLD": "0.8"}):
+            with self.assertRaises(ValueError):
+                RecognitionService(self.store, encoder=FixtureEncoder())
+
     def setUp(self):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

@@ -5,6 +5,7 @@
     "artist": "레오나르도 다 빈치",
     "number": "INV 779",
     "museum": "루브르 박물관",
+    "museum_id": "louvre",
     "image_path": "demo/mona-lisa.webp",
     "description": null,
     "review_status": "pending"

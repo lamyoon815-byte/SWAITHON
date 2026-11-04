@@ -76,6 +76,12 @@ class RecognitionService:
         self.cached_stat = None
         configured = os.environ.get("CLIP_MATCH_THRESHOLD", "").strip()
         self.match_threshold = float(configured) if configured else None
+        configured_high = os.environ.get("CLIP_HIGH_CONFIDENCE_THRESHOLD", "").strip()
+        self.high_confidence_threshold = float(configured_high) if configured_high else None
+        if self.high_confidence_threshold is not None and (
+            self.match_threshold is None or not self.match_threshold <= self.high_confidence_threshold <= 1
+        ):
+            raise ValueError("high 기준은 match 기준 설정 후 match 이상 1 이하로 설정해야 합니다.")
         if self.match_threshold is not None and not -1 <= self.match_threshold <= 1:
             raise ValueError("CLIP_MATCH_THRESHOLD는 -1~1 사이의 유한한 값이어야 합니다.")
 
