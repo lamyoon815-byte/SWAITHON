@@ -63,6 +63,9 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/** Dark see-through backing for controls laid over the camera preview. */
+export const Scrim = 'rgba(0,0,0,0.55)';
+
 /** Elevation for things that float over content (tab bar, toast). */
 export const Shadow = {
   floating: '0 10px 30px rgba(0,0,0,0.35)',
