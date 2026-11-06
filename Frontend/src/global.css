@@ -1,3 +1,7 @@
+/* Hallmark · shape: app screen · tone: utilitarian · anchor hue: 45 (mustard) · surface: tinted · depth: polish + hierarchy on the home screen */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the home keeps the design's card, field, list order; the number field now leads it */
+/* Hallmark · waive 26b · pressed state set in each Pressable style callback, React Native has no :active · the museum card, number field and artwork rows all dim when pressed */
+/* Hallmark · waive 23 · accent only on the current-museum card and the selected tab, about 11% in dark · both mark the current selection, which the home screen shows first */
 :root {
   --font-display:
     Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
@@ -6,4 +10,19 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+/* Web keyboard focus (react-native-web). On iOS/Android the screen reader draws its own cursor.
+   Instant, never transitioned; text color so it clears 3:1 on every surface. */
+:root {
+  --focus-ring: #26282d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --focus-ring: #ededef;
+  }
+}
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }

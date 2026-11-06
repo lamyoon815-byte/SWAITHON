@@ -1,20 +1,30 @@
 // 와이어프레임 1 홈 (작품 선택) + 1-1 번호 입력 (디자인 "저시력 미술관 앱"에서 홈에 합쳐짐)
 /**
- * 현재 미술관 카드 · 작품 번호 입력 · 음성 찾기 버튼 · 작품 목록.
- * 번호를 입력하면 목록이 바로 걸러진다. 미술관을 고르지 않았으면 번호 입력·목록은 1-0으로 먼저 보낸다.
+ * 현재 미술관 카드 → 작품 번호 입력(이 화면의 주 동작, 가장 크게) → 작품 목록.
+ * 번호를 입력하면 목록이 바로 걸러진다. 미술관을 고르지 않았으면 입력칸 자리에
+ * "미술관을 먼저 골라 주세요" 버튼을 두고, 누르면 1-0으로 간다 (포커스만으로는 화면을 바꾸지 않는다).
+ * 목록은 불러오는 중 · 오류 · 빈 상태 · 결과 네 가지를 모두 그린다.
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputInstance,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtworkCard } from '@/components/common/artwork-card';
 import { showToast } from '@/components/common/toast';
 import { MuseumCard } from '@/components/home/museum-card';
-import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -22,6 +32,9 @@ import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getMuseumArtworks, getMuseums } from '@/lib/api';
 import type { Artwork } from '@/types/artwork';
 import type { MuseumNext } from '@/types/museum';
+
+const InputHeight = 72;
+const SkeletonRows = 3;
 
 /** "1"은 01, 11, 12…와 맞고, "12"는 12와 맞는다. */
 function matchesNumber(artwork: Artwork, query: string) {
@@ -35,14 +48,20 @@ export default function HomeScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { settings, loaded } = useSettings();
   const museumId = settings.recent_museum_id;
-  const { data: museums } = useResource('museums', getMuseums);
-  const { data: artworks } = useResource(museumId, () => getMuseumArtworks(museumId!));
+  const museumsRes = useResource('museums', getMuseums);
+  const artworksRes = useResource(museumId, () => getMuseumArtworks(museumId!));
   const inputRef = useRef<TextInputInstance>(null);
   const [num, setNum] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
 
-  const museum = museums?.find((m) => m.id === museumId);
+  const museum = museumsRes.data?.find((m) => m.id === museumId);
+  const artworks = artworksRes.data;
   const works = (artworks ?? []).filter((a) => !num || matchesNumber(a, num));
+  const failed = !!museumsRes.error || !!artworksRes.error;
+  const retry = () => {
+    museumsRes.reload();
+    artworksRes.reload();
+  };
 
   // Coming back from 1-0 after "번호 입력": continue where the user meant to go.
   useEffect(() => {
@@ -77,7 +96,11 @@ export default function HomeScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
-        {loaded && <MuseumCard museum={museum} palette={palette} onChange={() => openPicker()} />}
+        {loaded && (!museumId || museumsRes.data) ? (
+          <MuseumCard museum={museum} palette={palette} onChange={() => openPicker()} />
+        ) : (
+          <View style={[styles.skeletonCard, { backgroundColor: palette.fill }]} />
+        )}
 
         {/* A visible label: the placeholder disappears as soon as a number is typed. */}
         <Text
@@ -86,51 +109,61 @@ export default function HomeScreen() {
           onPress={() => inputRef.current?.focus()}>
           작품 번호
         </Text>
-        <TextInput
-          ref={inputRef}
-          accessibilityLabelledBy="number-label"
-          accessibilityLabel="작품 번호 입력"
-          accessibilityHint="작품 옆에 적힌 번호를 입력하면 목록이 걸러져요"
-          placeholder="작품 옆 명패의 번호"
-          placeholderTextColor={palette.textSecondary}
-          keyboardType="number-pad"
-          returnKeyType="search"
-          maxLength={3}
-          value={num}
-          onChangeText={(v) => setNum(v.replace(/\D/g, ''))}
-          onFocus={() => {
-            if (!museumId) openPicker('number');
-            else setInputFocused(true);
-          }}
-          onBlur={() => setInputFocused(false)}
-          onSubmitEditing={onSubmitNumber}
-          style={[
-            styles.input,
-            {
-              backgroundColor: palette.surface,
-              color: palette.text,
-              borderColor: inputFocused ? palette.accent : palette.border,
-              borderWidth: inputFocused ? 3 : 2,
-            },
-          ]}
-        />
+        <View style={styles.findRow}>
+          {/* A transparent ring that only takes a color on focus, so the field never changes size. */}
+          <View style={[styles.ring, { borderColor: inputFocused ? palette.text : 'transparent' }]}>
+            {loaded && !museumId ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="작품 번호 입력. 먼저 미술관을 골라야 해요"
+                onPress={() => openPicker('number')}
+                style={({ pressed }) => [
+                  styles.field,
+                  styles.fieldButton,
+                  inputSurface(palette),
+                  pressed && { backgroundColor: palette.fill },
+                ]}>
+                <Text style={[styles.fieldHint, { color: palette.textSecondary }]}>
+                  미술관을 먼저 골라 주세요
+                </Text>
+              </Pressable>
+            ) : (
+              <TextInput
+                ref={inputRef}
+                accessibilityLabelledBy="number-label"
+                accessibilityLabel="작품 번호 입력"
+                accessibilityHint="작품 옆에 적힌 번호를 입력하면 목록이 걸러져요"
+                placeholder="작품 옆 명패의 번호"
+                placeholderTextColor={palette.textSecondary}
+                keyboardType="number-pad"
+                returnKeyType="search"
+                maxLength={3}
+                value={num}
+                onChangeText={(v) => setNum(v.replace(/\D/g, ''))}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                onSubmitEditing={onSubmitNumber}
+                style={[styles.field, styles.fieldText, inputSurface(palette), { color: palette.text }]}
+              />
+            )}
+          </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="음성으로 작품 찾기"
-          // README 3장: 음성 인식은 Expo Go에서 안 돼 기능은 P2. 버튼만 둔다.
-          onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
-          style={({ pressed }) => [
-            styles.voice,
-            { backgroundColor: Colors[scheme].backgroundSelected, opacity: pressed ? 0.8 : 1 },
-          ]}>
-          <SymbolView
-            name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
-            size={22}
-            tintColor={palette.text}
-          />
-          <Text style={[styles.voiceText, { color: palette.text }]}>음성으로 작품 찾기</Text>
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="음성으로 작품 찾기"
+            // README 3장: 음성 인식은 Expo Go에서 안 돼 기능은 P2. 버튼만 둔다.
+            onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
+            style={({ pressed }) => [
+              styles.mic,
+              { backgroundColor: palette.fill, opacity: pressed ? 0.8 : 1 },
+            ]}>
+            <SymbolView
+              name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
+              size={28}
+              tintColor={palette.text}
+            />
+          </Pressable>
+        </View>
 
         <View style={styles.listHeader}>
           <View style={styles.listTitleRow}>
@@ -149,7 +182,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/browse')}
               style={({ pressed }) => [
                 styles.browse,
-                { backgroundColor: Colors[scheme].backgroundSelected, opacity: pressed ? 0.8 : 1 },
+                { backgroundColor: palette.fill, opacity: pressed ? 0.8 : 1 },
               ]}>
               <Text style={[styles.browseText, { color: palette.text }]}>크게 넘겨보기</Text>
               <SymbolView
@@ -162,38 +195,55 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {loaded && !museumId && (
-          <View style={[styles.emptyBox, { backgroundColor: palette.surface }]}>
-            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+        {failed ? (
+          <View style={[styles.messageBox, { backgroundColor: palette.surface }]}>
+            <Text accessibilityRole="alert" style={[styles.messageText, { color: palette.text }]}>
+              작품 목록을 불러오지 못했어요
+            </Text>
+            <PillButton label="다시 시도" palette={palette} onPress={retry} />
+          </View>
+        ) : loaded && !museumId ? (
+          <View style={[styles.messageBox, { backgroundColor: palette.surface }]}>
+            <Text style={[styles.messageText, { color: palette.textSecondary }]}>
               미술관을 고르면 작품 목록이 보여요
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => openPicker('list')}
-              style={({ pressed }) => [
-                styles.pickButton,
-                { backgroundColor: palette.accent, opacity: pressed ? 0.8 : 1 },
-              ]}>
-              <Text style={[styles.pickText, { color: palette.accentText }]}>미술관 선택하기</Text>
-            </Pressable>
+            <PillButton label="미술관 선택하기" palette={palette} onPress={() => openPicker('list')} />
           </View>
-        )}
-
-        {works.map((a) => (
-          <ArtworkCard
-            key={a.id}
-            artwork={a}
-            palette={palette}
-            scheme={scheme}
-            onPress={() => openArtwork(a.id)}
-          />
-        ))}
-
-        {!!museumId && artworks && works.length === 0 && (
-          <Text style={[styles.none, { color: palette.textSecondary }]}>찾는 작품이 없어요</Text>
+        ) : !artworks ? (
+          <View accessible accessibilityLabel="작품 목록을 불러오는 중" style={styles.skeletonList}>
+            {Array.from({ length: SkeletonRows }, (_, i) => (
+              <View key={i} style={[styles.skeletonRow, { backgroundColor: palette.fill }]} />
+            ))}
+          </View>
+        ) : works.length === 0 ? (
+          <Text style={[styles.none, { color: palette.textSecondary }]}>
+            {num ? `${num}번 작품이 없어요` : '이 미술관에 등록된 작품이 없어요'}
+          </Text>
+        ) : (
+          works.map((a) => (
+            <ArtworkCard key={a.id} artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function inputSurface(palette: Palette) {
+  return { backgroundColor: palette.surface, borderColor: palette.border };
+}
+
+function PillButton({ label, palette, onPress }: { label: string; palette: Palette; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pill,
+        { backgroundColor: palette.accent, opacity: pressed ? 0.8 : 1 },
+      ]}>
+      <Text style={[styles.pillText, { color: palette.accentText }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -202,40 +252,58 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    gap: 12,
+    gap: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
   },
+  skeletonCard: {
+    height: 96,
+    borderRadius: 24,
+  },
   inputLabel: {
-    marginTop: Spacing.one,
+    marginBottom: -Spacing.two,
     marginHorizontal: Spacing.one,
     fontSize: FontSize.label,
     fontWeight: 800,
   },
-  // Heights are minimums everywhere below: with the largest system text size a fixed height clips
-  // the words, and low-vision users are the ones who turn text size all the way up.
-  input: {
-    minHeight: 60,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    fontSize: FontSize.body,
-    fontWeight: 700,
-    textAlign: 'center',
-  },
-  voice: {
-    minHeight: 60,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 30,
+  findRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: Spacing.two,
   },
-  voiceText: {
-    fontSize: FontSize.label,
+  ring: {
+    flex: 1,
+    padding: 2,
+    borderWidth: 3,
+    borderRadius: 26,
+  },
+  // Minimum, not fixed: a fixed height clips the number at the largest system text size.
+  field: {
+    minHeight: InputHeight,
+    paddingVertical: 10,
+    borderWidth: 2,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+  },
+  fieldText: {
+    fontSize: FontSize.heading,
     fontWeight: 800,
+    textAlign: 'center',
+  },
+  fieldButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldHint: {
+    fontSize: FontSize.label,
+    fontWeight: 700,
+  },
+  mic: {
+    width: InputHeight,
+    height: InputHeight,
+    borderRadius: InputHeight / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listHeader: {
     flexDirection: 'row',
@@ -243,7 +311,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: Spacing.two,
-    marginTop: 14,
+    marginTop: Spacing.three,
     marginHorizontal: Spacing.one,
   },
   listTitleRow: {
@@ -254,11 +322,11 @@ const styles = StyleSheet.create({
   browse: {
     minHeight: MinTouchTarget,
     paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: MinTouchTarget / 2,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
   },
   browseText: {
     fontSize: 17,
@@ -272,30 +340,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 600,
   },
-  emptyBox: {
+  messageBox: {
     alignItems: 'center',
     gap: 14,
     paddingVertical: 28,
     paddingHorizontal: 20,
     borderRadius: 24,
   },
-  emptyText: {
+  messageText: {
     fontSize: FontSize.label,
     fontWeight: 600,
     lineHeight: 26,
     textAlign: 'center',
   },
-  pickButton: {
+  pill: {
     minHeight: MinTouchTarget,
-    paddingHorizontal: 22,
     paddingVertical: 10,
+    paddingHorizontal: 24,
     borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pickText: {
+  pillText: {
     fontSize: 17,
     fontWeight: 800,
+  },
+  skeletonList: {
+    gap: Spacing.three,
+  },
+  skeletonRow: {
+    height: 68,
+    borderRadius: 20,
   },
   none: {
     padding: Spacing.four,

@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native';
 
 import { FontSize, getPalette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import { Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarBottom, TabBarHeight } from '@/hooks/use-tab-bar-inset';
 
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: Spacing.four,
     borderRadius: 28,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+    boxShadow: Shadow.toast,
   },
   text: {
     fontSize: FontSize.label,
