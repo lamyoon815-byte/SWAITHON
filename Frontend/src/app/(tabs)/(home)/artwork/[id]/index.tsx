@@ -19,6 +19,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseums } from '@/lib/api';
+import { speakKorean } from '@/lib/speech';
 
 export default function ArtworkScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -53,8 +54,7 @@ export default function ArtworkScreen() {
     }
     const { facts, interpretations } = artwork.description;
     setSpeaking(true);
-    Speech.speak([...facts, ...interpretations].join(' '), {
-      language: 'ko-KR',
+    void speakKorean([...facts, ...interpretations].join(' '), {
       onDone: () => setSpeaking(false),
       onStopped: () => setSpeaking(false),
       onError: () => setSpeaking(false),

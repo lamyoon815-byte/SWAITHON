@@ -9,6 +9,7 @@ import { AccessibilityInfo, Platform } from 'react-native';
 import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
+import { speakKorean } from '@/lib/speech';
 
 const SAMPLE_TEXT =
   '빈센트 반 고흐의 별이 빛나는 밤입니다. 화면 위쪽 대부분을 짙은 파란 밤하늘이 채우고, ' +
@@ -41,8 +42,7 @@ export function TtsPanel({ palette }: { palette: Palette }) {
 
   /** @param startedAt set on the first play to log start latency; null on repeats */
   const speak = (rateToUse: number, startedAt: number | null) => {
-    Speech.speak(SAMPLE_TEXT, {
-      language: 'ko-KR',
+    void speakKorean(SAMPLE_TEXT, {
       rate: rateToUse,
       onStart: () => {
         setSpeaking(true);
