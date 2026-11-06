@@ -37,7 +37,7 @@ import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row } from '@/components/spike/section';
 import type { Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
-import { sharpenEffect } from '@/lib/sharpen';
+import { getSharpenEffect } from '@/lib/sharpen';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
@@ -192,7 +192,9 @@ export function CorrectionCanvas({
                 height={size.height}
                 sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }}>
                 <ColorMatrix matrix={matrix} />
-                <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} />
+                {getSharpenEffect() ? (
+                  <RuntimeShader source={getSharpenEffect()!} uniforms={sharpenUniforms} />
+                ) : null}
               </Image>
             </Group>
           </Canvas>

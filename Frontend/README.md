@@ -204,7 +204,21 @@ Frontend/
 
 상태 값: `시작 전` / `진행 중` / `PR 올림` / `완료`. 상태가 바뀌면 이 표를 같이 고칩니다.
 
-**공통 컴포넌트 담당**: `correction-canvas.tsx`(Skia 보정 + 줌)는 스파이크 코드를 옮기는 것이라 **B가 먼저** 만들고, A는 6·6-1·8-1에서 가져다 씁니다. `big-button`, `back-button`, `artwork-card`, `toast`는 B가 만들어 두었습니다. `app-bar`는 A가 만듭니다.
+**공통 컴포넌트 담당**: `correction-canvas.tsx`(Skia 보정 + 줌)는 B가 만들었고, A는 6·6-1·8-1에서 가져다 씁니다. `big-button`, `back-button`, `artwork-card`, `toast`도 B가 만들어 두었습니다. `app-bar`는 A가 만듭니다.
+
+`CorrectionCanvas` 사용법 — 보정값은 BE 시각 프로필(`src/types/profile.ts`)을 그대로 넘기고, 슬라이더·토글은 각 화면이 만듭니다.
+
+```tsx
+<CorrectionCanvas
+  source={artwork.image_url}            // 서버 URL 또는 require('@/assets/…')
+  accessibilityLabel="별이 빛나는 밤, 빈센트 반 고흐"
+  correction={profile}                  // contrast · brightness · sharpen · strength
+  original={false}                      // true면 보정 없이 원본
+  zoomable                              // 핀치·더블탭 + 확대/축소 버튼. 캘리브레이션 비교에서는 생략
+  palette={palette}
+  style={{ height: 240 }}               // 상자 크기 (기본 높이 320)
+/>
+```
 
 **작업 순서**: 탭·루트 레이아웃·홈 흐름이 머지되면 A는 로그인·온보딩·마이페이지를, B는 보정 캔버스와 작품 감상·해설을 이어서 합니다.
 

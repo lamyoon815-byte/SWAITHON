@@ -1,11 +1,10 @@
 // 와이어프레임 2 작품 감상 (디자인 "저시력 미술관 앱" 기준 1차 버전)
 /**
- * 작품 이미지 · 미술관과 번호 · 제목 · 작가 · 음성 해설.
- * TODO(B): 이미지에 correction-canvas(Skia 보정, 원본 전환, 강도, 핀치 줌)를 붙이고,
+ * 작품 이미지(보정 캔버스) · 보정본/원본 전환 · 미술관과 번호 · 제목 · 작가 · 음성 해설.
+ * TODO(B): 보정 강도 슬라이더, 영역 터치(regions, P1).
  * 해설은 3 해설 재생 화면(`narration.tsx`, segments 한 문장씩)으로 옮긴다 (README 6.2).
  */
 
-import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useCallback, useState } from 'react';
@@ -13,13 +12,19 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
+import { BigButton } from '@/components/common/big-button';
+import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { FontSize, getPalette } from '@/constants/a11y';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseums } from '@/lib/api';
 import { speakKorean } from '@/lib/speech';
+import { DEFAULT_PROFILE } from '@/types/profile';
+
+// TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 지금은 BE 기본값이라 보정본과 원본이 같다.
+const profile = DEFAULT_PROFILE;
 
 export default function ArtworkScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -29,6 +34,7 @@ export default function ArtworkScreen() {
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const { data: museums } = useResource('museums', getMuseums);
   const [speaking, setSpeaking] = useState(false);
+  const [original, setOriginal] = useState(false);
 
   // Stop reading when the user leaves this screen (tab switch or back).
   useFocusEffect(
@@ -74,19 +80,29 @@ export default function ArtworkScreen() {
           </Text>
         ) : !artwork ? null : (
           <>
-            <View style={[styles.image, { backgroundColor: Colors[scheme].backgroundSelected }]}>
-              {artwork.image_url ? (
-                <Image
-                  source={{ uri: artwork.image_url }}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="contain"
-                  accessibilityLabel={`${artwork.title} 이미지`}
-                />
-              ) : (
-                <Text style={[styles.imageNote, { color: palette.textSecondary }]}>
-                  작품 이미지 준비 중
-                </Text>
-              )}
+            <CorrectionCanvas
+              source={artwork.image_url}
+              accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
+              correction={profile}
+              original={original}
+              zoomable
+              palette={palette}
+              style={styles.image}
+            />
+
+            <View accessibilityRole="radiogroup" accessibilityLabel="보기 방식" style={styles.toggle}>
+              <BigButton
+                label={original ? '보정본' : '✓ 보정본'}
+                onPress={() => setOriginal(false)}
+                palette={palette}
+                selected={!original}
+              />
+              <BigButton
+                label={original ? '✓ 원본 보기' : '원본 보기'}
+                onPress={() => setOriginal(true)}
+                palette={palette}
+                selected={original}
+              />
             </View>
 
             <View style={styles.texts}>
@@ -139,13 +155,10 @@ const styles = StyleSheet.create({
   image: {
     height: 320,
     borderRadius: 32,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  imageNote: {
-    fontSize: 16,
-    fontWeight: 600,
+  toggle: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   texts: {
     gap: 6,
