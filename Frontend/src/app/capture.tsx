@@ -3,15 +3,18 @@
  * 위에서부터 안내 문구 → 점선 가이드가 있는 카메라(남는 높이를 전부 씀) → 팁 세 칸 → 큰 버튼.
  * 카메라 화면은 테마와 상관없이 항상 어둡게 둔다 (미리보기에 눈이 가도록).
  * 두 모드 모두 QR이 보이면 바로 인식한다. 인식된 작품의 미술관이 현재 미술관이 된다.
+ * 인식 실패는 점선 사각형 가운데에 불투명 카드로 띄우고 소리로도 읽는다. 다시 스캔할 수 있을 때 사라진다.
+ * 빨강은 아이콘과 테두리에만 쓴다 (적색약에게 빨간 글씨는 어둡게 보이고, 카메라 화면 위에서는 대비가 들쭉날쭉하다).
  * 작품 촬영은 `/recognize`로 보내 첫 후보 작품으로 간다 (로그인 없이 호출).
  * TODO(B): confidence가 medium이면 4-1 후보 확인 시트, low면 4-2 미등록 안내 (README 6.3).
  */
 
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
@@ -28,6 +31,16 @@ const QR_PREFIX = 'swaithon://artwork/';
 const RESCAN_MS = 3000;
 
 type Tip = { text: string; ios: SFSymbol; material: AndroidSymbol };
+type ScanError = { title: string; detail: string };
+
+const NOT_REGISTERED: ScanError = {
+  title: '등록되지 않은 QR 코드예요',
+  detail: '다른 QR을 비추거나 번호로 찾아 주세요',
+};
+const LOAD_FAILED: ScanError = {
+  title: '작품 정보를 불러오지 못했어요',
+  detail: '잠시 후 다시 비춰 주세요',
+};
 
 const COPY: Record<CaptureMode, { title: string; guide: string; tips: Tip[] }> = {
   qr: {
@@ -70,6 +83,31 @@ export default function CaptureScreen() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
+  const [scanError, setScanError] = useState<ScanError | null>(null);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      clearTimeout(errorTimer.current);
+      Speech.stop();
+    },
+    [],
+  );
+
+  /** Card stays up exactly as long as the same QR is ignored, then scanning resumes. */
+  const showScanError = async (error: ScanError) => {
+    clearTimeout(errorTimer.current);
+    setScanError(error);
+    errorTimer.current = setTimeout(() => setScanError(null), RESCAN_MS);
+    const message = `${error.title}. ${error.detail}`;
+    // Let the screen reader speak when it is on, so the two voices don't overlap.
+    if (await AccessibilityInfo.isScreenReaderEnabled()) {
+      AccessibilityInfo.announceForAccessibility(message);
+    } else {
+      Speech.stop();
+      Speech.speak(message, { language: 'ko-KR' });
+    }
+  };
 
   const onBarcode = async ({ data }: BarcodeScanningResult) => {
     if (scanLock.current) return;
@@ -86,11 +124,7 @@ export default function CaptureScreen() {
       router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
       showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요');
     } catch (e) {
-      showToast(
-        e instanceof ApiError && e.status === 404
-          ? '등록되지 않은 QR 코드예요'
-          : '작품 정보를 불러오지 못했어요. 다시 비춰 주세요',
-      );
+      showScanError(e instanceof ApiError && e.status === 404 ? NOT_REGISTERED : LOAD_FAILED);
     }
   };
 
@@ -194,6 +228,24 @@ export default function CaptureScreen() {
                 { borderColor: palette.text },
               ]}
             />
+            {scanError ? (
+              <View pointerEvents="none" style={styles.errorLayer}>
+                <View
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="assertive"
+                  style={[styles.errorCard, { backgroundColor: palette.background, borderColor: palette.danger }]}>
+                  <SymbolView
+                    name={{ ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' }}
+                    size={44}
+                    tintColor={palette.danger}
+                  />
+                  <Text style={[styles.errorTitle, { color: palette.text }]}>{scanError.title}</Text>
+                  <Text style={[styles.errorDetail, { color: palette.textSecondary }]}>
+                    {scanError.detail}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             <Pressable
               accessibilityRole="switch"
               accessibilityLabel="플래시"
@@ -337,6 +389,38 @@ const styles = StyleSheet.create({
   frameArtwork: {
     width: '84%',
     height: '84%',
+  },
+  errorLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.four,
+  },
+  // Opaque so the text reads the same over any camera image.
+  errorCard: {
+    maxWidth: 320,
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.four,
+    borderWidth: 3,
+    borderRadius: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: 800,
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+  errorDetail: {
+    fontSize: 17,
+    fontWeight: 600,
+    lineHeight: 24,
+    textAlign: 'center',
   },
   torch: {
     position: 'absolute',
