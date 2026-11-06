@@ -9,14 +9,28 @@ type Props = {
   selected?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
+  /** 스크린리더가 읽을 이름. `label`에 ✓ 같은 기호가 있으면 기호 없이 따로 준다 */
+  accessibilityLabel?: string;
+  /** 둘 중 하나를 고르는 묶음(보정본/원본 등) 안의 버튼이면 true. 스크린리더가 "선택됨"으로 읽는다 */
+  radio?: boolean;
 };
 
-export function BigButton({ label, onPress, palette, selected, disabled, accessibilityHint }: Props) {
+export function BigButton({
+  label,
+  onPress,
+  palette,
+  selected,
+  disabled,
+  accessibilityHint,
+  accessibilityLabel,
+  radio,
+}: Props) {
   const filled = selected ?? true;
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected, disabled }}
+      accessibilityRole={radio ? 'radio' : 'button'}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={radio ? { checked: !!selected, disabled } : { selected, disabled }}
       accessibilityHint={accessibilityHint}
       disabled={disabled}
       onPress={onPress}

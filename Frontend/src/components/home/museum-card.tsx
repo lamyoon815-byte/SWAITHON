@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   caption: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 700,
   },
   name: {
@@ -84,11 +84,13 @@ const styles = StyleSheet.create({
     fontWeight: 800,
     lineHeight: 26,
   },
+  // Its own tap target ("변경"), so it gets the full 56 minimum.
   pill: {
-    height: 48,
+    minHeight: MinTouchTarget,
     minWidth: MinTouchTarget,
     paddingHorizontal: 18,
-    borderRadius: 24,
+    paddingVertical: 8,
+    borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

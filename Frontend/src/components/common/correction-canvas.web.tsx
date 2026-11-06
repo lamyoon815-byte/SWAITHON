@@ -18,13 +18,21 @@ type Props = {
   zoomable?: boolean;
   palette: Palette;
   style?: StyleProp<ViewStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
-export function CorrectionCanvas({ source, accessibilityLabel, original = false, palette, style }: Props) {
+export function CorrectionCanvas({
+  source,
+  accessibilityLabel,
+  original = false,
+  palette,
+  style,
+  containerStyle,
+}: Props) {
   const imageSource = typeof source === 'string' ? { uri: source } : (source as number | undefined);
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, containerStyle]}>
       <View
         style={[styles.canvasBox, { backgroundColor: palette.surface, borderColor: palette.border }, style]}
         accessible
@@ -65,7 +73,7 @@ const styles = StyleSheet.create({
     fontWeight: 600,
   },
   webNote: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 600,
   },
 });

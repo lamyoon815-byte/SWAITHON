@@ -154,9 +154,10 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   pill: {
-    height: 44,
+    minHeight: 44,
     minWidth: MinTouchTarget,
     paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',

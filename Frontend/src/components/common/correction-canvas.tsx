@@ -74,6 +74,8 @@ type Props = {
   palette: Palette;
   /** 캔버스 상자의 크기와 모양. 기본 높이 320 */
   style?: StyleProp<ViewStyle>;
+  /** 캔버스 + 확대 버튼 묶음의 스타일. 화면을 꽉 채울 때 `{ flex: 1 }` */
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function CorrectionCanvas({
@@ -84,6 +86,7 @@ export function CorrectionCanvas({
   zoomable = false,
   palette,
   style,
+  containerStyle,
 }: Props) {
   // Remember which source failed, so a new source clears the error without an effect.
   const [failedSource, setFailedSource] = useState<DataSourceParam>(null);
@@ -230,7 +233,7 @@ export function CorrectionCanvas({
   if (!zoomable) return box;
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, containerStyle]}>
       <GestureDetector gesture={gesture}>{box}</GestureDetector>
       <View style={styles.row}>
         <BigButton label="확대 +" onPress={() => zoomBy(BUTTON_STEP)} palette={palette} disabled={!image} />
