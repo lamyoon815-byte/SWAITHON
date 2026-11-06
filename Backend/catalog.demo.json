@@ -6,6 +6,7 @@
     "number": "INV 779",
     "museum": "루브르 박물관",
     "museum_id": "louvre",
+    "museum_area": "프랑스 파리",
     "image_path": "demo/mona-lisa.webp",
     "description": null,
     "review_status": "pending"

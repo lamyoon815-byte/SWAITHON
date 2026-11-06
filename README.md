@@ -83,6 +83,7 @@ cd Backend
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
 ./.venv/bin/python import_catalog.py catalog.demo.json
+./.venv/bin/python import_catalog.py catalog.artworks.json  # 공개 작품 21점 (met·aic·nga)
 ./.venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0
 ```
 
@@ -90,7 +91,8 @@ uv pip install --python .venv/bin/python -r requirements.txt
 - [서버 상태](http://127.0.0.1:8000/health)
 - [등록 작품 목록](http://127.0.0.1:8000/artworks)
 
-포함된 모나리자 이미지는 로컬 연동 확인용 데모입니다. 실제 고화질 카탈로그 구축은 별도로 진행합니다.
+포함된 모나리자 이미지는 로컬 연동 확인용 데모입니다.
+`catalog.artworks.json`은 메트로폴리탄·시카고 미술관·내셔널 갤러리 오브 아트의 CC0 작품 21점입니다. 이미지와 출처는 `Backend/demo/artworks/`(`sources.csv`), 작품별 QR은 `Backend/demo/qr/<작품 id>.png`에 있습니다. 실제 고화질 카탈로그 구축은 별도로 진행합니다.
 
 작품 사진 인식을 사용하려면 다른 터미널에서 `Backend`로 이동한 뒤 의존성과 검색 인덱스를 준비합니다.
 

@@ -166,6 +166,13 @@ class CatalogTests(unittest.TestCase):
             self.import_records([self.record(id="c", museum_id="one", museum="다른 이름")])
         self.assertEqual(self.client.get("/museums?limit=101").status_code, 422)
 
+    def test_museum_area_is_listed(self):
+        self.import_records([self.record(id="a", museum_id="met", museum="메트로폴리탄 미술관", museum_area="미국 뉴욕")])
+        self.assertEqual(self.client.get("/museums").json()["items"],
+                         [{"id": "met", "name": "메트로폴리탄 미술관", "area": "미국 뉴욕", "artwork_count": 1}])
+        with self.assertRaises(ValueError):
+            self.import_records([self.record(id="b", museum_area="미국 뉴욕")])
+
     def test_upload_and_health_still_work(self):
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})
         self.assertEqual(self.client.get("/docs").status_code, 200)

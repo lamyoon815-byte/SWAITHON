@@ -63,6 +63,8 @@ class ArtworkMetadata(BaseModel):
     number: str | None = Field(default=None, min_length=1)
     museum: str | None = Field(default=None, min_length=1)
     museum_id: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
+    # 미술관 지역(예: "미국 뉴욕"). 미술관 목록 `area`로 내려간다.
+    museum_area: str | None = Field(default=None, min_length=1)
     background: str | None = None
     source_url: str | None = None
     license: str | None = None
@@ -73,6 +75,8 @@ class ArtworkMetadata(BaseModel):
     def require_reviewed_description(self):
         if self.museum_id is not None and self.museum is None:
             raise ValueError("museum_id에는 미술관명 museum이 필요합니다.")
+        if self.museum_area is not None and self.museum is None:
+            raise ValueError("museum_area에는 미술관명 museum이 필요합니다.")
         if self.museum is not None and self.museum_id is None:
             # 기존 카탈로그도 동일 이름이면 동일 ID. 이름 변경 시에는 명시적 ID를 유지한다.
             self.museum_id = "museum-" + sha256(self.museum.encode()).hexdigest()[:20]
@@ -177,10 +181,11 @@ class CatalogStore:
     def museums(self, limit: int, offset: int):
         with closing(sqlite3.connect(self.db_path)) as connection:
             rows = connection.execute("""SELECT json_extract(metadata_json, '$.museum_id'),
-                MIN(json_extract(metadata_json, '$.museum')), COUNT(*) FROM artworks
+                MIN(json_extract(metadata_json, '$.museum')), COUNT(*),
+                MIN(json_extract(metadata_json, '$.museum_area')) FROM artworks
                 WHERE json_extract(metadata_json, '$.museum_id') IS NOT NULL
                 GROUP BY json_extract(metadata_json, '$.museum_id') ORDER BY 1""").fetchall()
-        return {"items": [{"id": row[0], "name": row[1], "area": "", "artwork_count": row[2]}
+        return {"items": [{"id": row[0], "name": row[1], "area": row[3] or "", "artwork_count": row[2]}
                           for row in rows[offset:offset + limit]],
                 "total": len(rows), "limit": limit, "offset": offset}
 
