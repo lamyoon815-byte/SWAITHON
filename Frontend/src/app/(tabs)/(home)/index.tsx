@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArtworkCard } from '@/components/common/artwork-card';
 import { showToast } from '@/components/common/toast';
 import { MuseumCard } from '@/components/home/museum-card';
-import { FontSize, getPalette } from '@/constants/a11y';
+import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
@@ -79,11 +79,19 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
         {loaded && <MuseumCard museum={museum} palette={palette} onChange={() => openPicker()} />}
 
+        {/* A visible label: the placeholder disappears as soon as a number is typed. */}
+        <Text
+          nativeID="number-label"
+          style={[styles.inputLabel, { color: palette.text }]}
+          onPress={() => inputRef.current?.focus()}>
+          작품 번호
+        </Text>
         <TextInput
           ref={inputRef}
+          accessibilityLabelledBy="number-label"
           accessibilityLabel="작품 번호 입력"
           accessibilityHint="작품 옆에 적힌 번호를 입력하면 목록이 걸러져요"
-          placeholder="작품 번호 입력"
+          placeholder="작품 옆 명패의 번호"
           placeholderTextColor={palette.textSecondary}
           keyboardType="number-pad"
           returnKeyType="search"
@@ -125,11 +133,32 @@ export default function HomeScreen() {
         </Pressable>
 
         <View style={styles.listHeader}>
-          <Text accessibilityRole="header" style={[styles.listTitle, { color: palette.text }]}>
-            작품 목록
-          </Text>
-          {!!museum && artworks && (
-            <Text style={[styles.count, { color: palette.textSecondary }]}>{works.length}점</Text>
+          <View style={styles.listTitleRow}>
+            <Text accessibilityRole="header" style={[styles.listTitle, { color: palette.text }]}>
+              작품 목록
+            </Text>
+            {!!museum && artworks && (
+              <Text style={[styles.count, { color: palette.textSecondary }]}>{works.length}점</Text>
+            )}
+          </View>
+          {!!museum && !!artworks?.length && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="크게 넘겨보기"
+              accessibilityHint="작품을 한 점씩 크게 보며 넘겨요"
+              onPress={() => router.push('/browse')}
+              style={({ pressed }) => [
+                styles.browse,
+                { backgroundColor: Colors[scheme].backgroundSelected, opacity: pressed ? 0.8 : 1 },
+              ]}>
+              <Text style={[styles.browseText, { color: palette.text }]}>크게 넘겨보기</Text>
+              <SymbolView
+                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                size={18}
+                weight="bold"
+                tintColor={palette.text}
+              />
+            </Pressable>
           )}
         </View>
 
@@ -177,16 +206,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
   },
+  inputLabel: {
+    marginTop: Spacing.one,
+    marginHorizontal: Spacing.one,
+    fontSize: FontSize.label,
+    fontWeight: 800,
+  },
+  // Heights are minimums everywhere below: with the largest system text size a fixed height clips
+  // the words, and low-vision users are the ones who turn text size all the way up.
   input: {
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     paddingHorizontal: 20,
+    paddingVertical: 12,
     fontSize: FontSize.body,
     fontWeight: 700,
     textAlign: 'center',
   },
   voice: {
-    height: 60,
+    minHeight: 60,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 30,
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,10 +239,30 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
     marginTop: 14,
     marginHorizontal: Spacing.one,
+  },
+  listTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.two,
+  },
+  browse: {
+    minHeight: MinTouchTarget,
+    paddingHorizontal: 18,
+    borderRadius: MinTouchTarget / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  browseText: {
+    fontSize: 17,
+    fontWeight: 800,
   },
   listTitle: {
     fontSize: 22,
@@ -226,9 +286,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pickButton: {
-    height: 52,
+    minHeight: MinTouchTarget,
     paddingHorizontal: 22,
-    borderRadius: 26,
+    paddingVertical: 10,
+    borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

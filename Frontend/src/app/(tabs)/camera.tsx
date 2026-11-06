@@ -9,6 +9,7 @@
 
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useIsFocused } from 'expo-router';
+import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -158,7 +159,7 @@ export default function CameraScreen() {
               />
               <Chip
                 side="left"
-                label="⚡"
+                icon={{ ios: 'bolt.fill', android: 'flash_on' }}
                 a11yLabel={torch ? '플래시 끄기' : '플래시 켜기'}
                 on={torch}
                 onPress={() => setTorch((v) => !v)}
@@ -216,14 +217,17 @@ export default function CameraScreen() {
 
 type ChipProps = {
   side: 'left' | 'right';
-  label: string;
+  /** 짧은 글자("2×") 또는 아이콘. 이모지는 기기마다 모양·색이 달라 아이콘으로 쓰지 않는다 */
+  label?: string;
+  icon?: { ios: SFSymbol; android: AndroidSymbol };
   a11yLabel: string;
   on: boolean;
   onPress: () => void;
   palette: Palette;
 };
 
-function Chip({ side, label, a11yLabel, on, onPress, palette }: ChipProps) {
+function Chip({ side, label, icon, a11yLabel, on, onPress, palette }: ChipProps) {
+  const color = on ? palette.highlightText : '#FFFFFF';
   return (
     <Pressable
       accessibilityRole="switch"
@@ -238,7 +242,11 @@ function Chip({ side, label, a11yLabel, on, onPress, palette }: ChipProps) {
           opacity: pressed ? 0.7 : 1,
         },
       ]}>
-      <Text style={[styles.chipText, { color: on ? palette.highlightText : '#FFFFFF' }]}>{label}</Text>
+      {icon ? (
+        <SymbolView name={{ ...icon, web: icon.android }} size={26} tintColor={color} />
+      ) : (
+        <Text style={[styles.chipText, { color }]}>{label}</Text>
+      )}
     </Pressable>
   );
 }
@@ -281,8 +289,9 @@ const styles = StyleSheet.create({
   chip: {
     position: 'absolute',
     top: Spacing.three,
-    width: MinTouchTarget,
-    height: MinTouchTarget,
+    minWidth: MinTouchTarget,
+    minHeight: MinTouchTarget,
+    paddingHorizontal: 8,
     borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',

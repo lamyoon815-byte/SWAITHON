@@ -22,7 +22,12 @@ const ICONS = {
   my: { ios: 'person.fill', material: 'person' },
 } satisfies Record<string, TabIcon>;
 
-const LabelSize = 15;
+const LabelSize = 16;
+/**
+ * Tab labels follow the system text size up to 1.4×. The bar floats over every screen and each
+ * screen reserves a fixed `TabBarHeight` for it, so unlimited growth would cover content.
+ */
+const LabelMaxScale = 1.4;
 
 export default function AppTabs() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -88,7 +93,7 @@ function TabButton({ label, a11yLabel, icon, palette, isFocused, ...props }: Tab
         size={24}
         tintColor={color}
       />
-      <Text numberOfLines={1} style={[styles.label, { color }]}>
+      <Text maxFontSizeMultiplier={LabelMaxScale} style={[styles.label, { color }]}>
         {label}
       </Text>
     </Pressable>
@@ -110,8 +115,10 @@ const styles = StyleSheet.create({
     boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
   },
   tab: {
-    width: 84,
-    height: 60,
+    minWidth: 84,
+    minHeight: 60,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',

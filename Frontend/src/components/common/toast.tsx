@@ -4,14 +4,19 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native';
 
 import { FontSize, getPalette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarBottom, TabBarHeight } from '@/hooks/use-tab-bar-inset';
 
-const DURATION_MS = 2600;
+/**
+ * At least 5 s, longer for longer messages (about 0.1 s a character): low-vision users read slowly
+ * and some toasts carry a state change ("현재 미술관이 바뀌었어요"). Tapping closes it early.
+ */
+const MIN_DURATION_MS = 5000;
+const MS_PER_CHAR = 100;
 
 let message = '';
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -26,7 +31,12 @@ export function showToast(text: string) {
   clearTimeout(timer);
   set(text);
   AccessibilityInfo.announceForAccessibility(text);
-  timer = setTimeout(() => set(''), DURATION_MS);
+  timer = setTimeout(() => set(''), Math.max(MIN_DURATION_MS, text.length * MS_PER_CHAR));
+}
+
+function dismiss() {
+  clearTimeout(timer);
+  set('');
 }
 
 function subscribe(listener: () => void) {
@@ -45,12 +55,13 @@ export function ToastHost() {
 
   if (!text) return null;
   return (
-    <View
+    <Pressable
       accessibilityRole="alert"
-      pointerEvents="none"
+      accessibilityHint="누르면 닫혀요"
+      onPress={dismiss}
       style={[styles.toast, { bottom, backgroundColor: palette.highlight }]}>
       <Text style={[styles.text, { color: palette.highlightText }]}>{text}</Text>
-    </View>
+    </Pressable>
   );
 }
 

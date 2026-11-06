@@ -46,9 +46,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     borderRadius: 20,
   },
+  // min, not fixed: the number grows with the system text size and must not be clipped.
   number: {
-    width: 60,
-    height: 60,
+    minWidth: 60,
+    minHeight: 60,
+    paddingHorizontal: 6,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -71,9 +73,10 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   pill: {
-    height: 44,
+    minHeight: 44,
     minWidth: MinTouchTarget,
     paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',

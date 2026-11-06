@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Colors } from '@/constants/theme';
@@ -24,7 +25,13 @@ export function BackButton({ label, palette, scheme, onPress }: Props) {
         styles.button,
         { backgroundColor: Colors[scheme].backgroundSelected, opacity: pressed ? 0.7 : 1 },
       ]}>
-      <Text style={[styles.icon, { color: palette.text }]}>‹</Text>
+      {/* An icon, not a "‹" glyph: glyphs change shape with the font and grow with system text size. */}
+      <SymbolView
+        name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
+        size={26}
+        weight="bold"
+        tintColor={palette.text}
+      />
     </Pressable>
   );
 }
@@ -36,11 +43,5 @@ const styles = StyleSheet.create({
     borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 34,
-    fontWeight: 700,
-    lineHeight: 38,
-    marginTop: -4,
   },
 });
