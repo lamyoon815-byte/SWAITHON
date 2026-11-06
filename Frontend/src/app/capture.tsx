@@ -24,6 +24,7 @@ import { Scrim, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
 import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
 import { resizeLongSide } from '@/lib/resize';
+import { speakKorean } from '@/lib/speech';
 import type { CaptureMode } from '@/types/capture';
 
 const QR_PREFIX = 'swaithon://artwork/';
@@ -105,7 +106,7 @@ export default function CaptureScreen() {
       AccessibilityInfo.announceForAccessibility(message);
     } else {
       Speech.stop();
-      Speech.speak(message, { language: 'ko-KR' });
+      void speakKorean(message);
     }
   };
 
@@ -473,9 +474,12 @@ const styles = StyleSheet.create({
   footer: {
     padding: Spacing.three,
   },
+  // Minimum, not fixed: a fixed height clips the label at the largest system text size.
   button: {
     alignSelf: 'stretch',
-    height: MinTouchTarget + 8,
+    minHeight: MinTouchTarget + 8,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',

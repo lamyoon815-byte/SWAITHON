@@ -170,8 +170,11 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     gap: 12,
   },
+  // Minimum, not fixed: a fixed height clips the label at the largest system text size.
   action: {
-    height: MinTouchTarget + 8,
+    minHeight: MinTouchTarget + 8,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
