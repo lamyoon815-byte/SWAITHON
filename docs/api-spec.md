@@ -16,7 +16,7 @@
 | 공유용 OpenAPI | [openapi.json](openapi.json). 코드에서 생성한 스냅샷이며 일부 런타임 오류·정적 이미지 경로는 아래 본문 참고 |
 | JSON 요청 | `Content-Type: application/json` |
 | 파일 요청 | `multipart/form-data`. FE에서 Content-Type을 직접 지정하지 않고 FormData에 맡김 |
-| 인증 | 필요한 API에 `Authorization: Bearer {access_token}` |
+| 인증 | 앱은 사용하지 않음. 회원 API(`/me/*`)만 `Authorization: Bearer {access_token}` |
 | 시간 | ISO 8601 UTC 문자열. 화면 표시는 FE에서 현지 시간으로 변환 |
 | 빈 값 | 응답의 `null`과 빈 배열을 정상 상태로 처리 |
 | 페이지네이션 | `limit` 기본 20, 1~100 / `offset` 기본 0, 0 이상 |
@@ -31,30 +31,33 @@
 
 ## 2. API 목록
 
+> **앱은 로그인 없이 기기 로컬 저장만 사용합니다** (2026-11-06 결정). 작품·인식·해설·보정 API는 토큰 없이 호출하고,
+> 호출 제한은 접속 IP 기준입니다. `/auth/*`, `/me/*` 회원·프로필·관람 기록 API는 서버에 남아 있지만 앱에서 사용하지 않습니다.
+
 | Method | Path | 인증 | 성공 | 용도 |
 |---|---|---|---|---|
 | GET | `/health` | 불필요 | 200 | 서버 연결 확인 |
-| POST | `/auth/register` | 불필요 | 201 | 회원가입 및 토큰 발급 |
-| POST | `/auth/login` | 불필요 | 200 | 로그인 |
-| POST | `/auth/logout` | 필요 | 204 | 현재 세션 로그아웃 |
-| GET | `/me` | 필요 | 200 | 내 회원 정보 |
-| GET | `/me/profile` | 필요 | 200 | 앱 시각·음성 설정 조회 |
-| PUT | `/me/profile` | 필요 | 200 | 앱 설정 전체 저장 |
-| GET | `/me/ai-profile` | 필요 | 200 | AI 6필드 프로필 조회 |
-| PUT | `/me/ai-profile` | 필요 | 200 | AI 프로필 전체 저장 |
+| POST | `/auth/register` | 불필요 | 201 | 회원가입 및 토큰 발급 (앱 미사용) |
+| POST | `/auth/login` | 불필요 | 200 | 로그인 (앱 미사용) |
+| POST | `/auth/logout` | 필요 | 204 | 현재 세션 로그아웃 (앱 미사용) |
+| GET | `/me` | 필요 | 200 | 내 회원 정보 (앱 미사용) |
+| GET | `/me/profile` | 필요 | 200 | 앱 시각·음성 설정 조회 (앱 미사용) |
+| PUT | `/me/profile` | 필요 | 200 | 앱 설정 전체 저장 (앱 미사용) |
+| GET | `/me/ai-profile` | 필요 | 200 | AI 6필드 프로필 조회 (앱 미사용) |
+| PUT | `/me/ai-profile` | 필요 | 200 | AI 프로필 전체 저장 (앱 미사용) |
 | GET | `/museums` | 불필요 | 200 | 등록 작품이 있는 미술관 목록 |
 | GET | `/artworks` | 불필요 | 200 | 등록 작품 목록 |
 | GET | `/artworks/by-number` | 불필요 | 200 | 작품 번호·미술관 조회 |
 | GET | `/artworks/{artwork_id}` | 불필요 | 200 | 작품 상세 |
 | GET | `/images/{filename}` | 불필요 | 200 | 등록 원본 이미지 바이너리 |
 | POST | `/upload` | 불필요 | 200 | 이미지 검증·전처리 메타데이터 |
-| POST | `/recognize` | 필요 | 200 | 작품·명패 인식 후보 조회 |
-| GET | `/artworks/{artwork_id}/narration` | 필요 | 200 | 등록 작품 검수 해설·TTS 텍스트 |
-| POST | `/analyze` | 필요 | 200 | 미등록 작품의 실시간 해설 |
-| POST | `/correction` | 필요 | 200 JPEG | AI 이미지 보정. 현재 AI 함수 미연결 |
-| POST | `/me/history` | 필요 | 201 | 관람 기록 등록 |
-| GET | `/me/history` | 필요 | 200 | 내 관람 기록 목록 |
-| DELETE | `/me/history/{history_id}` | 필요 | 204 | 내 관람 기록 삭제 |
+| POST | `/recognize` | 불필요 | 200 | 작품·명패 인식 후보 조회. 호출 제한은 접속 IP 기준 |
+| GET | `/artworks/{artwork_id}/narration` | 불필요 | 200 | 등록 작품 검수 해설·TTS 텍스트 |
+| POST | `/analyze` | 불필요 | 200 | 미등록 작품의 실시간 해설. 호출 제한은 접속 IP 기준 |
+| POST | `/correction` | 불필요 | 200 JPEG | AI 이미지 보정. 현재 AI 함수 미연결 |
+| POST | `/me/history` | 필요 | 201 | 관람 기록 등록 (앱 미사용) |
+| GET | `/me/history` | 필요 | 200 | 내 관람 기록 목록 (앱 미사용) |
+| DELETE | `/me/history/{history_id}` | 필요 | 204 | 내 관람 기록 삭제 (앱 미사용) |
 
 모든 입력 검증 API는 422를 반환할 수 있습니다. 인증 API는 401을 공통 처리합니다.
 
@@ -212,8 +215,8 @@ PUT은 전체 교체이며 생략 필드는 기본값으로 저장합니다. 응
 ### GET /museums
 
 인증 불필요. Query `limit` 기본 20(1~100), `offset` 기본 0(0 이상).
-성공 **200** 예: `{"items":[{"id":"louvre","name":"루브르 박물관","area":"","artwork_count":1}],"total":1,"limit":20,"offset":0}`.
-등록 작품이 있는 미술관만 ID 오름차순으로 반환합니다. `area`는 현재 수집하지 않아 빈 문자열입니다.
+성공 **200** 예: `{"items":[{"id":"louvre","name":"루브르 박물관","area":"프랑스 파리","artwork_count":1}],"total":1,"limit":20,"offset":0}`.
+등록 작품이 있는 미술관만 ID 오름차순으로 반환합니다. `area`는 카탈로그 작품의 `museum_area`(예: `미국 뉴욕`)이며, 없으면 빈 문자열입니다.
 카탈로그에 `museum_id`를 명시하는 것을 권장합니다. 기존 미술관명만 있는 데이터는 서버 시작 시
 `museum-` + 미술관명 UTF-8 SHA256 앞 20자리로 ID를 자동 생성합니다. 이름을 바꾸더라도 발급된 ID를 유지합니다.
 미술관 없는 작품은 `museum_id=null`이며 목록에 포함하지 않습니다.
@@ -280,7 +283,7 @@ FE는 scheme=`swaithon`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
 
 ### POST /recognize
 
-Bearer 인증, multipart:
+인증 없음(앱은 로그인 없이 기기 로컬 저장만 사용). 호출 제한은 접속 IP 기준. multipart:
 
 | Form | 타입 | 필수 | 기본값·설명 |
 |---|---|---|---|
@@ -331,7 +334,7 @@ Bearer 인증, multipart:
 - `quality.warnings`: 흐림·반사 가능성 안내용 문자열 배열. 재촬영을 안내할 수 있으며 서버는 인식을 차단하지 않습니다.
 - 미등록 해설을 원하면 FE가 촬영본을 다시 `/analyze`로 전송합니다. 이 API가 Gemini 해설까지 자동 생성하지 않습니다.
 
-오류: 공통 이미지 오류, **401** 인증, **503** 작품·CLIP 의존성·모델·인덱스 미준비 또는 카탈로그와 인덱스 불일치.
+오류: 공통 이미지 오류, **503** 작품·CLIP 의존성·모델·인덱스 미준비 또는 카탈로그와 인덱스 불일치.
 명패 모드는 Gemini 오류(**429/502/503/504**)도 발생합니다.
 
 ## 7. 해설
@@ -362,8 +365,8 @@ AI가 생성한 영역 연결도 사람이 검수한 뒤 등록합니다.
 
 ### GET /artworks/{artwork_id}/narration
 
-Bearer 인증. Path `artwork_id` 필수.
-Query `mode`: `facts | interpretations | both`, 선택. 생략 시 계정 `/me/profile.narration_mode` 사용.
+인증 없음. Path `artwork_id` 필수.
+Query `mode`: `facts | interpretations | both`, 선택. 기기에 저장한 감상 모드를 보내며 생략 시 `both`.
 성공 **200**:
 
 ```json
@@ -388,7 +391,7 @@ null이면 영역을 강조하지 않습니다. 모드를 필터해도 인덱스
 
 ### POST /analyze
 
-Bearer 인증. multipart 필수 필드 `image`: 미등록 작품 사진. `mode`·작품명 입력 필드는 없습니다.
+인증 없음(호출 제한은 접속 IP 기준). multipart 필수 필드 `image`: 미등록 작품 사진. `mode`·작품명 입력 필드는 없습니다.
 성공 **200**:
 
 ```json
@@ -431,17 +434,16 @@ Gemini 요청은 한 번당 타임아웃 45초, 재시도 포함 최대 2회이�
 
 ### POST /correction
 
-Bearer 인증. **현재 AI 함수가 없으므로 정상 입력도 503**입니다. 기존 앱 Skia 보정은 계속 사용할 수 있습니다.
+인증 없음. **현재 AI 함수가 없으므로 정상 입력도 503**입니다. 기존 앱 Skia 보정은 계속 사용할 수 있습니다.
 multipart:
 
 | Form | 타입 | 필수·규칙 |
 |---|---|---|
 | `artwork_id` | string | 등록 작품 원본을 사용할 때 전송 |
 | `image` | 파일 | 미등록 촬영본을 사용할 때 전송. artwork_id와 정확히 하나만 전송 |
-| `profile` | string | 선택. 4장의 AI 프로필 JSON을 `JSON.stringify()`한 문자열 |
+| `profile` | string | 필수. 기기에 저장한 4장의 AI 프로필 JSON을 `JSON.stringify()`한 문자열 |
 
-`profile` 생략 시 계정에 저장된 AI 프로필을 사용하며 미설정이면 **409**입니다.
-요청에 직접 넣은 profile은 이번 보정에만 적용하며 계정에 저장하지 않습니다.
+`profile`이 없으면 **422**입니다. 프로필은 서버에 저장하지 않으므로 요청마다 보냅니다.
 연결 후 성공 **200**, `Content-Type: image/jpeg`, JPEG 바이너리이며 JSON이 아닙니다.
 이미지는 회전·RGB 전처리 후 입력과 같은 크기이고 저장 URL을 발급하지 않습니다.
 
@@ -449,11 +451,7 @@ multipart:
 const body = new FormData();
 body.append("artwork_id", "mona-lisa");
 body.append("profile", JSON.stringify(aiProfile));
-const response = await fetch(`${BASE_URL}/correction`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${token}` },
-  body,
-});
+const response = await fetch(`${BASE_URL}/correction`, { method: "POST", body });
 if (!response.ok) {
   // 실패 응답은 JSON 오류로 처리
   throw new Error(`보정 실패: ${response.status}`);
@@ -461,7 +459,7 @@ if (!response.ok) {
 const jpeg = await response.blob(); // 웹 예시. 네이티브는 앱의 이미지 로딩 방식에 맞춰 사용
 ```
 
-오류: 공통 인증·이미지 오류, **404** 작품 없음 / **409** 프로필 미설정 /
+오류: 공통 인증·이미지 오류, **404** 작품 없음 /
 **422** image·artwork_id 조합 또는 profile JSON 오류 / **429** 호출 제한 /
 **502** AI 출력 형식·크기 오류 / **503** 보정 함수 미연결.
 
@@ -596,20 +594,16 @@ const BASE_URL = configuredBaseUrl.replace(/\/+$/, "");
 `uri`, `name`, `type`은 실제 파일 형식과 일치시킵니다. JPEG로 리사이즈한 결과를 보내는 경우의 예시입니다.
 
 ```ts
-async function recognizePhoto(uri: string, token: string) {
+import { File } from "expo-file-system";
+
+async function recognizePhoto(uri: string) {
   const body = new FormData();
-  body.append("image", {
-    uri,
-    name: "capture.jpg",
-    type: "image/jpeg",
-  } as unknown as Blob);
+  // Expo SDK 58의 fetch는 RN식 { uri, name, type } 객체를 보내지 못한다
+  // ("Unsupported FormDataPart implementation"). expo-file-system의 File을 넣는다.
+  body.append("image", new File(uri) as unknown as Blob);
   body.append("mode", "artwork");
 
-  const response = await fetch(`${BASE_URL}/recognize`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body,
-  });
+  const response = await fetch(`${BASE_URL}/recognize`, { method: "POST", body });
   const data = await response.json();
   if (!response.ok) {
     // 실제 앱에서는 status와 detail을 10장의 규칙에 따라 화면 상태로 매핑

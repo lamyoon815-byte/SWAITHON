@@ -68,11 +68,12 @@ class AIRouteTests(unittest.TestCase):
             self.assertEqual(response.json()["status"], "needs_confirmation")
             self.assertEqual(self.client.get(response.json()["candidates"][0]["image_url"]).status_code, 200)
 
-    def test_auth_required_and_bad_image_rejected(self):
+    def test_no_login_needed_and_bad_image_rejected(self):
+        # 앱은 로그인 없이 기기 로컬 저장만 쓰므로 인식·분석은 토큰 없이 동작한다.
         for route in ["/recognize", "/analyze"]:
-            self.assertEqual(self.client.post(route, files={"image": ("x.png", self.image, "image/png")}).status_code, 401)
-            self.assertEqual(self.client.post(route, headers=self.headers, files={"image": ("x.png", b"not image", "image/png")}).status_code, 400)
-        self.assertEqual(self.client.post("/recognize", headers=self.headers, data={"mode": "unknown"}, files={"image": ("x.png", self.image, "image/png")}).status_code, 422)
+            self.assertEqual(self.client.post(route, files={"image": ("x.png", self.image, "image/png")}).status_code, 200)
+            self.assertEqual(self.client.post(route, files={"image": ("x.png", b"not image", "image/png")}).status_code, 400)
+        self.assertEqual(self.client.post("/recognize", data={"mode": "unknown"}, files={"image": ("x.png", self.image, "image/png")}).status_code, 422)
 
     def test_analyze_does_not_register_or_save_photos(self):
         before = {path.name for path in self.app.state.catalog.images_dir.iterdir()}
@@ -103,15 +104,14 @@ class AIRouteTests(unittest.TestCase):
         self.assertNotIn("fallback", response.json()["description"])
 
     def test_correction_validation_and_missing_implementation(self):
-        self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 401)
-        self.assertEqual(self.client.post("/correction", headers=self.headers).status_code, 422)
-        data = {"artwork_id": "sample"}
-        self.assertEqual(self.client.post("/correction", headers=self.headers, data=data).status_code, 409)
-        self.client.put("/me/ai-profile", headers=self.headers, json={})
-        self.assertEqual(self.client.post("/correction", headers=self.headers, data=data).status_code, 503)
-        self.assertEqual(self.client.post("/correction", headers=self.headers, data={"artwork_id": "missing"}).status_code, 404)
-        self.assertEqual(self.client.post("/correction", headers=self.headers, data={**data, "profile": '{"brightness":51}'}).status_code, 422)
-        self.assertEqual(self.client.post("/correction", headers=self.headers, data=data, files={"image": ("x.png", self.image)}).status_code, 422)
+        self.assertEqual(self.client.post("/correction").status_code, 422)
+        # 프로필은 기기에만 저장하므로 요청마다 보내야 한다.
+        self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 422)
+        data = {"artwork_id": "sample", "profile": "{}"}
+        self.assertEqual(self.client.post("/correction", data=data).status_code, 503)
+        self.assertEqual(self.client.post("/correction", data={**data, "artwork_id": "missing"}).status_code, 404)
+        self.assertEqual(self.client.post("/correction", data={**data, "profile": '{"brightness":51}'}).status_code, 422)
+        self.assertEqual(self.client.post("/correction", data=data, files={"image": ("x.png", self.image)}).status_code, 422)
 
     def test_corrector_contract_and_jpeg_response(self):
         captured = []
@@ -122,9 +122,7 @@ class AIRouteTests(unittest.TestCase):
 
         app = create_app(self.root / "correction-data", corrector=corrector)
         with TestClient(app) as client:
-            result = client.post("/auth/register", json={"email": "correct@example.com", "password": "password-12345", "nickname": "관람객"})
-            headers = {"Authorization": "Bearer " + result.json()["access_token"]}
-            response = client.post("/correction", headers=headers, data={"profile": '{"brightness":20}'}, files={"image": ("x.png", self.image)})
+            response = client.post("/correction", data={"profile": '{"brightness":20}'}, files={"image": ("x.png", self.image)})
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual(response.headers["content-type"], "image/jpeg")
             self.assertEqual(response.headers["cache-control"], "no-store")
@@ -132,8 +130,7 @@ class AIRouteTests(unittest.TestCase):
                 self.assertEqual(image.size, (16, 8))
             self.assertEqual(captured[0]["brightness"], 20)
             app.state.catalog.import_manifest(self.manifest)
-            client.put("/me/ai-profile", headers=headers, json={"edge": 0.4})
-            response = client.post("/correction", headers=headers, data={"artwork_id": "sample"})
+            response = client.post("/correction", data={"artwork_id": "sample", "profile": '{"edge":0.4}'})
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual(captured[-1]["edge"], 0.4)
         for invalid in [b"invalid", self.image, "not bytes"]:
@@ -141,17 +138,20 @@ class AIRouteTests(unittest.TestCase):
                 correct_jpeg(self.image, AIProfile(), lambda content, profile: invalid)
             self.assertEqual(error.exception.status_code, 502)
 
-    def test_narration_uses_account_mode_and_hides_pending(self):
-        self.client.put("/me/profile", headers=self.headers, json={"narration_mode": "facts"})
-        response = self.client.get("/artworks/sample/narration", headers=self.headers)
+    def test_narration_uses_query_mode_and_hides_pending(self):
+        # 로그인 없이 기기에 저장한 감상 모드를 쿼리로 보낸다. 생략하면 both.
+        response = self.client.get("/artworks/sample/narration?mode=facts")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["text"], DESCRIPTION["facts"][0])
         self.assertNotIn(DESCRIPTION["interpretations"][0], response.json()["text"])
-        response = self.client.get("/artworks/sample/narration?mode=interpretations", headers=self.headers)
+        response = self.client.get("/artworks/sample/narration?mode=interpretations")
         self.assertIn("가능한 감정적 해석", response.json()["text"])
+        response = self.client.get("/artworks/sample/narration")
+        self.assertEqual(response.json()["mode"], "both")
+        self.assertIn(DESCRIPTION["facts"][0], response.json()["text"])
         self.seed("pending")
-        self.assertEqual(self.client.get("/artworks/sample/narration", headers=self.headers).status_code, 409)
-        self.assertEqual(self.client.get("/artworks/missing/narration", headers=self.headers).status_code, 404)
+        self.assertEqual(self.client.get("/artworks/sample/narration").status_code, 409)
+        self.assertEqual(self.client.get("/artworks/missing/narration").status_code, 404)
 
 
 class GeminiTests(unittest.TestCase):

@@ -108,7 +108,13 @@ def correct_jpeg(content: bytes, profile: AIProfile, corrector=None):
         raise HTTPException(502, "AI 보정 결과는 입력과 같은 크기의 정상 JPEG여야 합니다.") from None
 
 
+def client_key(request: Request) -> str:
+    """앱은 로그인 없이 기기 로컬 저장만 쓰므로, 호출 제한은 계정 대신 접속 IP로 건다."""
+    return "ip:" + (request.client.host if request.client else "unknown")
+
+
 def create_ai_router(catalog, accounts, current_user, recognition, gemini, corrector=None):
+    # accounts·current_user는 회원 API 호환을 위해 받지만, 이 라우터의 API는 로그인을 요구하지 않는다.
     router = APIRouter()
     ai_limiter = RateLimiter(attempts=5, window=60)
     photo_limiter = RateLimiter(attempts=60, window=60)
@@ -120,24 +126,21 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                  responses={200: {"content": {"image/jpeg": {"schema": {"type": "string", "format": "binary"}}}},
                             503: {"description": "AI 보정 함수 미연결"}})
     async def correction(
-        user: Annotated[dict, Depends(current_user)],
+        request: Request,
         image: Annotated[UploadFile | None, File()] = None,
         artwork_id: Annotated[str | None, Form()] = None,
-        profile: Annotated[str | None, Form(description="6필드 AI 프로필 JSON 문자열. 생략 시 저장된 AI 프로필 사용")] = None,
+        profile: Annotated[str | None, Form(description="6필드 AI 프로필 JSON 문자열. 기기에 저장한 값을 매번 보낸다")] = None,
     ):
         try:
             if (image is None) == (artwork_id is None):
                 raise HTTPException(422, "image 또는 artwork_id 중 하나만 보내주세요.")
-            if profile is not None:
-                try:
-                    selected = AIProfile.model_validate_json(profile)
-                except ValidationError:
-                    raise HTTPException(422, "profile은 AI 6필드 규격에 맞는 JSON 객체여야 합니다.") from None
-            else:
-                selected = await run_in_threadpool(accounts.ai_profile, user["id"])
-                if selected is None:
-                    raise HTTPException(409, "AI 프로필을 먼저 저장하거나 profile을 함께 보내주세요.")
-            ai_limiter.check(user["id"])
+            if profile is None:
+                raise HTTPException(422, "profile을 함께 보내주세요. 프로필은 기기에만 저장합니다.")
+            try:
+                selected = AIProfile.model_validate_json(profile)
+            except ValidationError:
+                raise HTTPException(422, "profile은 AI 6필드 규격에 맞는 JSON 객체여야 합니다.") from None
+            ai_limiter.check(client_key(request))
             if image is not None:
                 normalized = await read_upload(image)
             else:
@@ -153,25 +156,25 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 await image.close()
 
     @router.post("/recognize", response_model=RecognitionResult, tags=["작품 인식"], summary="촬영 사진·명패로 작품 후보 상위 3개 조회",
-                 description="로그인 필요. mode=artwork는 CLIP 코사인 유사도, placard는 명패 텍스트 매칭 점수입니다. 점수는 확률이 아닙니다. confidence로 화면을 분기합니다. 기준 미설정 시 후보는 medium입니다. 사진은 저장하지 않습니다.")
+                 description="로그인 불필요(앱은 기기 로컬 저장만 사용). 호출 제한은 접속 IP 기준입니다. mode=artwork는 CLIP 코사인 유사도, placard는 명패 텍스트 매칭 점수입니다. 점수는 확률이 아닙니다. confidence로 화면을 분기합니다. 기준 미설정 시 후보는 medium입니다. 사진은 저장하지 않습니다.")
     async def recognize(
         request: Request,
-        user: Annotated[dict, Depends(current_user)],
         image: Annotated[UploadFile, File(description="작품 또는 명패 사진")],
         mode: Annotated[Literal["artwork", "placard"], Form()] = "artwork",
     ):
+        key = client_key(request)
         acquired = False
         try:
             if mode == "artwork":
-                photo_limiter.check(user["id"])
+                photo_limiter.check(key)
                 acquired = photo_slot.acquire(blocking=False)
                 if not acquired:
                     raise HTTPException(503, "작품 인식이 처리 중입니다. 잠시 후 다시 시도해 주세요.",
                                         headers={"Retry-After": "2"})
             else:
-                ai_limiter.check(user["id"])
+                ai_limiter.check(key)
             normalized = await read_upload(image)
-            quality = await run_in_threadpool(image_quality, normalized.content)
+            quality =await run_in_threadpool(image_quality, normalized.content)
             if mode == "artwork":
                 candidates = await run_in_threadpool(recognition.recognize_artwork, normalized.content)
                 score_type = "cosine_similarity"
@@ -205,25 +208,25 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
             await image.close()
 
     @router.post("/analyze", response_model=AnalysisResult, tags=["작품 해설"], summary="미등록 작품의 실시간 한국어 해설 생성",
-                 description="로그인 필요. Gemini로 사실·감정 해석·영역·분위기 키워드를 생성합니다. 미검수 결과임을 표시하고 사진과 결과는 DB에 저장하지 않습니다.")
-    async def analyze(user: Annotated[dict, Depends(current_user)], image: Annotated[UploadFile, File()]):
-        ai_limiter.check(user["id"])
+                 description="로그인 불필요. 호출 제한은 접속 IP 기준(분당 5회). Gemini로 사실·감정 해석·영역·분위기 키워드를 생성합니다. 미검수 결과임을 표시하고 사진과 결과는 DB에 저장하지 않습니다.")
+    async def analyze(request: Request, image: Annotated[UploadFile, File()]):
+        ai_limiter.check(client_key(request))
         normalized = await read_upload(image)
         description = await run_in_threadpool(gemini.describe, normalized.content)
         return {"description": description.model_dump(), "review_status": "unreviewed",
                 "fallback": getattr(description, "fallback", False),
                 "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
 
-    @router.get("/artworks/{artwork_id}/narration", response_model=NarrationResult, tags=["작품 해설"], summary="내 감상 모드에 맞는 검수 해설 텍스트 조회",
-                description="기본 모드는 계정의 narration_mode를 사용합니다. 반환된 text를 앱의 expo-speech로 재생합니다.")
-    def narration(artwork_id: str, user: Annotated[dict, Depends(current_user)],
-                  mode: Annotated[Literal["facts", "interpretations", "both"] | None, Query()] = None):
+    @router.get("/artworks/{artwork_id}/narration", response_model=NarrationResult, tags=["작품 해설"], summary="감상 모드에 맞는 검수 해설 텍스트 조회",
+                description="로그인 불필요. mode는 기기에 저장한 감상 모드를 보내며 생략 시 both입니다. 반환된 text를 앱의 expo-speech로 재생합니다.")
+    def narration(artwork_id: str,
+                  mode: Annotated[Literal["facts", "interpretations", "both"], Query()] = "both"):
         record = catalog.get(artwork_id)
         if record is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
         if record["description"] is None:
             raise HTTPException(409, "검수된 해설이 아직 없습니다.")
-        selected = mode or accounts.profile(user["id"]).narration_mode
+        selected = mode
         description = record["description"]
         segments = []
         if selected in {"facts", "both"}:
