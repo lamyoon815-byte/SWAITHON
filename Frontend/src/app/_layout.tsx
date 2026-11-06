@@ -19,6 +19,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="museum" />
+          <Stack.Screen name="zoom/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="spike" />
         </Stack>
       </ThemeProvider>
