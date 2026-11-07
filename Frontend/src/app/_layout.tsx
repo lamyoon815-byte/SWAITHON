@@ -20,8 +20,13 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="museum" />
-          <Stack.Screen name="zoom/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+          <Stack.Screen
+            name="zoom/[id]"
+            options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+          />
           <Stack.Screen name="capture" />
+          {/* Quick fade (default is 500ms on iOS, which felt slow). animationDuration is iOS-only. */}
+          <Stack.Screen name="search" options={{ animation: 'fade', animationDuration: 180 }} />
           <Stack.Screen name="spike" />
         </Stack>
         <ToastHost />

@@ -10,7 +10,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +32,7 @@ import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { speakKorean } from '@/lib/speech';
+import { addRecent } from '@/store/recent';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
 // TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 지금은 BE 기본값이라 보정본과 원본이 같다.
@@ -54,6 +55,11 @@ export default function ArtworkScreen() {
   const [original, setOriginal] = useState(false);
   const [sizeStep, setSizeStep] = useState(1);
   const toZoom = useRef(false);
+
+  // Remember it for the search screen's "최근 본 작품".
+  useEffect(() => {
+    if (artwork) void addRecent(artwork);
+  }, [artwork]);
 
   // Stop reading when the user leaves this screen (tab switch, back, another artwork),
   // but keep it going while they look at the enlarged image.

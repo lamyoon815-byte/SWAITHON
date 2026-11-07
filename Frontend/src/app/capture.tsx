@@ -187,10 +187,8 @@ export default function CaptureScreen() {
     }
   };
 
-  const goToNumber = () => {
-    router.dismissAll();
-    router.navigate({ pathname: '/', params: { focus: 'number' } });
-  };
+  // Swap the camera for the search screen, so back from search does not reopen the camera.
+  const goToNumber = () => router.replace('/search');
 
   const granted = !!permission?.granted;
   const blocked = !!permission && !permission.granted && !permission.canAskAgain;

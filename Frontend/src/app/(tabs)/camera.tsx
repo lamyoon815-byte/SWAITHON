@@ -1,6 +1,7 @@
 // 카메라 탭: 작품 찾는 방법 고르기 → 1-2 QR 스캔 / 4 작품 촬영 (`/capture?mode=`)
 /**
  * 촬영 전에 무엇을 어떻게 비추는지 먼저 알려 주고, 큰 버튼 두 개로 방법을 고른다.
+ * 버튼은 한 벌만 둔다: 가로로 긴 카드(아이콘 · 이름 · 한 줄 설명 · ›)라서 눌러지는 것처럼 보인다.
  * 카메라 권한은 버튼을 누를 때 묻는다 (탭을 열자마자 팝업이 뜨지 않게).
  */
 
@@ -11,20 +12,37 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showToast } from '@/components/common/toast';
-import { ButtonGap, ButtonHeight, ButtonRadius, FontSize, getPalette, type Palette } from '@/constants/a11y';
+import { FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import type { CaptureMode } from '@/types/capture';
 
-const METHODS: { mode: CaptureMode; label: string; ios: SFSymbol; material: AndroidSymbol }[] = [
-  { mode: 'qr', label: 'QR 코드', ios: 'qrcode', material: 'qr_code' },
-  { mode: 'artwork', label: '작품 사진', ios: 'photo.artframe', material: 'image' },
+const METHODS: {
+  mode: CaptureMode;
+  label: string;
+  desc: string;
+  ios: SFSymbol;
+  material: AndroidSymbol;
+}[] = [
+  {
+    mode: 'qr',
+    label: 'QR 코드',
+    desc: '안내판의 QR을 비추면 바로 찾아요',
+    ios: 'qrcode.viewfinder',
+    material: 'qr_code_scanner',
+  },
+  {
+    mode: 'artwork',
+    label: '작품 사진',
+    desc: 'QR이 없으면 작품을 정면에서 찍어요',
+    ios: 'photo.artframe',
+    material: 'image',
+  },
 ];
 
 const TIPS = [
-  '작품 옆 안내판에 QR 코드가 있으면 QR로 찾는 게 가장 빨라요.',
-  'QR 코드가 없으면 작품을 정면에서 찍어 주세요. 찍은 사진으로 작품을 찾아요.',
+  'QR 코드가 있으면 QR로 찾는 게 가장 빨라요.',
   '찾은 작품의 미술관이 현재 미술관으로 바뀌어요.',
 ];
 
@@ -56,62 +74,62 @@ export default function CameraScreen() {
           {'어떻게 작품을\n찾을까요?'}
         </Text>
 
-        <View style={styles.tiles}>
+        <View style={styles.methods}>
           {METHODS.map((m) => (
             <Pressable
               key={m.mode}
               accessibilityRole="button"
               accessibilityLabel={m.mode === 'qr' ? 'QR 코드 스캔' : '작품 촬영'}
+              accessibilityHint={m.desc}
               onPress={() => open(m.mode)}
               style={({ pressed }) => [
-                styles.tile,
-                { backgroundColor: palette.fill, opacity: pressed ? 0.8 : 1 },
+                styles.method,
+                // Both ways get the main color outline, so they read as the same kind of button.
+                {
+                  backgroundColor: pressed ? palette.fill : palette.surface,
+                  borderColor: palette.accent,
+                },
               ]}>
+              <View style={[styles.methodIcon, { backgroundColor: palette.highlight }]}>
+                <SymbolView
+                  name={{ ios: m.ios, android: m.material, web: m.material }}
+                  size={30}
+                  weight="medium"
+                  tintColor={palette.highlightText}
+                />
+              </View>
+              <View style={styles.methodTexts}>
+                <Text style={[styles.methodLabel, { color: palette.text }]}>{m.label}</Text>
+                <Text
+                  lineBreakStrategyIOS="hangul-word"
+                  style={[styles.methodDesc, { color: palette.textSecondary }]}>
+                  {m.desc}
+                </Text>
+              </View>
               <SymbolView
-                name={{ ios: m.ios, android: m.material, web: m.material }}
-                size={56}
-                tintColor={palette.text}
+                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                size={20}
+                weight="semibold"
+                tintColor={palette.textSecondary}
               />
-              <Text style={[styles.tileLabel, { color: palette.text }]}>{m.label}</Text>
             </Pressable>
           ))}
         </View>
 
-        <View style={[styles.tips, { backgroundColor: palette.surface, borderColor: palette.fill }]}>
+        <View style={[styles.tips, { backgroundColor: palette.fill, borderColor: palette.fill }]}>
           {TIPS.map((tip) => (
             <View key={tip} style={styles.tipRow}>
               <Text style={[styles.tipBullet, { color: palette.textSecondary }]}>•</Text>
-              <Text lineBreakStrategyIOS="hangul-word" style={[styles.tipText, { color: palette.textSecondary }]}>
+              <Text
+                lineBreakStrategyIOS="hangul-word"
+                style={[styles.tipText, { color: palette.textSecondary }]}>
                 {tip}
               </Text>
             </View>
           ))}
         </View>
-
-        <View style={styles.actions}>
-          <ActionButton label="QR 코드 스캔" palette={palette} secondary onPress={() => open('qr')} />
-          <ActionButton label="작품 촬영" palette={palette} onPress={() => open('artwork')} />
-        </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-type ActionProps = { label: string; palette: Palette; secondary?: boolean; onPress: () => void };
-
-function ActionButton({ label, palette, secondary, onPress }: ActionProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        { backgroundColor: secondary ? palette.fill : palette.accent, opacity: pressed ? 0.8 : 1 },
-      ]}>
-      <Text style={[styles.actionText, { color: secondary ? palette.text : palette.accentText }]}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -130,21 +148,40 @@ const styles = StyleSheet.create({
     fontWeight: 800,
     lineHeight: 38,
   },
-  tiles: {
-    flexDirection: 'row',
+  methods: {
     gap: 12,
   },
-  tile: {
-    flex: 1,
-    aspectRatio: 1.15,
-    borderRadius: 20,
+  // A minimum, not a fixed height: two lines of text grow with the system text size.
+  method: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    minHeight: 104,
+    paddingVertical: Spacing.three,
+    paddingLeft: Spacing.three,
+    paddingRight: 18,
+    borderWidth: 2,
+    borderRadius: 24,
+  },
+  methodIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
   },
-  tileLabel: {
-    fontSize: FontSize.label,
+  methodTexts: {
+    flex: 1,
+    gap: 4,
+  },
+  methodLabel: {
+    fontSize: 22,
     fontWeight: 800,
+  },
+  methodDesc: {
+    fontSize: 16,
+    fontWeight: 600,
+    lineHeight: 23,
   },
   tips: {
     gap: 12,
@@ -165,26 +202,5 @@ const styles = StyleSheet.create({
     fontSize: FontSize.label,
     fontWeight: 500,
     lineHeight: 27,
-  },
-  // Side by side in equal halves, like the reference "판매하기 / 구매하기" pair.
-  actions: {
-    marginTop: 'auto',
-    flexDirection: 'row',
-    gap: ButtonGap,
-  },
-  // Minimum, not fixed: a fixed height clips the label at the largest system text size.
-  action: {
-    flexGrow: 1,
-    flexBasis: 0,
-    minHeight: ButtonHeight,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: ButtonRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    fontSize: FontSize.button,
-    fontWeight: 800,
   },
 });
