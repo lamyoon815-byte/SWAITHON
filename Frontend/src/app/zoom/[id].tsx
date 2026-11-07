@@ -15,16 +15,18 @@ import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a1
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
 import { getArtwork } from '@/lib/api';
-import { DEFAULT_PROFILE } from '@/types/profile';
+import { PREVIEW_PROFILE } from '@/types/profile';
 
 // TODO(A): 상세 화면과 같이 로그인 후 받은 시각 프로필로 바꾼다.
-const profile = DEFAULT_PROFILE;
+const profile = PREVIEW_PROFILE;
 
 export default function ZoomScreen() {
   const palette = getPalette('dark', false);
-  const { id, original } = useLocalSearchParams<{
+  const { id, original, strength } = useLocalSearchParams<{
     id: string;
     original?: string;
+    /** 상세 화면의 보정 강도(0~1). 없으면 프로필 값 */
+    strength?: string;
   }>();
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
@@ -49,7 +51,7 @@ export default function ZoomScreen() {
           <CorrectionCanvas
             source={artwork.image_url}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-            correction={profile}
+            correction={{ ...profile, strength: strength ? Number(strength) : profile.strength }}
             original={showOriginal}
             zoomable
             palette={palette}

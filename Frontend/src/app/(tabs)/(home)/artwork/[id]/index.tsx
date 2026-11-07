@@ -1,21 +1,21 @@
 // 와이어프레임 2 작품 감상 → 디자인 "저시력 미술관 앱"의 작품 상세
 /**
  * 위에서부터 큰 작품 이미지(보정 캔버스, 누르면 크게 보기) · 미술관과 번호 · 제목 · 작가 ·
- * 보정본/원본 전환 · 음성 해설 · 작품 설명(글자 크기 조절) · 이전/다음 작품.
+ * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명(글자 크기 조절) · 이전/다음 작품.
  * 이미지나 "확대"를 누르면 탭 바 없는 전체 화면(`/zoom/[id]`)에서 핀치·버튼으로 확대한다.
- * TODO(B): 보정 강도 슬라이더, 영역 터치(regions, P1).
- * 해설은 3 해설 재생 화면(`narration.tsx`, segments 한 문장씩)으로 옮긴다 (README 6.2).
+ * 보정본일 때는 그 아래 보정 강도(0~100%)로 얼마나 보정할지 고른다. 크게 보기에도 같은 강도로 넘긴다.
+ * TODO(B): 영역 터치(regions, P1).
  */
 
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as Speech from 'expo-speech';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
+import { StrengthControl } from '@/components/artwork/strength-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import {
   ButtonGap,
@@ -31,12 +31,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
-import { speakKorean } from '@/lib/speech';
 import { addRecent } from '@/store/recent';
-import { DEFAULT_PROFILE } from '@/types/profile';
+import { PREVIEW_PROFILE } from '@/types/profile';
 
-// TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 지금은 BE 기본값이라 보정본과 원본이 같다.
-const profile = DEFAULT_PROFILE;
+// TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 그 전에는 차이가 보이도록 임시 값.
+const profile = PREVIEW_PROFILE;
 
 const HERO_HEIGHT = 380;
 /** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
@@ -51,31 +50,14 @@ export default function ArtworkScreen() {
   const { data: museums } = useResource('museums', getMuseums);
   const museumId = artwork?.museum_id || null;
   const { data: siblings } = useResource(museumId, () => getMuseumArtworks(museumId!));
-  const [speaking, setSpeaking] = useState(false);
   const [original, setOriginal] = useState(false);
+  const [strength, setStrength] = useState(profile.strength);
   const [sizeStep, setSizeStep] = useState(1);
-  const toZoom = useRef(false);
 
   // Remember it for the search screen's "최근 본 작품".
   useEffect(() => {
     if (artwork) void addRecent(artwork);
   }, [artwork]);
-
-  // Stop reading when the user leaves this screen (tab switch, back, another artwork),
-  // but keep it going while they look at the enlarged image.
-  useFocusEffect(
-    useCallback(
-      () => () => {
-        if (toZoom.current) {
-          toZoom.current = false;
-          return;
-        }
-        Speech.stop();
-        setSpeaking(false);
-      },
-      [],
-    ),
-  );
 
   const museum = museums?.find((m) => m.id === artwork?.museum_id);
   // Mustard text is too faint on the light background, so light mode uses the body text color.
@@ -88,28 +70,16 @@ export default function ArtworkScreen() {
       : undefined;
   const descSize = DESC_SIZES[sizeStep];
 
-  const toggleSpeech = () => {
-    if (!artwork?.description) return;
-    if (speaking) {
-      Speech.stop();
-      setSpeaking(false);
-      return;
-    }
-    const { facts, interpretations } = artwork.description;
-    setSpeaking(true);
-    void speakKorean([...facts, ...interpretations].join(' '), {
-      onDone: () => setSpeaking(false),
-      onStopped: () => setSpeaking(false),
-      onError: () => setSpeaking(false),
-    });
+  const openNarration = () => {
+    if (!artwork) return;
+    router.push({ pathname: '/artwork/[id]/narration', params: { id: artwork.id } });
   };
 
   const openZoom = () => {
     if (!artwork) return;
-    toZoom.current = true;
     router.push({
       pathname: '/zoom/[id]',
-      params: { id: artwork.id, original: original ? '1' : '0' },
+      params: { id: artwork.id, original: original ? '1' : '0', strength: String(strength) },
     });
   };
 
@@ -150,7 +120,7 @@ export default function ArtworkScreen() {
             <CorrectionCanvas
               source={artwork.image_url}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-              correction={profile}
+              correction={{ ...profile, strength }}
               original={original}
               palette={palette}
               style={styles.heroCanvas}
@@ -212,42 +182,35 @@ export default function ArtworkScreen() {
           </View>
         </View>
 
-        {description && (
-          <View style={styles.audioRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={speaking ? '음성 해설 멈추기' : '음성 해설 듣기'}
-              accessibilityState={{ selected: speaking }}
-              onPress={toggleSpeech}
-              style={({ pressed }) => [
-                styles.audio,
-                speaking
-                  ? {
-                      backgroundColor: palette.surface,
-                      borderColor: palette.accent,
-                    }
-                  : {
-                      backgroundColor: palette.accent,
-                      borderColor: palette.accent,
-                    },
-                { opacity: pressed ? 0.8 : 1 },
-              ]}>
-              <SymbolView
-                name={
-                  speaking
-                    ? { ios: 'stop.fill', android: 'stop', web: 'stop' }
-                    : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }
-                }
-                size={22}
-                tintColor={speaking ? palette.text : palette.accentText}
-              />
-              <Text
-                style={[styles.audioText, { color: speaking ? palette.text : palette.accentText }]}>
-                {speaking ? '음성 해설 멈추기' : '음성 해설 듣기'}
-              </Text>
-            </Pressable>
-          </View>
-        )}
+        <View style={styles.strength}>
+          <StrengthControl
+            value={strength}
+            disabled={original}
+            palette={palette}
+            onChange={setStrength}
+          />
+        </View>
+
+        {/* Always shown: the narration screen explains when there is no reviewed narration yet. */}
+        <View style={styles.audioRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="음성 해설 듣기"
+            accessibilityHint="한 문장씩 읽어 주는 화면이 열려요"
+            onPress={openNarration}
+            style={({ pressed }) => [
+              styles.audio,
+              { backgroundColor: palette.accent, borderColor: palette.accent },
+              { opacity: pressed ? 0.8 : 1 },
+            ]}>
+            <SymbolView
+              name={{ ios: 'headphones', android: 'headphones', web: 'headphones' }}
+              size={22}
+              tintColor={palette.accentText}
+            />
+            <Text style={[styles.audioText, { color: palette.accentText }]}>음성 해설 듣기</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.descHeader}>
           <Text accessibilityRole="header" style={[styles.descTitle, { color: palette.text }]}>
@@ -489,6 +452,10 @@ const styles = StyleSheet.create({
   toggleItem: {
     flexGrow: 1,
     flexBasis: 0,
+  },
+  strength: {
+    paddingHorizontal: ScreenPadding,
+    paddingTop: Spacing.three,
   },
   audioRow: {
     alignItems: 'center',
