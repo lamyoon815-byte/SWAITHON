@@ -10,13 +10,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Easing,
   FadeIn,
   ReduceMotion,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -115,10 +114,9 @@ function MuseumRow({ museum: m, current, justPicked, palette, onPress }: RowProp
   const pressIn = () => {
     if (!reduceMotion) scale.set(withTiming(0.97, { duration: 90 }));
   };
-  // On release: back to size with a small overshoot, so the choice feels "set".
+  // On release: straight back to size, no overshoot (shrink → restore, nothing in between).
   const pressOut = () => {
-    if (!reduceMotion)
-      scale.set(withSequence(withSpring(1.015, { damping: 12, stiffness: 400 }), withSpring(1)));
+    if (!reduceMotion) scale.set(withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) }));
   };
 
   return (
