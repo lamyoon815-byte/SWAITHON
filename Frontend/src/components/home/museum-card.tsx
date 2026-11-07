@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
+import { ButtonRadius, FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
 import type { Museum } from '@/types/museum';
 
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     minWidth: MinTouchTarget,
     paddingHorizontal: 18,
     paddingVertical: 8,
-    borderRadius: MinTouchTarget / 2,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

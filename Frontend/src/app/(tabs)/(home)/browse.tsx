@@ -1,7 +1,10 @@
 // 크게 넘겨보기 (디자인 "저시력 미술관 앱" 작품 선택 시안2). 홈의 "크게 넘겨보기 ›"에서 들어온다
 /**
- * 현재 미술관의 작품을 한 점씩 크게 넘겨 본다. 좌우로 밀거나 ‹ › 버튼으로 넘긴다.
+ * 현재 미술관의 작품을 한 점씩 크게 넘겨 본다. 좌우로 밀거나 카드 양옆 ‹ › 버튼으로 넘긴다.
  * 가운데 카드는 크고 테두리가 있고, 양옆 카드는 작고 흐리다 (색만이 아니라 크기로도 구분).
+ * 크기·흐림은 밀어 넘기는 만큼 따라 바뀌고(토스처럼 슉슉), 제목·소개는 바뀔 때 살짝 떠오른다.
+ * "동작 줄이기"가 켜져 있으면 버튼으로 넘길 때 미끄러지지 않고 바로 바뀐다.
+ * ‹ ›는 카드 줄 양옆에, "작품 보기"는 그 아래 따로 한 줄로 둬서 넘기기와 열기를 헷갈리지 않게 한다.
  * 가운데 카드나 "작품 보기"를 누르면 작품 상세로, 옆 카드를 누르면 그 카드로 넘어간다.
  */
 
@@ -11,7 +14,7 @@ import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
 import {
   AccessibilityInfo,
-  FlatList,
+  type FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,11 +24,29 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import Animated, {
+  Extrapolation,
+  FadeInDown,
+  ReduceMotion,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
-import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import {
+  ButtonHeight,
+  ButtonRadius,
+  FontSize,
+  MinTouchTarget,
+  getPalette,
+  type Palette,
+} from '@/constants/a11y';
+import { ScreenPadding, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -35,6 +56,7 @@ import type { Artwork } from '@/types/artwork';
 
 const CARD_GAP = 14;
 const SIDE_SCALE = 0.88;
+const SIDE_OPACITY = 0.45;
 
 /** 넘겨보기 카드 밑에 두 줄로 보여 줄 소개. 검수된 해설이 없으면 안내 문구. */
 function summary(artwork: Artwork) {
@@ -52,6 +74,11 @@ export default function BrowseScreen() {
   const { data: artworks } = useResource(museumId, () => getMuseumArtworks(museumId!));
   const listRef = useRef<FlatList<Artwork>>(null);
   const [index, setIndex] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const scrollX = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollX.set(e.contentOffset.x);
+  });
 
   const museum = museums?.find((m) => m.id === museumId);
   const works = artworks ?? [];
@@ -69,7 +96,7 @@ export default function BrowseScreen() {
     setIndex(next);
     listRef.current?.scrollToOffset({
       offset: next * interval,
-      animated: true,
+      animated: !reduceMotion,
     });
     AccessibilityInfo.announceForAccessibility(`${next + 1}번째 작품, ${works[next].title}`);
   };
@@ -116,35 +143,64 @@ export default function BrowseScreen() {
             이 미술관에는 아직 작품이 없어요
           </Text>
         ) : (
-          <FlatList
-            ref={listRef}
-            horizontal
-            data={works}
-            keyExtractor={(a) => a.id}
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={interval}
-            decelerationRate="fast"
-            onMomentumScrollEnd={onScrollEnd}
-            contentContainerStyle={{
-              paddingHorizontal: sidePadding,
-              gap: CARD_GAP,
-            }}
-            style={{ height: cardHeight + 24, marginTop: Spacing.three }}
-            renderItem={({ item, index: i }) => (
-              <Card
-                artwork={item}
-                current={i === index}
-                width={cardWidth}
-                height={cardHeight}
-                palette={palette}
-                onPress={() => (i === index ? openArtwork(item) : goTo(i))}
-              />
+          <View style={styles.stage}>
+            <Animated.FlatList
+              ref={listRef}
+              horizontal
+              data={works}
+              keyExtractor={(a) => a.id}
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={interval}
+              decelerationRate="fast"
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={onScrollEnd}
+              contentContainerStyle={{
+                paddingHorizontal: sidePadding,
+                gap: CARD_GAP,
+              }}
+              style={{ height: cardHeight + 24 }}
+              renderItem={({ item, index: i }) => (
+                <Card
+                  artwork={item}
+                  index={i}
+                  current={i === index}
+                  scrollX={scrollX}
+                  interval={interval}
+                  width={cardWidth}
+                  height={cardHeight}
+                  palette={palette}
+                  onPress={() => (i === index ? openArtwork(item) : goTo(i))}
+                />
+              )}
+            />
+            {/* ‹ › on the card row itself, over the dimmed side cards. */}
+            {!!current && (
+              <View pointerEvents="box-none" style={styles.arrows}>
+                <RoundButton
+                  direction="prev"
+                  a11yLabel={atFirst ? '이전 작품, 첫 작품이에요' : '이전 작품'}
+                  disabled={atFirst}
+                  palette={palette}
+                  onPress={() => goTo(index - 1)}
+                />
+                <RoundButton
+                  direction="next"
+                  a11yLabel={atLast ? '다음 작품, 마지막 작품이에요' : '다음 작품'}
+                  disabled={atLast}
+                  palette={palette}
+                  onPress={() => goTo(index + 1)}
+                />
+              </View>
             )}
-          />
+          </View>
         )}
 
         {current && (
-          <View style={styles.info}>
+          <Animated.View
+            key={current.id}
+            entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
+            style={styles.info}>
             <Text style={[styles.title, { color: palette.text }]}>{current.title}</Text>
             <Text style={[styles.artist, { color: palette.textSecondary }]}>
               {[current.artist, current.year].filter(Boolean).join(' · ')}
@@ -152,18 +208,11 @@ export default function BrowseScreen() {
             <Text numberOfLines={2} style={[styles.summary, { color: palette.textSecondary }]}>
               {summary(current)}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {current && (
           <View style={styles.controls}>
-            <RoundButton
-              direction="prev"
-              a11yLabel={atFirst ? '이전 작품, 첫 작품이에요' : '이전 작품'}
-              disabled={atFirst}
-              palette={palette}
-              onPress={() => goTo(index - 1)}
-            />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${current.title} 작품 보기`}
@@ -174,13 +223,6 @@ export default function BrowseScreen() {
               ]}>
               <Text style={[styles.openText, { color: palette.accentText }]}>작품 보기</Text>
             </Pressable>
-            <RoundButton
-              direction="next"
-              a11yLabel={atLast ? '다음 작품, 마지막 작품이에요' : '다음 작품'}
-              disabled={atLast}
-              palette={palette}
-              onPress={() => goTo(index + 1)}
-            />
           </View>
         )}
       </ScrollView>
@@ -190,16 +232,38 @@ export default function BrowseScreen() {
 
 type CardProps = {
   artwork: Artwork;
+  index: number;
   current: boolean;
+  scrollX: SharedValue<number>;
+  interval: number;
   width: number;
   height: number;
   palette: Palette;
   onPress: () => void;
 };
 
-function Card({ artwork, current, width, height, palette, onPress }: CardProps) {
+function Card({
+  artwork,
+  index,
+  current,
+  scrollX,
+  interval,
+  width,
+  height,
+  palette,
+  onPress,
+}: CardProps) {
+  // 0 when this card is centered, 1 when it is one card away. Follows the finger while swiping.
+  const motion = useAnimatedStyle(() => {
+    const away = Math.abs(scrollX.get() / interval - index);
+    return {
+      opacity: interpolate(away, [0, 1], [1, SIDE_OPACITY], Extrapolation.CLAMP),
+      transform: [{ scale: interpolate(away, [0, 1], [1, SIDE_SCALE], Extrapolation.CLAMP) }],
+    };
+  });
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={`${artwork.number}번, ${artwork.title}, ${artwork.artist}`}
       accessibilityHint={current ? '작품 상세로 이동해요' : '이 작품으로 넘겨요'}
@@ -211,9 +275,8 @@ function Card({ artwork, current, width, height, palette, onPress }: CardProps) 
           height,
           backgroundColor: palette.fill,
           borderColor: current ? palette.highlight : 'transparent',
-          opacity: current ? 1 : 0.45,
-          transform: [{ scale: current ? 1 : SIDE_SCALE }],
         },
+        motion,
       ]}>
       {artwork.image_url ? (
         <Image
@@ -234,9 +297,11 @@ function Card({ artwork, current, width, height, palette, onPress }: CardProps) 
           <Text style={styles.badgeText}>No. {artwork.number}</Text>
         </View>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type RoundButtonProps = {
   direction: 'prev' | 'next';
@@ -257,7 +322,8 @@ function RoundButton({ direction, a11yLabel, disabled, palette, onPress }: Round
       style={({ pressed }) => [
         styles.round,
         {
-          backgroundColor: palette.fill,
+          backgroundColor: palette.surface,
+          borderColor: palette.outline,
           opacity: disabled ? 0.35 : pressed ? 0.7 : 1,
         },
       ]}>
@@ -283,7 +349,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.two,
   },
   headerCenter: {
@@ -360,29 +426,38 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     textAlign: 'center',
   },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  stage: {
+    marginTop: Spacing.three,
     justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: Spacing.three,
+  },
+  // Left and right of the card row, vertically centered on the cards.
+  arrows: {
+    position: 'absolute',
+    left: Spacing.two,
+    right: Spacing.two,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  controls: {
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
+  // Sits on top of artwork images, so it gets its own surface, outline and shadow.
   round: {
     width: MinTouchTarget,
     height: MinTouchTarget,
     borderRadius: MinTouchTarget / 2,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: Shadow.floating,
   },
   // A minimum, not a fixed height: the label grows with the system text size.
   open: {
-    flex: 1,
-    maxWidth: 220,
-    minHeight: MinTouchTarget,
+    minHeight: ButtonHeight,
     paddingVertical: 8,
     paddingHorizontal: Spacing.three,
-    borderRadius: MinTouchTarget / 2,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

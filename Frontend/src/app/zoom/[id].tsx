@@ -11,20 +11,22 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
-import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
 import { getArtwork } from '@/lib/api';
-import { DEFAULT_PROFILE } from '@/types/profile';
+import { PREVIEW_PROFILE } from '@/types/profile';
 
 // TODO(A): 상세 화면과 같이 로그인 후 받은 시각 프로필로 바꾼다.
-const profile = DEFAULT_PROFILE;
+const profile = PREVIEW_PROFILE;
 
 export default function ZoomScreen() {
   const palette = getPalette('dark', false);
-  const { id, original } = useLocalSearchParams<{
+  const { id, original, strength } = useLocalSearchParams<{
     id: string;
     original?: string;
+    /** 상세 화면의 보정 강도(0~1). 없으면 프로필 값 */
+    strength?: string;
   }>();
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
@@ -49,7 +51,7 @@ export default function ZoomScreen() {
           <CorrectionCanvas
             source={artwork.image_url}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-            correction={profile}
+            correction={{ ...profile, strength: strength ? Number(strength) : profile.strength }}
             original={showOriginal}
             zoomable
             palette={palette}
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
   },
   top: {
     gap: 4,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingVertical: Spacing.two,
   },
   title: {
@@ -122,17 +124,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
   },
   close: {
-    minWidth: 200,
-    minHeight: MinTouchTarget + 4,
+    minHeight: ButtonHeight,
     paddingHorizontal: 36,
     paddingVertical: 10,
-    borderRadius: (MinTouchTarget + 4) / 2,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

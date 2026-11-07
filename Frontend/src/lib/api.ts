@@ -10,6 +10,7 @@ import artworksMock from '@/mocks/artworks.json';
 import museumsMock from '@/mocks/museums.json';
 import type { Artwork } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
+import type { Narration, NarrationSegment } from '@/types/narration';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -52,7 +53,9 @@ export async function getMuseumArtworks(museumId: string): Promise<Artwork[]> {
   const isMock = museums.some((m) => m.id === museumId);
   const list =
     API_URL && !isMock
-      ? (await get<Page<Artwork>>(`/artworks?limit=100&museum_id=${encodeURIComponent(museumId)}`)).items.map(fromServer)
+      ? (
+          await get<Page<Artwork>>(`/artworks?limit=100&museum_id=${encodeURIComponent(museumId)}`)
+        ).items.map(fromServer)
       : artworks.filter((a) => a.museum_id === museumId);
   return list.sort((a, b) => a.number.localeCompare(b.number));
 }
@@ -63,6 +66,36 @@ export async function getArtwork(id: string): Promise<Artwork> {
   if (found) return found;
   if (API_URL) return fromServer(await get<Artwork>(`/artworks/${encodeURIComponent(id)}`));
   throw new ApiError(404);
+}
+
+/**
+ * 검수된 해설 문장들 (`GET /artworks/{id}/narration`, README 6.2). 로그인 없이 부른다.
+ * 항상 `both`로 받고, 사실만/해석만은 화면에서 거른다 (`region_index`가 바뀌지 않으니 같은 결과).
+ * mock 작품은 `description`으로 같은 모양을 만든다. 검수 해설이 없으면 409 `ApiError`.
+ */
+export async function getNarration(id: string): Promise<Narration> {
+  const mock = artworks.find((a) => a.id === id);
+  if (mock || !API_URL) {
+    const d = mock?.description;
+    if (!mock) throw new ApiError(404);
+    if (!d) throw new ApiError(409);
+    const segments: NarrationSegment[] = [
+      ...d.facts.map((text) => ({ type: 'fact' as const, text, region_index: null })),
+      ...d.interpretations.map((text) => ({
+        type: 'interpretation' as const,
+        text: `가능한 감정적 해석입니다. ${text}`,
+        region_index: null,
+      })),
+    ];
+    return {
+      artwork_id: id,
+      mode: 'both',
+      segments,
+      text: segments.map((s) => s.text).join('\n'),
+      review_status: 'reviewed',
+    };
+  }
+  return get<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=both`);
 }
 
 export type RecognitionCandidate = {

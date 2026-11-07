@@ -1,42 +1,65 @@
 /**
- * 화면 아래 잠깐 뜨는 안내. 화면을 넘어가도 남아 있도록 탭 레이아웃에 `ToastHost`를 하나 두고,
- * 어디서든 `showToast`로 띄운다. 스크린리더에도 같은 문장을 읽어 준다.
+ * 화면 아래에서 올라왔다가 내려가는 짧은 안내 (토스 스타일 알약). 화면을 넘어가도 남아 있도록
+ * 루트 레이아웃에 `ToastHost`를 하나 두고, 어디서든 `showToast(문구, 종류)`로 띄운다.
+ * 스크린리더에도 같은 문장을 읽어 준다.
+ *
+ * 종류(kind)마다 아이콘 모양이 다르다 (ⓘ 안내 · ✓ 확인 · ! 주의 · ✕ 오류). 색만으로 구분하지 않는다.
  */
 
+import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useSyncExternalStore } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
 
-import { FontSize, getPalette } from '@/constants/a11y';
-import { Shadow, Spacing } from '@/constants/theme';
+import { FontSize } from '@/constants/a11y';
+import { Colors, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarBottom, TabBarHeight } from '@/hooks/use-tab-bar-inset';
 
-/**
- * At least 5 s, longer for longer messages (about 0.1 s a character): low-vision users read slowly
- * and some toasts carry a state change ("현재 미술관이 바뀌었어요"). Tapping closes it early.
- */
-const MIN_DURATION_MS = 5000;
-const MS_PER_CHAR = 100;
+export type ToastKind = 'info' | 'success' | 'warning' | 'error';
 
-let message = '';
+/**
+ * 3.5 s: Toss's TDS default is 3 s, a little longer here because low-vision users read slowly.
+ * Long messages stay longer (about 0.09 s a character, so 40+ characters go past 3.5 s).
+ * Tapping closes it early.
+ */
+const MIN_DURATION_MS = 3500;
+const MS_PER_CHAR = 90;
+
+/**
+ * Icon colors sit on the toast's own dark pill in both themes, so one set works for light and dark.
+ * Each is at least 3:1 against both pill colors (#3A3D44, #33353B), the non-text contrast minimum.
+ */
+const KINDS: Record<ToastKind, { ios: SFSymbol; android: AndroidSymbol; color: string; label: string }> = {
+  info: { ios: 'info.circle.fill', android: 'info', color: '#8FB0FF', label: '안내' },
+  success: { ios: 'checkmark.circle.fill', android: 'check_circle', color: '#5BD69A', label: '완료' },
+  warning: { ios: 'exclamationmark.circle.fill', android: 'error', color: '#FFC845', label: '주의' },
+  error: { ios: 'xmark.circle.fill', android: 'cancel', color: '#FF8A80', label: '오류' },
+};
+
+type Toast = { id: number; text: string; kind: ToastKind };
+
+let current: Toast | null = null;
+let nextId = 1;
 let timer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
 
-function set(next: string) {
-  message = next;
+function set(next: Toast | null) {
+  current = next;
   listeners.forEach((l) => l());
 }
 
-export function showToast(text: string) {
+export function showToast(text: string, kind: ToastKind = 'info') {
   clearTimeout(timer);
-  set(text);
+  // A new id remounts the pill, so a second message slides in again instead of swapping in place.
+  set({ id: nextId++, text, kind });
   AccessibilityInfo.announceForAccessibility(text);
-  timer = setTimeout(() => set(''), Math.max(MIN_DURATION_MS, text.length * MS_PER_CHAR));
+  timer = setTimeout(() => set(null), Math.max(MIN_DURATION_MS, text.length * MS_PER_CHAR));
 }
 
 function dismiss() {
   clearTimeout(timer);
-  set('');
+  set(null);
 }
 
 function subscribe(listener: () => void) {
@@ -46,39 +69,66 @@ function subscribe(listener: () => void) {
   };
 }
 
-const getMessage = () => message;
+const getToast = () => current;
 
 export function ToastHost() {
-  const text = useSyncExternalStore(subscribe, getMessage, getMessage);
-  const palette = getPalette(useColorScheme() === 'dark' ? 'dark' : 'light', false);
+  const toast = useSyncExternalStore(subscribe, getToast, getToast);
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const bottom = useTabBarBottom() + TabBarHeight + Spacing.three;
+  // One step lighter than the dark background, like Toss; charcoal on the light background.
+  const pill = scheme === 'dark' ? Colors.dark.backgroundSelected : '#33353B';
 
-  if (!text) return null;
   return (
-    <Pressable
-      accessibilityRole="alert"
-      accessibilityHint="누르면 닫혀요"
-      onPress={dismiss}
-      style={[styles.toast, { bottom, backgroundColor: palette.highlight }]}>
-      <Text style={[styles.text, { color: palette.highlightText }]}>{text}</Text>
-    </Pressable>
+    <View pointerEvents="box-none" style={[styles.layer, { bottom }]}>
+      {toast && (
+        <Animated.View
+          key={toast.id}
+          // Up from below, back down on the way out. "Reduce motion" turns both into a plain cut.
+          entering={FadeInDown.duration(260).reduceMotion(ReduceMotion.System)}
+          exiting={FadeOutDown.duration(200).reduceMotion(ReduceMotion.System)}>
+          <Pressable
+            accessibilityRole="alert"
+            accessibilityLabel={`${KINDS[toast.kind].label}, ${toast.text}`}
+            accessibilityHint="누르면 닫혀요"
+            onPress={dismiss}
+            style={[styles.pill, { backgroundColor: pill }]}>
+            <SymbolView
+              name={{ ios: KINDS[toast.kind].ios, android: KINDS[toast.kind].android, web: KINDS[toast.kind].android }}
+              size={26}
+              tintColor={KINDS[toast.kind].color}
+            />
+            <Text style={styles.text}>{toast.text}</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  toast: {
+  layer: {
     position: 'absolute',
     left: Spacing.three,
     right: Spacing.three,
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.four,
+    alignItems: 'center',
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingLeft: 16,
+    paddingRight: 22,
     borderRadius: 28,
     boxShadow: Shadow.toast,
   },
+  // White on either pill color: about 10:1 on the dark one, 12:1 on charcoal.
   text: {
+    flexShrink: 1,
+    color: '#FFFFFF',
     fontSize: FontSize.label,
-    fontWeight: 800,
-    lineHeight: 24,
-    textAlign: 'center',
+    fontWeight: 700,
+    lineHeight: 25,
   },
 });
