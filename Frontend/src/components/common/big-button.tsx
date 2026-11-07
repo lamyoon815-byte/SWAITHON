@@ -1,6 +1,15 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
+import {
+  ButtonHeight,
+  ButtonRadius,
+  FontSize,
+  MinTouchTarget,
+  type Palette,
+} from '@/constants/a11y';
+
+const CheckSize = 22;
 
 type Props = {
   label: string;
@@ -9,9 +18,12 @@ type Props = {
   selected?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
-  /** 스크린리더가 읽을 이름. `label`에 ✓ 같은 기호가 있으면 기호 없이 따로 준다 */
+  /** 스크린리더가 읽을 이름. 기본은 `label` */
   accessibilityLabel?: string;
-  /** 둘 중 하나를 고르는 묶음(보정본/원본 등) 안의 버튼이면 true. 스크린리더가 "선택됨"으로 읽는다 */
+  /**
+   * 둘 중 하나를 고르는 묶음(보정본/원본 등) 안의 버튼이면 true. 스크린리더가 "선택됨"으로 읽고,
+   * 선택되면 글자 앞에 ✓ 아이콘이 보인다. `label`에는 ✓를 넣지 않는다.
+   */
   radio?: boolean;
 };
 
@@ -26,10 +38,11 @@ export function BigButton({
   radio,
 }: Props) {
   const filled = selected ?? true;
+  const color = filled ? palette.accentText : palette.text;
   return (
     <Pressable
       accessibilityRole={radio ? 'radio' : 'button'}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={radio ? { checked: !!selected, disabled } : { selected, disabled }}
       accessibilityHint={accessibilityHint}
       disabled={disabled}
@@ -42,26 +55,46 @@ export function BigButton({
           opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
         },
       ]}>
-      <Text style={[styles.label, { color: filled ? palette.accentText : palette.text }]}>
-        {label}
-      </Text>
+      {/*
+        Radio buttons always reserve the ✓ slot and an equal empty slot on the other side, so
+        selecting only fades the ✓ in: the label never moves and stays centered.
+      */}
+      {radio && (
+        <View style={[styles.slot, { opacity: selected ? 1 : 0 }]}>
+          <SymbolView
+            name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+            size={CheckSize}
+            weight="bold"
+            tintColor={color}
+          />
+        </View>
+      )}
+      <Text style={[styles.label, { color }]}>{label}</Text>
+      {radio && <View style={styles.slot} />}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: MinTouchTarget,
+    minHeight: ButtonHeight,
     minWidth: MinTouchTarget,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: ButtonRadius,
     borderWidth: 2,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
     flexGrow: 1,
   },
+  slot: {
+    width: CheckSize,
+    alignItems: 'center',
+  },
   label: {
+    flexShrink: 1,
     fontSize: FontSize.button,
     fontWeight: 700,
     textAlign: 'center',

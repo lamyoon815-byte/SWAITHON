@@ -22,6 +22,8 @@ export type Palette = {
   highlight: string;
   highlightText: string;
   border: string;
+  /** Card and section outline: 3:1 against the page so low-vision users can see where a card ends. */
+  outline: string;
   danger: string;
 };
 
@@ -41,6 +43,7 @@ export const HighContrast: Palette = {
   highlight: Yellow,
   highlightText: '#000000',
   border: '#FFFFFF',
+  outline: '#FFFFFF',
   danger: '#FF8A80',
 };
 
@@ -59,12 +62,22 @@ export function getPalette(scheme: 'light' | 'dark', highContrast: boolean): Pal
     highlight: Mustard, // charcoal text on it: light 7.2:1, dark 8.2:1
     highlightText: dark ? c.background : c.text,
     border: dark ? '#8A8F99' : Charcoal,
+    outline: dark ? '#70747F' : '#868A94', // vs page: dark 3.6:1, light 3.3:1
     danger: dark ? '#FF8A80' : '#B3261E',
   };
 }
 
 /** Minimum touch target (pt). Apple HIG 44, Material 48 — we go larger for low vision. */
 export const MinTouchTarget = 56;
+
+/**
+ * Text buttons (the reference pair "판매하기 / 구매하기", measured on a 402pt-wide screen):
+ * 56 tall, 16 corner radius, 8 between side-by-side buttons. Icon-only buttons stay round.
+ * Heights are minimums in styles, so the label can still grow with the system text size.
+ */
+export const ButtonHeight = MinTouchTarget;
+export const ButtonRadius = 16;
+export const ButtonGap = 8;
 
 export const FontSize = {
   body: 20,

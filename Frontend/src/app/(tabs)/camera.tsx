@@ -11,8 +11,8 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showToast } from '@/components/common/toast';
-import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import { ButtonGap, ButtonHeight, ButtonRadius, FontSize, getPalette, type Palette } from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import type { CaptureMode } from '@/types/capture';
@@ -36,13 +36,13 @@ export default function CameraScreen() {
   const open = async (mode: CaptureMode) => {
     if (!permission?.granted) {
       if (permission && !permission.canAskAgain) {
-        showToast('설정에서 카메라를 허용해 주세요');
+        showToast('설정에서 카메라를 허용해 주세요', 'warning');
         Linking.openSettings();
         return;
       }
       const res = await requestPermission();
       if (!res.granted) {
-        showToast('카메라 권한이 있어야 작품을 찾을 수 있어요');
+        showToast('카메라 권한이 있어야 작품을 찾을 수 있어요', 'warning');
         return;
       }
     }
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     gap: Spacing.four,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
   heading: {
@@ -166,16 +166,20 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     lineHeight: 27,
   },
+  // Side by side in equal halves, like the reference "판매하기 / 구매하기" pair.
   actions: {
     marginTop: 'auto',
-    gap: 12,
+    flexDirection: 'row',
+    gap: ButtonGap,
   },
   // Minimum, not fixed: a fixed height clips the label at the largest system text size.
   action: {
-    minHeight: MinTouchTarget + 8,
+    flexGrow: 1,
+    flexBasis: 0,
+    minHeight: ButtonHeight,
     paddingVertical: 10,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

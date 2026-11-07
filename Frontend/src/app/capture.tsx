@@ -19,8 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { showToast } from '@/components/common/toast';
-import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Scrim, Spacing } from '@/constants/theme';
+import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
+import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
 import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
 import { resizeLongSide } from '@/lib/resize';
@@ -123,7 +123,7 @@ export default function CaptureScreen() {
       // Leave the camera off the back stack: back from the artwork goes to the list, not here.
       router.dismissAll();
       router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
-      showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요');
+      showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
     } catch (e) {
       showScanError(e instanceof ApiError && e.status === 404 ? NOT_REGISTERED : LOAD_FAILED);
     }
@@ -136,7 +136,7 @@ export default function CaptureScreen() {
     if (artwork.museum_id) await updateSettings({ recent_museum_id: artwork.museum_id });
     router.dismissAll();
     router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
-    showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요');
+    showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
   };
 
   /**
@@ -151,11 +151,11 @@ export default function CaptureScreen() {
       try {
         photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       } catch {
-        showToast('사진을 찍지 못했어요. 다시 눌러 주세요');
+        showToast('사진을 찍지 못했어요. 다시 눌러 주세요', 'error');
         return;
       }
       if (!API_URL) {
-        showToast('사진을 찍었어요. 작품 인식은 서버 연결 후에 동작해요');
+        showToast('작품 인식은 서버 연결 후에 동작해요', 'warning');
         return;
       }
       showToast('작품을 분석하고 있어요');
@@ -167,7 +167,7 @@ export default function CaptureScreen() {
         const result = await recognizeArtwork(resized.uri);
         const best = result.candidates[0];
         if (!best) {
-          showToast('등록된 작품을 찾지 못했어요. 작품 전체가 보이게 다시 찍어 주세요');
+          showToast('등록된 작품을 찾지 못했어요. 작품 전체가 보이게 다시 찍어 주세요', 'warning');
           return;
         }
         stage = '작품 열기';
@@ -179,6 +179,7 @@ export default function CaptureScreen() {
           e instanceof ApiError && (e.status === 429 || e.status === 503)
             ? '서버가 바빠요. 잠시 후 다시 찍어 주세요'
             : `해당 작품의 정보를 불러올 수 없어요. 다시 찍어 주세요${__DEV__ ? ` [${stage}: ${detail}]` : ''}`,
+          'error',
         );
       }
     } finally {
@@ -353,7 +354,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingVertical: Spacing.two,
   },
   headerTitle: {
@@ -472,15 +473,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    padding: Spacing.three,
+    paddingHorizontal: ScreenPadding,
+    paddingVertical: Spacing.three,
   },
   // Minimum, not fixed: a fixed height clips the label at the largest system text size.
   button: {
     alignSelf: 'stretch',
-    minHeight: MinTouchTarget + 8,
+    minHeight: ButtonHeight,
     paddingVertical: 10,
     paddingHorizontal: Spacing.three,
-    borderRadius: 20,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

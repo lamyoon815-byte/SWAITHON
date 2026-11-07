@@ -63,6 +63,9 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/** Left and right screen margin (20pt, from the button reference). */
+export const ScreenPadding = 20;
+
 /** Dark see-through backing for controls laid over the camera preview. */
 export const Scrim = 'rgba(0,0,0,0.55)';
 

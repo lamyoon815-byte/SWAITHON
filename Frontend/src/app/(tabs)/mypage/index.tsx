@@ -23,7 +23,7 @@ export default function MyPageScreen() {
 
   const clearMuseum = async () => {
     await updateSettings({ recent_museum_id: null });
-    showToast('미술관 기억을 지웠어요');
+    showToast('미술관 기억을 지웠어요', 'success');
   };
 
   return (

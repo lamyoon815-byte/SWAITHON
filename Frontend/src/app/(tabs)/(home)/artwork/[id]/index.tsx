@@ -17,8 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
-import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import {
+  ButtonGap,
+  ButtonHeight,
+  ButtonRadius,
+  FontSize,
+  MinTouchTarget,
+  getPalette,
+  type Palette,
+} from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
@@ -176,12 +184,11 @@ export default function ArtworkScreen() {
         </View>
 
         <View accessibilityRole="radiogroup" accessibilityLabel="보기 방식" style={styles.toggle}>
-          {/* The ✓ is for sighted users; screen readers get the name plus the radio's checked state.
-              Each button sits in an equal half, so adding or removing the ✓ never resizes them. */}
+          {/* Each button sits in an equal half, and BigButton reserves the ✓ slot itself,
+              so selecting never resizes a button or moves its label. */}
           <View style={styles.toggleItem}>
             <BigButton
-              label={original ? '보정본' : '✓ 보정본'}
-              accessibilityLabel="보정본"
+              label="보정본"
               radio
               onPress={() => setOriginal(false)}
               palette={palette}
@@ -190,8 +197,7 @@ export default function ArtworkScreen() {
           </View>
           <View style={styles.toggleItem}>
             <BigButton
-              label={original ? '✓ 원본 보기' : '원본 보기'}
-              accessibilityLabel="원본 보기"
+              label="원본 보기"
               radio
               onPress={() => setOriginal(true)}
               palette={palette}
@@ -410,7 +416,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   plainHeader: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.two,
   },
   hero: {
@@ -431,10 +437,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: Spacing.three,
     top: Spacing.two,
-    minHeight: MinTouchTarget,
+    minHeight: ButtonHeight,
     paddingHorizontal: 18,
     paddingVertical: 8,
-    borderRadius: MinTouchTarget / 2,
+    borderRadius: ButtonRadius,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -469,8 +475,8 @@ const styles = StyleSheet.create({
   },
   toggle: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    gap: ButtonGap,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
   // flexBasis 0: both halves start from zero width and split the row evenly, whatever the label.
@@ -480,16 +486,16 @@ const styles = StyleSheet.create({
   },
   audioRow: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.three,
   },
   // Heights are minimums: a fixed height clips the words at the largest system text size.
   audio: {
     alignSelf: 'stretch',
-    minHeight: 60,
-    paddingVertical: 12,
+    minHeight: ButtonHeight,
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 30,
+    borderRadius: ButtonRadius,
     borderWidth: 3,
     flexDirection: 'row',
     alignItems: 'center',
@@ -546,16 +552,18 @@ const styles = StyleSheet.create({
   siblings: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: Spacing.three,
+    gap: ButtonGap,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
+  // Equal halves like the 보정본/원본 pair, whatever the label.
   sibling: {
-    flexShrink: 1,
-    minHeight: MinTouchTarget,
-    paddingHorizontal: 18,
+    flexGrow: 1,
+    flexBasis: 0,
+    minHeight: ButtonHeight,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: MinTouchTarget / 2,
+    borderRadius: ButtonRadius,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

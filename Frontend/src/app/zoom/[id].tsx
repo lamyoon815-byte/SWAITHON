@@ -11,8 +11,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
-import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
 import { getArtwork } from '@/lib/api';
 import { DEFAULT_PROFILE } from '@/types/profile';
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   top: {
     gap: 4,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingVertical: Spacing.two,
   },
   title: {
@@ -122,17 +122,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
   },
   close: {
-    minWidth: 200,
-    minHeight: MinTouchTarget + 4,
+    minHeight: ButtonHeight,
     paddingHorizontal: 36,
     paddingVertical: 10,
-    borderRadius: (MinTouchTarget + 4) / 2,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

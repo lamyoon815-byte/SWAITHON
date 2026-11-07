@@ -9,8 +9,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
-import { FontSize, getPalette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import { ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: 12,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 6,
     paddingVertical: 8,
-    borderRadius: 22,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

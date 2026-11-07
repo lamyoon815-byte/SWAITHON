@@ -24,8 +24,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
-import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
-import { Spacing } from '@/constants/theme';
+import {
+  ButtonGap,
+  ButtonHeight,
+  ButtonRadius,
+  FontSize,
+  MinTouchTarget,
+  getPalette,
+  type Palette,
+} from '@/constants/a11y';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
@@ -283,7 +291,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.two,
   },
   headerCenter: {
@@ -364,8 +372,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: Spacing.three,
+    gap: ButtonGap,
+    paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
   round: {
@@ -379,10 +387,10 @@ const styles = StyleSheet.create({
   open: {
     flex: 1,
     maxWidth: 220,
-    minHeight: MinTouchTarget,
+    minHeight: ButtonHeight,
     paddingVertical: 8,
     paddingHorizontal: Spacing.three,
-    borderRadius: MinTouchTarget / 2,
+    borderRadius: ButtonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },
