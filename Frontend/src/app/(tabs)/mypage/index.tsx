@@ -38,7 +38,6 @@ export default function MyPageScreen() {
   const museum = museums?.find((m) => m.id === settings.recent_museum_id);
   const fontLabel = FONT_OPTIONS.find((option) => option.value === settings.font_scale)?.label ?? '기본';
   const card = { backgroundColor: palette.surface, borderColor: palette.outline };
-  const preparing = (label: string) => showToast(`${label} 화면은 준비 중이에요`);
 
   const selectFont = async (font_scale: DeviceSettings['font_scale']) => {
     await updateSettings({ font_scale });
