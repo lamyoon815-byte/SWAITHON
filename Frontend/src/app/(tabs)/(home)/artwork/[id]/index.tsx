@@ -29,19 +29,17 @@ import {
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
+import { useProfile } from '@/hooks/use-profile';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
-import { PREVIEW_PROFILE } from '@/types/profile';
-
-// TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 그 전에는 차이가 보이도록 임시 값.
-const profile = PREVIEW_PROFILE;
 
 const HERO_HEIGHT = 380;
 /** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
 const DESC_SIZES = [18, 20, 23, 26];
 
 export default function ArtworkScreen() {
+  const { profile } = useProfile();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottomInset = useTabBarInset();

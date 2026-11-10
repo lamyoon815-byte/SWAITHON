@@ -14,13 +14,11 @@ import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
+import { useProfile } from '@/hooks/use-profile';
 import { getArtwork } from '@/lib/api';
-import { PREVIEW_PROFILE } from '@/types/profile';
-
-// TODO(A): 상세 화면과 같이 로그인 후 받은 시각 프로필로 바꾼다.
-const profile = PREVIEW_PROFILE;
 
 export default function ZoomScreen() {
+  const { profile } = useProfile();
   const palette = getPalette('dark', false);
   const { id, original, strength } = useLocalSearchParams<{
     id: string;
