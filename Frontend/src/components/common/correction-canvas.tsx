@@ -21,15 +21,8 @@ import {
   type DataSourceParam,
 } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  AccessibilityInfo,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { AccessibilityInfo, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from '@/components/common/text';
 import {
   GestureDetector,
   usePanGesture,

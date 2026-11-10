@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Platform, Text, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Platform, useWindowDimensions } from 'react-native';
+import { Text } from '@/components/common/text';
 
 import { BigButton } from '@/components/common/big-button';
 import { InfoText, Row, Section } from '@/components/spike/section';
