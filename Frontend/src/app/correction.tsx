@@ -1,7 +1,8 @@
 import { router, usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';

@@ -2,7 +2,8 @@ import Slider, { type SliderRef } from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 
 import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
