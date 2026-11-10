@@ -17,6 +17,7 @@ if __package__:
     from .recognition import RecognitionService
     from .gemini import GeminiService
     from .ai_routes import create_ai_router
+    from .ai.budget import GeminiBudget
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
@@ -24,6 +25,7 @@ else:
     from recognition import RecognitionService
     from gemini import GeminiService
     from ai_routes import create_ai_router
+    from ai.budget import GeminiBudget
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -37,11 +39,17 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     accounts = AccountStore(store.data_dir)
     recognition = recognition if recognition is not None else RecognitionService(store)
     gemini = gemini if gemini is not None else GeminiService()
+    if isinstance(gemini, GeminiService) and gemini.budget is None:
+        # 유료 API 예산 상한(기본 12,000원). 사용 내역은 data/gemini-usage.json에 기록한다.
+        gemini.budget = GeminiBudget(store.data_dir / "gemini-usage.json")
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         await run_in_threadpool(store.initialize)
         await run_in_threadpool(accounts.initialize)
+        # 시연용: CLIP_WARMUP=1이면 서버 시작 때 모델·인덱스를 미리 불러 첫 인식도 빠르게 한다.
+        if os.environ.get("CLIP_WARMUP", "").strip().lower() in {"1", "true", "on"} and hasattr(recognition, "warmup"):
+            await run_in_threadpool(recognition.warmup)
         yield
 
     application = FastAPI(

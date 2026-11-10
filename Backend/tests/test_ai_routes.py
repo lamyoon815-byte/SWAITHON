@@ -103,12 +103,14 @@ class AIRouteTests(unittest.TestCase):
         self.assertTrue(response.json()["fallback"])
         self.assertNotIn("fallback", response.json()["description"])
 
-    def test_correction_validation_and_missing_implementation(self):
+    def test_correction_validation_and_default_implementation(self):
         self.assertEqual(self.client.post("/correction").status_code, 422)
         # 프로필은 기기에만 저장하므로 요청마다 보내야 한다.
         self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 422)
         data = {"artwork_id": "sample", "profile": "{}"}
-        self.assertEqual(self.client.post("/correction", data=data).status_code, 503)
+        # Backend/ai/correction.py가 구현되어 기본 보정 함수로 JPEG를 반환한다.
+        response = self.client.post("/correction", data=data)
+        self.assertEqual((response.status_code, response.headers["content-type"]), (200, "image/jpeg"))
         self.assertEqual(self.client.post("/correction", data={**data, "artwork_id": "missing"}).status_code, 404)
         self.assertEqual(self.client.post("/correction", data={**data, "profile": '{"brightness":51}'}).status_code, 422)
         self.assertEqual(self.client.post("/correction", data=data, files={"image": ("x.png", self.image)}).status_code, 422)

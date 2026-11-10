@@ -13,7 +13,8 @@ register_heif_opener(thumbnails=False)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
-ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "HEIF"}
+# MPO: 아이폰 등이 저장하는 JPEG 기반 다중 이미지(HDR·심도 정보 포함). 첫 장만 사용한다.
+ALLOWED_IMAGE_FORMATS = {"JPEG", "MPO", "PNG", "WEBP", "HEIF"}
 
 
 @dataclass(frozen=True)

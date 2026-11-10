@@ -117,3 +117,61 @@ BE 기본 설정은 `CLIP_MODEL=ViT-B-32-quickgelu`, `CLIP_PRETRAINED=openai`입
 - 촬영본 위치는 BE가 최고 후보 원본과 ORB/RANSAC으로 검증합니다. `quality.artwork_bbox`는 회전 보정 촬영본의 xywh 비율, 검증 실패는 null. CLIP 유사도에서 bbox를 추측하지 않습니다.
 - Gemini `Description`에는 `fact_region_indices`, `interpretation_region_indices`를 추가했습니다. 각각 facts/interpretations와 같은 길이이며 각 값은 regions의 0 기반 인덱스 또는 null입니다. 전체 설명·불확실한 연결은 null로 둡니다. 잘못된 길이/범위는 스키마 오류로 재시도/기존 fallback 흐름을 따릅니다.
 - 검수 시 문장과 영역 연결도 함께 확인합니다. 기존 해설은 배열 누락을 허용하며 narration의 region_index는 null입니다. 연결을 보완하려면 관리자 검수 JSON에 배열을 추가하고 재등록합니다.
+
+## AI 파트 구현 (feature/ai-finetune)
+
+### API 분리와 응답 (FE 연동)
+
+| API | 하는 일 |
+|---|---|
+| `POST /recognize/artwork` | 작품 사진으로 등록 작품 찾기 (CLIP + 파인튜닝 어댑터 + 작품/작품 아님 판별) |
+| `POST /recognize/placard` | 명패 사진으로 등록 작품 찾기 (Gemini 글자 읽기) |
+| `POST /analyze` | 미등록 작품 AI 해설 (Gemini, 예산 상한 적용) |
+| `POST /recognize` | 이전 버전 호환용(deprecated). 새 코드는 위 두 API 사용 |
+
+인식 응답에 기존 필드는 그대로 두고 아래를 추가했습니다. 앱은 `next_action`으로 화면을 나누고 `message`를 그대로 보여주거나 읽어 주면 됩니다.
+
+| next_action | 상황 | 앱 동작 |
+|---|---|---|
+| `show_artwork` | 등록 작품으로 확신 | 바로 작품 화면 |
+| `confirm_candidates` | 비슷한 등록 작품 후보 | 후보 확인 |
+| `analyze` | 작품 사진이지만 미등록 (`reason=unregistered_artwork`) | 같은 사진으로 `/analyze` 호출 |
+| `retake` | 손·바닥 등 작품이 아닌 사진(`not_artwork`) 또는 명패를 못 읽음 | "작품을 인식하지 못했어요…" 안내 후 다시 촬영 |
+
+`artwork_probability`는 작품을 찍은 사진일 확률(CLIP 제로샷, 0~1)입니다.
+
+### 파인튜닝 (CLIP-Adapter) 실행 순서
+
+CLIP 본체는 고정하고 임베딩 뒤의 작은 잔차 어댑터만 대조 학습합니다. 학습 데이터는 NGA 공개 그림 400점을
+휴대폰 촬영처럼 변형한 사진이며, 등록 작품 21점과 평가용 미등록 10점은 학습에서 제외했습니다.
+
+```powershell
+.\Backend\.venv\Scripts\python.exe Backend\ai\finetune\prepare_eval.py       # 평가 폴더 + 미등록 원본 10점
+.\Backend\.venv\Scripts\python.exe Backend\ai\finetune\download_training.py  # 학습 그림 400점
+.\Backend\.venv\Scripts\python.exe Backend\ai\finetune\extract_features.py   # 원본+변형 16장 CLIP 임베딩
+.\Backend\.venv\Scripts\python.exe Backend\ai\finetune\train_adapter.py      # 어댑터 학습 → data/clip-adapter.npz
+.\Backend\.venv\Scripts\python.exe Backend\ai\evaluation.py                  # 실제 촬영본으로 전/후 비교 + 기준값
+.\Backend\.venv\Scripts\python.exe Backend\build_index.py                    # 어댑터 반영 인덱스 재생성
+```
+
+`evaluation.py`는 작품 단위 5겹 교차 검증으로 기준값을 정하고(기준을 정한 사진과 확인한 사진을 분리),
+`Backend/data/eval/report.md`와 `.env`에 넣을 값(`CLIP_ADAPTER`, `CLIP_MATCH_THRESHOLD`,
+`CLIP_HIGH_CONFIDENCE_THRESHOLD`, `ARTWORK_GATE_THRESHOLD`)을 출력합니다. 파인튜닝 후 성능이 좋아지지 않으면 `CLIP_ADAPTER=off`를 추천합니다.
+
+### 속도와 비용
+
+- `CLIP_WARMUP=1`: 서버 시작 때 모델·인덱스를 미리 불러 첫 요청도 빠르게 처리합니다.
+- 작품 판별은 인식에 쓴 CLIP 임베딩을 재사용해 추가 모델 호출이 없습니다. 어댑터는 numpy 행렬 곱 2번입니다.
+- Gemini: 호출 전 `사용액 + 1회 최대 비용 > GEMINI_BUDGET_KRW(기본 12,000원)`이면 429로 막고, 응답의 실제 토큰 수로 사용액을 `data/gemini-usage.json`에 기록합니다. 금액은 단가·환율 설정으로 계산한 추정치입니다.
+
+### 이미지 보정 (`POST /correction`, `ai/correction.py`)
+
+`correct_image(content, profile)`가 같은 크기의 JPEG를 반환합니다. 처리 순서는 아래와 같습니다.
+
+1. 색각 보정(`color_type`, `severity`): Machado(2009) 색각이상 시뮬레이션 행렬로 사용자가 잃는 색 차이를 계산하고, 그 차이를 사용자가 구분할 수 있는 색 방향으로 옮깁니다(Daltonization). `severity`는 0~1 사이 표 값을 보간합니다.
+2. 밝기·대비(`brightness`, `contrast`): CIELAB 밝기(L*)에만 적용해 색상은 유지합니다.
+3. 선명도(`sharpness`): 언샤프 마스크.
+4. 선 굵기·윤곽(`edge`): 가는 어두운 선(Black-hat 형태학 연산)을 찾아 두껍게 하고, Canny 윤곽선을 덧그립니다.
+
+검증용 비교 이미지와 수치: `Backend\.venv\Scripts\python.exe Backend\ai\correction_demo.py` → `Backend/data/eval/correction/`
+(등록 작품 21점, 색각이상 시뮬레이션에서 구분이 사라진 색 쌍 중 보정 후 다시 구분되는 비율: 적색약 66%, 녹색약 64%, 청색약 84%)

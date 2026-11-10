@@ -1,0 +1,360 @@
+{
+  "generated_by": "Backend/ai/calibration_assets.py",
+  "screening": {
+    "question": "그림 속 숫자가 보이면 골라 주세요.",
+    "not_visible": "숫자가 안 보여요",
+    "plates": [
+      {
+        "color_type": "protan",
+        "answer": "45",
+        "choices": [
+          "97",
+          "45",
+          "71",
+          "숫자가 안 보여요"
+        ],
+        "file": "plate-protan-45-0.jpg"
+      },
+      {
+        "color_type": "deutan",
+        "answer": "29",
+        "choices": [
+          "34",
+          "76",
+          "29",
+          "숫자가 안 보여요"
+        ],
+        "file": "plate-deutan-29-0.jpg"
+      },
+      {
+        "color_type": "tritan",
+        "answer": "73",
+        "choices": [
+          "73",
+          "28",
+          "81",
+          "숫자가 안 보여요"
+        ],
+        "file": "plate-tritan-73-0.jpg"
+      }
+    ]
+  },
+  "color": {
+    "protan": {
+      "question": "그림 속 숫자가 보이면 골라 주세요.",
+      "levels": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "plates": [
+        {
+          "answer": "86",
+          "choices": [
+            "79",
+            "25",
+            "86",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-protan-86-20.jpg"
+        },
+        {
+          "answer": "32",
+          "choices": [
+            "95",
+            "86",
+            "32",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-protan-32-40.jpg"
+        },
+        {
+          "answer": "57",
+          "choices": [
+            "39",
+            "29",
+            "57",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-protan-57-60.jpg"
+        },
+        {
+          "answer": "94",
+          "choices": [
+            "32",
+            "94",
+            "25",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-protan-94-80.jpg"
+        },
+        {
+          "answer": "28",
+          "choices": [
+            "97",
+            "28",
+            "69",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-protan-28-100.jpg"
+        }
+      ]
+    },
+    "deutan": {
+      "question": "그림 속 숫자가 보이면 골라 주세요.",
+      "levels": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "plates": [
+        {
+          "answer": "74",
+          "choices": [
+            "95",
+            "39",
+            "74",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-deutan-74-20.jpg"
+        },
+        {
+          "answer": "63",
+          "choices": [
+            "63",
+            "58",
+            "57",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-deutan-63-40.jpg"
+        },
+        {
+          "answer": "85",
+          "choices": [
+            "85",
+            "49",
+            "41",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-deutan-85-60.jpg"
+        },
+        {
+          "answer": "42",
+          "choices": [
+            "42",
+            "63",
+            "51",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-deutan-42-80.jpg"
+        },
+        {
+          "answer": "96",
+          "choices": [
+            "31",
+            "96",
+            "75",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-deutan-96-100.jpg"
+        }
+      ]
+    },
+    "tritan": {
+      "question": "그림 속 숫자가 보이면 골라 주세요.",
+      "levels": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "plates": [
+        {
+          "answer": "38",
+          "choices": [
+            "72",
+            "29",
+            "38",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-tritan-38-20.jpg"
+        },
+        {
+          "answer": "52",
+          "choices": [
+            "52",
+            "93",
+            "39",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-tritan-52-40.jpg"
+        },
+        {
+          "answer": "69",
+          "choices": [
+            "28",
+            "69",
+            "52",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-tritan-69-60.jpg"
+        },
+        {
+          "answer": "24",
+          "choices": [
+            "24",
+            "73",
+            "86",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-tritan-24-80.jpg"
+        },
+        {
+          "answer": "87",
+          "choices": [
+            "56",
+            "87",
+            "45",
+            "숫자가 안 보여요"
+          ],
+          "file": "plate-tritan-87-100.jpg"
+        }
+      ]
+    }
+  },
+  "preview": {
+    "levels": [
+      0.0,
+      0.2,
+      0.4,
+      0.6,
+      0.8,
+      1.0
+    ],
+    "protan": {
+      "plate": [
+        "plate-protan-45-0.jpg",
+        "plate-protan-45-slider-20.jpg",
+        "plate-protan-45-slider-40.jpg",
+        "plate-protan-45-slider-60.jpg",
+        "plate-protan-45-slider-80.jpg",
+        "plate-protan-45-slider-100.jpg"
+      ],
+      "artwork": [
+        "farmhouse-original.jpg",
+        "farmhouse-protan-20.jpg",
+        "farmhouse-protan-40.jpg",
+        "farmhouse-protan-60.jpg",
+        "farmhouse-protan-80.jpg",
+        "farmhouse-protan-100.jpg"
+      ]
+    },
+    "deutan": {
+      "plate": [
+        "plate-deutan-29-0.jpg",
+        "plate-deutan-29-slider-20.jpg",
+        "plate-deutan-29-slider-40.jpg",
+        "plate-deutan-29-slider-60.jpg",
+        "plate-deutan-29-slider-80.jpg",
+        "plate-deutan-29-slider-100.jpg"
+      ],
+      "artwork": [
+        "farmhouse-original.jpg",
+        "farmhouse-deutan-20.jpg",
+        "farmhouse-deutan-40.jpg",
+        "farmhouse-deutan-60.jpg",
+        "farmhouse-deutan-80.jpg",
+        "farmhouse-deutan-100.jpg"
+      ]
+    },
+    "tritan": {
+      "plate": [
+        "plate-tritan-73-0.jpg",
+        "plate-tritan-73-slider-20.jpg",
+        "plate-tritan-73-slider-40.jpg",
+        "plate-tritan-73-slider-60.jpg",
+        "plate-tritan-73-slider-80.jpg",
+        "plate-tritan-73-slider-100.jpg"
+      ],
+      "artwork": [
+        "bedroom-original.jpg",
+        "bedroom-tritan-20.jpg",
+        "bedroom-tritan-40.jpg",
+        "bedroom-tritan-60.jpg",
+        "bedroom-tritan-80.jpg",
+        "bedroom-tritan-100.jpg"
+      ]
+    }
+  },
+  "edge": {
+    "question": "빗줄기와 다리 위 사람들이 또렷하게 보이나요?",
+    "levels": [
+      0.0,
+      0.2,
+      0.4,
+      0.6,
+      0.8,
+      1.0
+    ],
+    "files": [
+      "shower-original.jpg",
+      "shower-edge-20.jpg",
+      "shower-edge-40.jpg",
+      "shower-edge-60.jpg",
+      "shower-edge-80.jpg",
+      "shower-edge-100.jpg"
+    ]
+  },
+  "contrast": {
+    "question": "흰 옷과 뒤의 흰 커튼이 구분되나요?",
+    "levels": [
+      1.0,
+      1.2,
+      1.4,
+      1.6,
+      1.8,
+      2.0
+    ],
+    "file": "symphony-original.jpg",
+    "note": "앱 Skia에서 contrast 값만 바꿔 보여 준다."
+  },
+  "credits": [
+    {
+      "file": "farmhouse-original.jpg",
+      "artwork_id": "nga-01",
+      "title": "Farmhouse in Provence",
+      "artist": "Vincent van Gogh",
+      "source_url": "https://www.nga.gov/artworks/52178-farmhouse-provence",
+      "license": "NGA Open Access (CC0)"
+    },
+    {
+      "file": "bedroom-original.jpg",
+      "artwork_id": "aic-02",
+      "title": "The Bedroom",
+      "artist": "Vincent van Gogh",
+      "source_url": "https://www.artic.edu/artworks/28560",
+      "license": "CC0 Public Domain Designation"
+    },
+    {
+      "file": "shower-original.jpg",
+      "artwork_id": "aic-07",
+      "title": "Sudden Shower over Shin Ohashi Bridge and Atake",
+      "artist": "Utagawa Hiroshige",
+      "source_url": "https://www.artic.edu/artworks/26545",
+      "license": "CC0 Public Domain Designation"
+    },
+    {
+      "file": "symphony-original.jpg",
+      "artwork_id": "nga-05",
+      "title": "Symphony in White, No. 1: The White Girl",
+      "artist": "James McNeill Whistler",
+      "source_url": "https://www.nga.gov/artworks/12198-symphony-white-no-1-white-girl",
+      "license": "NGA Open Access (CC0)"
+    }
+  ]
+}

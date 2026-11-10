@@ -40,6 +40,8 @@ class GeminiService:
         self.key = os.environ.get("GEMINI_API_KEY", "")
         self.model = os.environ.get("GEMINI_MODEL", "")
         self.slots = BoundedSemaphore(2)
+        # 유료 API 예산 관리(ai/budget.py). create_app에서 설정하며, None이면 제한하지 않는다.
+        self.budget = None
 
     @property
     def configured(self):
@@ -74,12 +76,22 @@ class GeminiService:
                 headers={"Content-Type": "application/json", "x-goog-api-key": self.key}, method="POST",
             )
             for attempt in range(2):
+                if self.budget is not None:
+                    self.budget.reserve()
+                responded = False
                 try:
                     with urlopen(request, timeout=45) as response:
                         raw = response.read(2 * 1024 * 1024 + 1)
-                    if len(raw) > 2 * 1024 * 1024:
-                        raise HTTPException(502, "AI 응답이 허용 크기를 초과했습니다.")
-                    parsed = json.loads(raw)
+                    responded = True
+                    parsed = None
+                    try:
+                        if len(raw) > 2 * 1024 * 1024:
+                            raise HTTPException(502, "AI 응답이 허용 크기를 초과했습니다.")
+                        parsed = json.loads(raw)
+                    finally:
+                        if self.budget is not None:
+                            # 응답을 받았으면 청구되므로 형식이 잘못돼도 기록한다. 토큰 수를 모르면 최대 비용으로 기록한다.
+                            self.budget.record(parsed.get("usageMetadata") if isinstance(parsed, dict) else None)
                     candidate = parsed["candidates"][0]
                     if candidate.get("finishReason") != "STOP":
                         raise HTTPException(502, "AI 분석 응답이 완료되지 않았습니다. 다시 시도해 주세요.")
@@ -95,6 +107,9 @@ class GeminiService:
                     message = "AI API 한도에 도달했습니다. 잠시 후 다시 시도해 주세요." if status == 429 else "AI API 호출에 실패했습니다. 서버의 모델·키 설정과 서비스 상태를 확인해 주세요."
                     raise HTTPException(status, message) from None
                 except (socket.timeout, TimeoutError):
+                    if self.budget is not None and not responded:
+                        # 응답을 못 받았어도 청구됐을 수 있으므로 최대 비용으로 기록한다.
+                        self.budget.record(None)
                     raise HTTPException(504, "AI 분석 응답 시간이 초과되었습니다.") from None
                 except URLError:
                     raise HTTPException(502, "AI API에 연결할 수 없습니다.") from None
