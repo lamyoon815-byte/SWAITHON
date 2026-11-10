@@ -30,6 +30,8 @@ import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
+import { useHistory } from '@/hooks/use-history';
+import { useRecordViewing } from '@/hooks/use-record-viewing';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
@@ -39,18 +41,23 @@ const HERO_HEIGHT = 380;
 const DESC_SIZES = [18, 20, 23, 26];
 
 export default function ArtworkScreen() {
-  const { profile } = useProfile();
+  const { profile: currentProfile, loaded: profileLoaded, error: profileError } = useProfile();
+  const { items: historyItems, loaded: historyLoaded, error: historyError } = useHistory();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottomInset = useTabBarInset();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, history: historyId } = useLocalSearchParams<{ id: string; history?: string }>();
+  const historyRecord = historyItems.find((item) => item.id === historyId && item.artwork.id === id);
+  const profile = historyRecord?.profile ?? currentProfile;
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const { data: museums } = useResource('museums', getMuseums);
   const museumId = artwork?.museum_id || null;
   const { data: siblings } = useResource(museumId, () => getMuseumArtworks(museumId!));
   const [original, setOriginal] = useState(false);
-  const [strength, setStrength] = useState(profile.strength);
+  const [chosenStrength, setStrength] = useState<number | null>(null);
+  const strength = chosenStrength ?? profile.strength;
   const [sizeStep, setSizeStep] = useState(1);
+  useRecordViewing(artwork, profile, strength, original, profileLoaded && !profileError, !historyId);
 
   // Remember it for the search screen's "최근 본 작품".
   useEffect(() => {
@@ -77,7 +84,7 @@ export default function ArtworkScreen() {
     if (!artwork) return;
     router.push({
       pathname: '/zoom/[id]',
-      params: { id: artwork.id, original: original ? '1' : '0', strength: String(strength) },
+      params: { id: artwork.id, original: original ? '1' : '0', strength: String(strength), ...(historyId ? { history: historyId } : {}) },
     });
   };
 
@@ -85,17 +92,17 @@ export default function ArtworkScreen() {
   const openSibling = (target: { id: string }) =>
     router.replace({ pathname: '/artwork/[id]', params: { id: target.id } });
 
-  if (error || !artwork) {
+  if (error || !artwork || (historyId && (!historyLoaded || historyError || !historyRecord))) {
     return (
       <SafeAreaView
         edges={['top']}
         style={[styles.screen, { backgroundColor: palette.background }]}>
         <View style={styles.plainHeader}>
-          <BackButton label="작품 목록으로" palette={palette} />
+          <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
         </View>
-        {!!error && (
+        {(!!error || (historyId && historyLoaded)) && (
           <Text style={[styles.message, { color: palette.text }]}>
-            {error instanceof ApiError && error.status === 404
+            {historyId && (historyError || !historyRecord) ? '관람 기록을 불러오지 못했어요. 관람 기록 화면에서 다시 선택해 주세요.' : error instanceof ApiError && error.status === 404
               ? '작품을 찾지 못했어요'
               : '작품 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요'}
           </Text>
@@ -125,7 +132,7 @@ export default function ArtworkScreen() {
             />
           </Pressable>
           <View style={styles.heroBack}>
-            <BackButton label="작품 목록으로" palette={palette} />
+            <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
           </View>
           <Pressable
             accessibilityRole="button"

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -58,7 +59,7 @@ export default function MyPageScreen() {
             <SettingRow label="해설 방식" value="설정 전" icon={{ ios: 'headphones', android: 'headphones' }} palette={palette} onPress={() => preparing('해설 방식 설정')} />
           </View>
           <View style={[styles.card, card]}>
-            <SettingRow label="관람 기록" icon={{ ios: 'clock.arrow.circlepath', android: 'history' }} palette={palette} onPress={() => preparing('관람 기록')} />
+            <SettingRow label="관람 기록" icon={{ ios: 'clock.arrow.circlepath', android: 'history' }} palette={palette} onPress={() => router.push('/history')} />
           </View>
           <View style={[styles.card, card]}>
             <SettingRow label="방문한 미술관" icon={{ ios: 'building.columns', android: 'account_balance' }} palette={palette} onPress={() => setSheet('museum')} />
