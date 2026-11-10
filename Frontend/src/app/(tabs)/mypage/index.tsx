@@ -8,6 +8,7 @@ import { showToast } from '@/components/common/toast';
 import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Scrim, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
+import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getMuseums } from '@/lib/api';
@@ -20,6 +21,7 @@ const FONT_OPTIONS = [
 ] as const;
 
 export default function MyPageScreen() {
+  const correctionEntry = useCorrectionEntry();
   const palette = getPalette('dark', false);
   const bottomInset = useTabBarInset();
   const { settings, loaded, updateSettings } = useSettings();
@@ -48,7 +50,7 @@ export default function MyPageScreen() {
         <View style={styles.section}>
           <Text accessibilityRole="header" style={[styles.sectionTitle, styles.settingsHeading, { color: palette.text }]}>내 화면 설정</Text>
           <View style={[styles.card, card]}>
-            <SettingRow label="내 보정값" description="아직 보정값을 설정하지 않았어요" palette={palette} onPress={() => preparing('내 보정값')} />
+            <SettingRow label="내 보정값" description={correctionEntry.description} palette={palette} onPress={correctionEntry.onPress} />
           </View>
           <View style={[styles.card, card]}>
             <SettingRow label="글씨 크기" value={loaded ? fontLabel : '불러오는 중'} icon={{ ios: 'textformat.size', android: 'format_size' }} palette={palette} onPress={() => setSheet('font')} disabled={!loaded} />
