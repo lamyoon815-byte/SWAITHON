@@ -3,7 +3,7 @@
  * 위에서부터 안내 문구 → 점선 가이드가 있는 카메라(남는 높이를 전부 씀) → 팁 세 칸 → 큰 버튼.
  * 카메라 화면은 테마와 상관없이 항상 어둡게 둔다 (미리보기에 눈이 가도록).
  * 두 모드 모두 QR이 보이면 바로 인식한다. 인식된 작품의 미술관이 현재 미술관이 된다.
- * 인식 실패는 점선 사각형 가운데에 불투명 카드로 띄우고 소리로도 읽는다. 다시 스캔할 수 있을 때 사라진다.
+ * 미등록 작품은 탭 바 없는 실패 화면으로, 일시적인 QR 읽기 오류는 미리보기 안의 안내로 표시한다.
  * 빨강은 아이콘과 테두리에만 쓴다 (적색약에게 빨간 글씨는 어둡게 보이고, 카메라 화면 위에서는 대비가 들쭉날쭉하다).
  * 작품 촬영은 `/recognize`로 보내 첫 후보 작품으로 간다 (로그인 없이 호출).
  * TODO(B): confidence가 medium이면 4-1 후보 확인 시트, low면 4-2 미등록 안내 (README 6.3).
@@ -35,10 +35,6 @@ const RESCAN_MS = 3000;
 type Tip = { text: string; ios: SFSymbol; material: AndroidSymbol };
 type ScanError = { title: string; detail: string };
 
-const NOT_REGISTERED: ScanError = {
-  title: '등록되지 않은 QR 코드예요',
-  detail: '다른 QR을 비추거나 번호로 찾아 주세요',
-};
 const LOAD_FAILED: ScanError = {
   title: '작품 정보를 불러오지 못했어요',
   detail: '잠시 후 다시 비춰 주세요',
@@ -126,7 +122,11 @@ export default function CaptureScreen() {
       router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
       showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
     } catch (e) {
-      showScanError(e instanceof ApiError && e.status === 404 ? NOT_REGISTERED : LOAD_FAILED);
+      if (e instanceof ApiError && e.status === 404) {
+        router.replace({ pathname: '/not-found', params: { mode } });
+        return;
+      }
+      showScanError(LOAD_FAILED);
     }
   };
 
@@ -168,7 +168,7 @@ export default function CaptureScreen() {
         const result = await recognizeArtwork(resized.uri);
         const best = result.candidates[0];
         if (!best) {
-          showToast('등록된 작품을 찾지 못했어요. 작품 전체가 보이게 다시 찍어 주세요', 'warning');
+          router.replace({ pathname: '/not-found', params: { mode } });
           return;
         }
         stage = '작품 열기';
