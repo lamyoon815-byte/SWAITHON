@@ -10,7 +10,7 @@ import artworksMock from '@/mocks/artworks.json';
 import museumsMock from '@/mocks/museums.json';
 import type { Artwork } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, NarrationSegment } from '@/types/narration';
+import type { Narration, NarrationMode, NarrationSegment } from '@/types/narration';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -70,16 +70,16 @@ export async function getArtwork(id: string): Promise<Artwork> {
 
 /**
  * 검수된 해설 문장들 (`GET /artworks/{id}/narration`, README 6.2). 로그인 없이 부른다.
- * 항상 `both`로 받고, 사실만/해석만은 화면에서 거른다 (`region_index`가 바뀌지 않으니 같은 결과).
+ * 기기에 저장한 해설 방식을 쿼리로 보내며 생략하면 both로 받는다.
  * mock 작품은 `description`으로 같은 모양을 만든다. 검수 해설이 없으면 409 `ApiError`.
  */
-export async function getNarration(id: string): Promise<Narration> {
+export async function getNarration(id: string, mode: NarrationMode = 'both'): Promise<Narration> {
   const mock = artworks.find((a) => a.id === id);
   if (mock || !API_URL) {
     const d = mock?.description;
     if (!mock) throw new ApiError(404);
     if (!d) throw new ApiError(409);
-    const segments: NarrationSegment[] = [
+    const all: NarrationSegment[] = [
       ...d.facts.map((text) => ({ type: 'fact' as const, text, region_index: null })),
       ...d.interpretations.map((text) => ({
         type: 'interpretation' as const,
@@ -87,15 +87,16 @@ export async function getNarration(id: string): Promise<Narration> {
         region_index: null,
       })),
     ];
+    const segments = all.filter((s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'));
     return {
       artwork_id: id,
-      mode: 'both',
+      mode,
       segments,
       text: segments.map((s) => s.text).join('\n'),
       review_status: 'reviewed',
     };
   }
-  return get<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=both`);
+  return get<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=${mode}`);
 }
 
 export type RecognitionCandidate = {

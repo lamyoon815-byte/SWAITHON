@@ -1,6 +1,7 @@
 import Slider from '@react-native-community/slider';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';

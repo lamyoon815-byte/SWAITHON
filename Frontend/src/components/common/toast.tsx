@@ -8,7 +8,8 @@
 
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useSyncExternalStore } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
 
 import { FontSize } from '@/constants/a11y';

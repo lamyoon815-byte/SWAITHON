@@ -5,7 +5,8 @@
 
 import type { DataSourceParam } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from '@/components/common/text';
 
 import { FontSize, type Palette } from '@/constants/a11y';
 import type { CorrectionValues } from '@/types/profile';

@@ -3,7 +3,8 @@
  * server rendering), so the real spike's module-level shader compile crashes there.
  */
 
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FontSize, getPalette } from '@/constants/a11y';

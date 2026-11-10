@@ -14,7 +14,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
