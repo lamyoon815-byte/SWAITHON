@@ -75,9 +75,10 @@ export default function NarrationScreen() {
   const { bottom: bottomInset } = useSafeAreaInsets();
   const [playerBarHeight, setPlayerBarHeight] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  // 상세 화면의 임시 적용 비율 대신 계정에 저장한 보정값을 사용한다.
-  const strength = correctionStrength(profile.strength);
+  const { id, strength: routeStrength } = useLocalSearchParams<{ id: string; strength?: string }>();
+  // 상세 화면에서 선택한 적용 비율을 해설 화면과 크게 보기에서도 유지한다.
+  const requestedStrength = Number(routeStrength ?? profile.strength);
+  const strength = correctionStrength(Number.isFinite(requestedStrength) ? requestedStrength : profile.strength);
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
   // 해설을 듣는 동안은 항상 사용자 설정의 보정본을 표시한다.
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), false, strength);
