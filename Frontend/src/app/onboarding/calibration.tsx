@@ -89,12 +89,16 @@ export default function CalibrationScreen() {
       showToast('설정을 저장하지 못했어요. 선택한 값은 유지돼요. 다시 시도해 주세요.', 'error');
     }
   };
-  const choice = (label: string, action: CalibrationAction) => (
+  const choice = (label: string, action: CalibrationAction) => {
+    // 숫자 보기는 노란색으로 채우고, "숫자가 안 보여요"·색 보정 종류는 테두리 버튼으로 둔다.
+    const filled = action.type === 'answer' && /^\d+$/.test(label);
+    return (
     <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="선택하면 다음 화면으로 이동해요" accessibilityState={{ disabled: disabled || !imageReady }} disabled={disabled || !imageReady}
-      onPress={() => act(action)} style={({ pressed }) => [styles.choice, { backgroundColor: palette.surface, borderColor: palette.border, opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}>
-      <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.choiceText, { color: palette.text }]}>{label}</Text>
+      onPress={() => act(action)} style={({ pressed }) => [styles.choice, { backgroundColor: filled ? palette.accent : palette.surface, borderColor: filled ? palette.accent : palette.border, opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}>
+      <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.choiceText, { color: filled ? palette.accentText : palette.text }]}>{label}</Text>
     </Pressable>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -106,13 +110,15 @@ export default function CalibrationScreen() {
           <View style={[styles.skipPill, { borderColor: palette.outline }]}><Text style={[styles.skipText, { color: palette.textSecondary }]}>건너뛰기</Text></View>
         </Pressable>}</View>
       </View>
-      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
+      <View style={styles.progressBar}>
         <View style={styles.progressRow}>
           <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>{progress}</Text>
           <View style={styles.segments} accessibilityRole="progressbar" accessibilityLabel="화면 맞추기 진행" accessibilityValue={{ min: 1, max: 4, now: PHASE_INDEX[phase] + 1, text: `${PHASE_INDEX[phase] + 1} / 4 단계` }}>
             {[0, 1, 2, 3].map((step) => <View key={step} style={[styles.segment, { backgroundColor: step <= PHASE_INDEX[phase] ? palette.highlight : palette.outline }]} />)}
           </View>
         </View>
+      </View>
+      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={[styles.heading, { color: palette.text }]}>{question}</Text>
           <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>{description}</Text>
@@ -162,6 +168,7 @@ const styles = StyleSheet.create({
   skipPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
   skipText: { fontSize: FontSize.label, fontWeight: 600, textAlign: 'center' },
   content: { flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.four },
+  progressBar: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.one, paddingBottom: Spacing.two },
   progressRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   progressLabel: { fontSize: FontSize.label, fontWeight: 600 },
   segments: { flexDirection: 'row', gap: Spacing.one },

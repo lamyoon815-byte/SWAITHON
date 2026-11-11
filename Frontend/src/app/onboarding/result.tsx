@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
@@ -8,6 +8,7 @@ import { CALIBRATION } from '@/assets/images/calibration';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
+import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { Text } from '@/components/common/text';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
@@ -28,6 +29,7 @@ export default function CorrectionResultScreen() {
   const palette = getPalette('dark', profile.high_contrast);
   const ready = loaded && !error;
   const [preview, setPreview] = useState<'color' | 'edge'>('color');
+  const [barHeight, setBarHeight] = useState(0);
   const calibration = profile.calibration;
   const colorType = calibration?.color_type ?? 'normal';
   const colorImage = colorType === 'normal' ? CALIBRATION.preview.deutan.artwork[0]
@@ -43,14 +45,14 @@ export default function CorrectionResultScreen() {
   const readjust = () => router.replace('/onboarding/calibration');
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <StatusBar style="light" />
       <View style={styles.header}>
         <BackButton label="보정값 다시 조절하기" palette={palette} onPress={readjust} />
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>내 보정값 확인</Text>
         <View style={styles.headerSpace} />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: barHeight + 32 }]}>
         <View style={styles.intro}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.checkCircle, { borderColor: palette.highlight }]}>
             <View style={[styles.check, { borderColor: palette.highlight }]} />
@@ -71,9 +73,14 @@ export default function CorrectionResultScreen() {
             </View>
           </View>
           {calibration && <>
-            <View style={styles.previewTabs}>
-              <View style={styles.previewTab}><BigButton label="색 보정" palette={palette} selected={preview === 'color'} accessibilityLabel={`색 보정 미리보기${preview === 'color' ? ', 선택됨' : ''}`} onPress={() => setPreview('color')} /></View>
-              <View style={styles.previewTab}><BigButton label="윤곽선" palette={palette} selected={preview === 'edge'} accessibilityLabel={`윤곽선 미리보기${preview === 'edge' ? ', 선택됨' : ''}`} onPress={() => setPreview('edge')} /></View>
+            <View accessibilityRole="tablist" style={[styles.segmented, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
+              {([['color', '색 보정'], ['edge', '윤곽선']] as const).map(([key, label]) => {
+                const active = preview === key;
+                return <Pressable key={key} accessibilityRole="tab" accessibilityLabel={`${label} 미리보기`} accessibilityState={{ selected: active }} onPress={() => setPreview(key)}
+                  style={({ pressed }) => [styles.segment, { backgroundColor: active ? palette.highlight : 'transparent', opacity: pressed ? 0.7 : 1 }]}>
+                  <Text style={[styles.segmentText, { color: active ? palette.highlightText : palette.textSecondary }]}>{label}</Text>
+                </Pressable>;
+              })}
             </View>
             <Text style={[styles.note, { color: palette.textSecondary }]}>색 보정과 윤곽선은 각각의 그림으로 확인해요.</Text>
           </>}
@@ -89,11 +96,11 @@ export default function CorrectionResultScreen() {
           <Text accessibilityLiveRegion="polite" style={[styles.note, { color: palette.textSecondary }]}>{error ? '저장된 보정값을 불러오지 못했어요.' : '보정값을 불러오는 중이에요.'}</Text>
           {error && <View style={styles.buttonRow}><BigButton label="다시 불러오기" palette={palette} onPress={() => { void reloadProfile(); }} /></View>}
         </View>}
-        <View style={styles.actions}>
-          <View style={styles.buttonRow}><BigButton label="이 설정으로 시작하기" palette={palette} disabled={!ready} onPress={() => router.replace('/')} /></View>
-          <View style={styles.buttonRow}><BigButton label="다시 맞추기" selected={false} palette={palette} disabled={!ready} onPress={readjust} /></View>
-        </View>
       </ScrollView>
+      <BottomActionBar background={palette.background} onHeight={setBarHeight}>
+        <View style={styles.buttonRow}><BigButton label="이 설정으로 시작하기" palette={palette} disabled={!ready} onPress={() => router.replace('/')} /></View>
+        <View style={styles.buttonRow}><BigButton label="다시 맞추기" selected={false} palette={palette} disabled={!ready} onPress={readjust} /></View>
+      </BottomActionBar>
     </SafeAreaView>
   );
 }
@@ -110,8 +117,9 @@ const styles = StyleSheet.create({
   check: { width: 13, height: 8, borderLeftWidth: 2, borderBottomWidth: 2, transform: [{ translateY: -2 }, { rotate: '-45deg' }] },
   previewWrapper: { position: 'relative' },
   preview: { height: 150, borderRadius: 16, borderWidth: 1.5 },
-  previewTabs: { flexDirection: 'row', gap: Spacing.two },
-  previewTab: { flex: 1, flexDirection: 'row' },
+  segmented: { flexDirection: 'row', borderWidth: 1.5, borderRadius: 14, padding: 4, gap: 4 },
+  segment: { flex: 1, minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
+  segmentText: { fontSize: FontSize.label, fontWeight: 700, textAlign: 'center' },
   badge: { position: 'absolute', top: Spacing.two, left: Spacing.two, borderRadius: 8, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
   badgeText: { fontSize: FontSize.label, fontWeight: 600 },
   card: { borderWidth: 1.5, borderRadius: 24, paddingHorizontal: Spacing.three, paddingTop: Spacing.three },
@@ -121,6 +129,5 @@ const styles = StyleSheet.create({
   value: { fontSize: FontSize.label, lineHeight: 28, fontWeight: 700, flexShrink: 1, textAlign: 'right' },
   note: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
   state: { gap: Spacing.three },
-  actions: { marginTop: 'auto', paddingTop: Spacing.two, gap: 12 },
   buttonRow: { flexDirection: 'row' },
 });
