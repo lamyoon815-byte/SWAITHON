@@ -62,7 +62,7 @@ export function CorrectionSlider({ control: c, value, disabled, palette, onChang
         <Text style={[styles.label, styles.value, { color: palette.text }]}>{c.field === 'sharpen' ? correctionDisplayValue(c.field, value) : formatCorrection(c.field, value)}</Text>
       </View>
       <View style={styles.row}>
-        <StepButton kind="minus" label={`${c.label} 줄이기`} disabled={disabled || value <= c.min} palette={palette} onPress={() => step(-1)} />
+        <CorrectionStepButton kind="minus" label={`${c.label} 줄이기`} disabled={disabled || value <= c.min} palette={palette} onPress={() => step(-1)} />
         <View style={styles.trackArea} onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}>
           <Slider
           key={sliderVersion}
@@ -100,13 +100,13 @@ export function CorrectionSlider({ control: c, value, disabled, palette, onChang
             )}
           </View>
         </View>
-        <StepButton kind="plus" label={`${c.label} 높이기`} disabled={disabled || value >= c.max} palette={palette} onPress={() => step(1)} />
+        <CorrectionStepButton kind="plus" label={`${c.label} 높이기`} disabled={disabled || value >= c.max} palette={palette} onPress={() => step(1)} />
       </View>
     </View>
   );
 }
 
-function StepButton({ kind, label, disabled, palette, onPress }: {
+export function CorrectionStepButton({ kind, label, disabled, palette, onPress }: {
   kind: 'minus' | 'plus'; label: string; disabled: boolean; palette: Palette; onPress: () => void;
 }) {
   return (
