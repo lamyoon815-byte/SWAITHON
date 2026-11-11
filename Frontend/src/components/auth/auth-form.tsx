@@ -6,10 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
-import { FontSize, getPalette } from '@/constants/a11y';
+import { showToast } from '@/components/common/toast';
+import { getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { ApiError, login, register } from '@/lib/api';
 import { saveSession } from '@/store/auth';
+
+type Field = 'nickname' | 'email' | 'password' | 'confirm';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const signup = mode === 'register';
@@ -21,34 +24,40 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [visible, setVisible] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  // 잘못 입력한 칸은 테두리를 빨갛게 둔다(색만이 아니라 알림 문구로도 알린다). 그 칸을 고치면 풀린다.
+  const [invalid, setInvalid] = useState<Field | null>(null);
   const lock = useRef(false);
 
   const submit = async () => {
     if (lock.current) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('이메일 주소를 확인해 주세요.');
-    if (password.length < 8 || password.length > 128) return setError('비밀번호는 8~128자로 입력해 주세요.');
-    if (signup && !nickname.trim()) return setError('사용할 이름을 입력해 주세요.');
-    if (signup && password !== confirm) return setError('두 비밀번호가 같지 않아요. 다시 확인해 주세요.');
-    lock.current = true; setBusy(true); setError('');
+    const warn = (field: Field, message: string) => { setInvalid(field); showToast(message, 'warning'); };
+    if (signup && !nickname.trim()) return warn('nickname', '사용할 이름을 입력해 주세요');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return warn('email', '이메일 주소를 확인해 주세요');
+    if (password.length < 8 || password.length > 128) return warn('password', '비밀번호는 8~128자로 입력해 주세요');
+    if (signup && password !== confirm) return warn('confirm', '두 비밀번호가 같지 않아요');
+    lock.current = true; setBusy(true); setInvalid(null);
     try {
       const result = signup ? await register(email, password, nickname) : await login(email, password);
       await saveSession(result);
       // Root protected routes select calibration or the home screen after the session changes.
     } catch (err) {
-      setError(err instanceof ApiError
+      showToast(err instanceof ApiError
         ? err.status === 401 ? '이메일 또는 비밀번호가 맞지 않아요.'
           : err.status === 409 ? '이미 가입된 이메일이에요. 로그인해 주세요.'
             : err.status === 429 ? '시도가 너무 많아요. 잠시 후 다시 해 주세요.'
               : err.status === 422 ? '입력한 이메일, 비밀번호와 이름을 확인해 주세요.' : err.message
-        : '연결하거나 로그인 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+        : '연결하거나 로그인 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.', 'error');
     } finally { lock.current = false; setBusy(false); }
   };
 
-  const fieldStyle = (name: string) => [styles.field, {
+  const fieldStyle = (name: Field) => [styles.field, {
     backgroundColor: palette.surface,
-    borderColor: focused === name ? palette.accent : palette.outline,
+    borderColor: invalid === name ? palette.danger : focused === name ? palette.accent : palette.outline,
   }];
+  const edit = (field: Field, setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    if (invalid === field) setInvalid(null);
+  };
   const inputStyle = [styles.input, { color: palette.text }];
   const passwordToggle = (
     <Pressable accessibilityRole="button" accessibilityLabel={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
@@ -81,7 +90,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <Text style={[styles.label, { color: palette.text }]}>이름</Text>
                 <View style={fieldStyle('nickname')}>
                   <TextInput accessibilityLabel="이름" placeholder="앱에서 사용할 이름" placeholderTextColor={palette.textSecondary}
-                    value={nickname} onChangeText={setNickname} editable={!busy} maxLength={40} autoComplete="nickname"
+                    value={nickname} onChangeText={edit('nickname', setNickname)} editable={!busy} maxLength={40} autoComplete="nickname"
                     onFocus={() => setFocused('nickname')} onBlur={() => setFocused(null)} style={inputStyle} />
                 </View>
               </View>}
@@ -89,7 +98,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <Text style={[styles.label, { color: palette.text }]}>이메일</Text>
                 <View style={[fieldStyle('email'), styles.inputRow]}>
                   <TextInput accessibilityLabel="이메일" placeholder="name@example.com" placeholderTextColor={palette.textSecondary}
-                    value={email} onChangeText={setEmail} editable={!busy} keyboardType="email-address" autoCapitalize="none"
+                    value={email} onChangeText={edit('email', setEmail)} editable={!busy} keyboardType="email-address" autoCapitalize="none"
                     autoCorrect={false} autoComplete="email" textContentType="emailAddress"
                     onFocus={() => setFocused('email')} onBlur={() => setFocused(null)} style={inputStyle} />
                   <View style={styles.fieldIcon} pointerEvents="none" accessibilityElementsHidden>
@@ -101,7 +110,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <Text style={[styles.label, { color: palette.text }]}>비밀번호</Text>
                 <View style={[fieldStyle('password'), styles.inputRow]}>
                   <TextInput accessibilityLabel="비밀번호" placeholder="8자 이상 입력해 주세요" placeholderTextColor={palette.textSecondary}
-                    value={password} onChangeText={setPassword} editable={!busy} secureTextEntry={!visible} maxLength={128}
+                    value={password} onChangeText={edit('password', setPassword)} editable={!busy} secureTextEntry={!visible} maxLength={128}
                     autoCapitalize="none" autoCorrect={false} autoComplete={signup ? 'new-password' : 'current-password'}
                     textContentType={signup ? 'newPassword' : 'password'} style={inputStyle}
                     onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
@@ -113,7 +122,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <Text style={[styles.label, { color: palette.text }]}>비밀번호 확인</Text>
                 <View style={fieldStyle('confirm')}>
                   <TextInput accessibilityLabel="비밀번호 확인" placeholder="한 번 더 입력해 주세요" placeholderTextColor={palette.textSecondary}
-                    value={confirm} onChangeText={setConfirm} editable={!busy} secureTextEntry={!visible} maxLength={128}
+                    value={confirm} onChangeText={edit('confirm', setConfirm)} editable={!busy} secureTextEntry={!visible} maxLength={128}
                     autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword"
                     onFocus={() => setFocused('confirm')} onBlur={() => setFocused(null)}
                     returnKeyType="go" onSubmitEditing={submit} style={inputStyle} />
@@ -121,11 +130,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               </View>}
             </View>
 
-            {!!error && <View accessibilityRole="alert" accessibilityLiveRegion="assertive"
-              style={[styles.error, { borderColor: palette.danger, backgroundColor: palette.surface }]}>
-              <SymbolView name={{ ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' }} size={24} tintColor={palette.danger} />
-              <Text style={[styles.errorText, { color: palette.text }]}>{error}</Text>
-            </View>}
             <View style={styles.actions}>
               <View style={styles.row}>
                 <BigButton label={busy ? '잠시만 기다려 주세요…' : signup ? '회원가입하고 시작하기' : '로그인'} palette={palette} disabled={busy} onPress={submit} />
@@ -163,7 +167,5 @@ const styles = StyleSheet.create({
   fieldIcon: { width: 40, alignItems: 'center' },
   actions: { gap: 12 }, row: { flexDirection: 'row' },
   footerLabel: { fontSize: 17, textAlign: 'center', paddingTop: 6 },
-  error: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 2 },
-  errorText: { flex: 1, fontSize: FontSize.body, lineHeight: 28 },
   credit: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
 });
