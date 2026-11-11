@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 
 import { FontSize, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
@@ -21,12 +22,15 @@ export function ArtworkCard({ artwork, palette, onPress }: Props) {
   const byline = [artwork.artist, artwork.year].filter(Boolean).join(' · ');
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${artwork.number}번, ${artwork.title}, ${byline}`}
       accessibilityHint="작품 감상 화면으로 이동해요"
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: palette.fill }]}>
+      pressedScale={0.98}
+      background={`${palette.background}00`}
+      pressedBackground={palette.fill}
+      style={styles.row}>
       <View style={[styles.thumb, { backgroundColor: palette.fill }]}>
         {artwork.image_url ? (
           <Image source={{ uri: artwork.image_url }} style={StyleSheet.absoluteFill} contentFit="cover"
@@ -49,7 +53,7 @@ export function ArtworkCard({ artwork, palette, onPress }: Props) {
           tintColor={palette.textSecondary}
         />
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -60,7 +64,9 @@ const styles = StyleSheet.create({
     gap: 14,
     minHeight: 80,
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.one,
+    // 누를 때 생기는 회색 상자가 내용에 딱 붙지 않게 양옆으로 조금 넓힌다(바깥 여백은 그대로).
+    marginHorizontal: -Spacing.two,
+    paddingHorizontal: Spacing.two + Spacing.one,
     borderRadius: 20,
   },
   thumb: {

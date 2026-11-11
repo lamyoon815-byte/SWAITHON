@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router, usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -14,6 +14,7 @@ import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { Text } from '@/components/common/text';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { ButtonRadius, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
@@ -117,10 +118,10 @@ export default function CalibrationScreen() {
     // 숫자 보기는 노란색으로 채우고, "숫자가 안 보여요"·색 보정 종류는 테두리 버튼으로 둔다.
     const filled = action.type === 'answer' && /^\d+$/.test(label);
     return (
-    <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="선택하면 다음 화면으로 이동해요" accessibilityState={{ disabled: disabled || !imageReady }} disabled={disabled || !imageReady}
+    <PressableScale key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="선택하면 다음 화면으로 이동해요" accessibilityState={{ disabled: disabled || !imageReady }} disabled={disabled || !imageReady}
       onPress={() => act(action)} style={({ pressed }) => [styles.choice, { backgroundColor: filled ? palette.accent : palette.surface, borderColor: filled ? palette.accent : palette.border, opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}>
       <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.choiceText, { color: filled ? palette.accentText : palette.text }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
     );
   };
 
@@ -158,7 +159,7 @@ export default function CalibrationScreen() {
         {phase === 'contrast' && <CorrectionCanvas source={CALIBRATION.contrast.image} accessibilityLabel="흰 옷을 입은 인물과 뒤의 흰 커튼, 대비 비교 그림" correction={{ contrast: CALIBRATION.contrast.levels[index], brightness: 0, sharpen: 0, strength: 1 }} palette={palette} style={styles.contrastPicture} />}
 
         {plate && <View style={styles.choices}>{plate.choices.map((label) => choice(label, { type: 'answer', value: label }))}</View>}
-        {plate && <Pressable accessibilityRole="button"
+        {plate && <PressableScale accessibilityRole="button"
           accessibilityLabel={voice.state === 'recording' ? '말하기 끝내기' : voice.state === 'thinking' ? '알아듣는 중' : '말로 답하기'}
           accessibilityHint={voice.state === 'recording' ? '누르면 녹음을 멈추고 답을 확인해요' : `누른 뒤 보이는 숫자를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`}
           accessibilityState={{ disabled: disabled || !imageReady || voice.state === 'thinking', busy: voice.state === 'thinking' }}
@@ -173,7 +174,7 @@ export default function CalibrationScreen() {
           <Text style={[styles.voiceText, { color: voice.state === 'recording' ? palette.highlightText : palette.text }]}>
             {voice.state === 'recording' ? '듣고 있어요 · 다 말했으면 누르세요' : voice.state === 'thinking' ? '알아듣는 중…' : '말로 답하기'}
           </Text>
-        </Pressable>}
+        </PressableScale>}
         {plate && heard?.frame === state && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.note, { color: palette.text }]}>{heard.message}</Text>}
         {plate && <Text style={[styles.note, { color: palette.textSecondary }]}>정답을 몰라도 괜찮아요.</Text>}
         {phase === 'manual' && <View style={styles.manual}>

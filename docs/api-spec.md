@@ -206,6 +206,7 @@ PUT은 전체 교체이며 생략 필드는 기본값으로 저장합니다. 응
 ```
 
 - `id`, `title`, `artist`, `image_url`: string.
+- `title`, `artist`는 앱에 보이는 한국어 이름입니다. `original_title`, `original_artist`: 원제·원어 작가명(실제 명패 언어), string 또는 null. 명패 인식은 두 이름을 모두 비교합니다.
 - `year`, `number`, `museum`, `museum_id`, `background`, `source_url`, `license`: string 또는 null. `year`는 숫자 타입이 아닙니다.
 - `number`는 소장번호이며 문자열입니다. `007`을 `7`로 변환하지 않습니다.
 - `review_status`: `pending | reviewed`. 미검수이면 `description=null`입니다.

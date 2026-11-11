@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 
 import { ButtonRadius, FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
@@ -23,7 +24,7 @@ export function MuseumCard({ museum, palette, onChange }: Props) {
           <Text style={[styles.caption, { color: palette.highlightText }]}>현재 미술관</Text>
           <Text style={[styles.name, { color: palette.highlightText }]}>{museum.name}</Text>
         </View>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`현재 미술관 ${museum.name}, 변경`}
           onPress={onChange}
@@ -32,13 +33,13 @@ export function MuseumCard({ museum, palette, onChange }: Props) {
             { backgroundColor: palette.highlightText, opacity: pressed ? 0.8 : 1 },
           ]}>
           <Text style={[styles.pillText, { color: palette.highlight }]}>변경</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     );
   }
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel="현재 미술관 없음, 미술관 선택하기"
       onPress={onChange}
@@ -54,7 +55,7 @@ export function MuseumCard({ museum, palette, onChange }: Props) {
       <View style={[styles.pill, { backgroundColor: palette.accent }]}>
         <Text style={[styles.pillText, { color: palette.accentText }]}>선택하기</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

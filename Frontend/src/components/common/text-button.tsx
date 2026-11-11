@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { ButtonRadius, FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 
 type Props = {
@@ -18,7 +19,7 @@ type Props = {
  */
 export function TextButton({ label, onPress, palette, disabled, accessibilityLabel, accessibilityHint }: Props) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -27,7 +28,7 @@ export function TextButton({ label, onPress, palette, disabled, accessibilityLab
       onPress={onPress}
       style={({ pressed }) => [styles.button, { backgroundColor: pressed ? palette.fill : 'transparent', opacity: disabled ? 0.4 : 1 }]}>
       <Text style={[styles.label, { color: palette.textSecondary }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

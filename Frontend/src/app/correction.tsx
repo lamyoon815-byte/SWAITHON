@@ -3,15 +3,17 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomActionBar } from '@/components/common/bottom-action-bar';
+import { SegmentedControl } from '@/components/common/segmented-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { CORRECTION_CONTROLS, CorrectionSlider } from '@/components/mypage/correction-slider';
 import { CalibrationSlider } from '@/components/mypage/calibration-slider';
 import { ButtonGap, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
@@ -111,15 +113,11 @@ export default function CorrectionScreen() {
           palette={palette}
           style={styles.preview}
         />
-        <View style={styles.toggle}>
-          <View style={styles.toggleButton}><BigButton label="색 보정" selected={previewMode === 'color'} palette={palette} onPress={() => setPreviewMode('color')} /></View>
-          <View style={styles.toggleButton}><BigButton label="윤곽선 강조" selected={previewMode === 'edge'} palette={palette} onPress={() => setPreviewMode('edge')} /></View>
-        </View>
+        <SegmentedControl accessibilityLabel="미리보기 항목" palette={palette} value={previewMode} onChange={setPreviewMode}
+          options={[{ value: 'color', label: '색 보정' }, { value: 'edge', label: '윤곽선 강조' }] as const} />
         <Text style={[styles.note, { color: palette.textSecondary }]}>색 보정과 윤곽선은 각각의 그림으로 확인해요.</Text>
-        <View style={styles.toggle}>
-          <View style={styles.toggleButton}><BigButton label="보정본" selected={!original} palette={palette} onPress={() => setOriginal(false)} /></View>
-          <View style={styles.toggleButton}><BigButton label="원본" selected={original} palette={palette} onPress={() => setOriginal(true)} /></View>
-        </View>
+        <SegmentedControl accessibilityLabel="보기 방식" palette={palette} value={original ? 'original' : 'corrected'} onChange={(next) => setOriginal(next === 'original')}
+          options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본' }] as const} />
 
         {(!loaded || error) && (
           <Text accessibilityLiveRegion="polite" style={[styles.note, { color: palette.textSecondary }]}>
@@ -134,11 +132,11 @@ export default function CorrectionScreen() {
             <View accessibilityRole="radiogroup" accessibilityLabel="색 보정 종류" style={styles.colorChoices}>
               {(Object.keys(CALIBRATION_COLOR_LABELS) as CalibrationColorType[]).map((type) => {
                 const selected = values.color_type === type;
-                return <Pressable key={type} accessibilityRole="radio" accessibilityLabel={CALIBRATION_COLOR_LABELS[type]} accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
+                return <PressableScale key={type} accessibilityRole="radio" accessibilityLabel={CALIBRATION_COLOR_LABELS[type]} accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
                   onPress={() => { setDraft({ ...values, color_type: type, severity: type === 'normal' ? 0 : values.severity }); setPreviewMode('color'); }}
                   style={({ pressed }) => [styles.colorChoice, { backgroundColor: selected ? palette.highlight : palette.fill, borderColor: selected ? palette.highlight : palette.border, opacity: disabled || original ? 0.4 : pressed ? 0.7 : 1 }]}>
                   <Text lineBreakStrategyIOS="hangul-word" style={[styles.colorChoiceLabel, { color: selected ? palette.highlightText : palette.text, fontWeight: selected ? 800 : 600 }]}>{CALIBRATION_COLOR_LABELS[type]}</Text>
-                </Pressable>;
+                </PressableScale>;
               })}
             </View>
           </View>
@@ -168,8 +166,9 @@ export default function CorrectionScreen() {
           ))}
         </View>
         <View style={[styles.divider, { backgroundColor: palette.outline }]} />
-        <Pressable accessibilityRole="button" accessibilityLabel="보정값 다시 맞추기" accessibilityHint="화면 맞추기의 숫자 선택 단계부터 다시 시작해요" accessibilityState={{ disabled }} disabled={disabled} onPress={recalibrate}
-          style={({ pressed }) => [styles.linkRow, { opacity: disabled ? 0.4 : 1, backgroundColor: pressed ? palette.fill : 'transparent' }]}>
+        <PressableScale accessibilityRole="button" accessibilityLabel="보정값 다시 맞추기" accessibilityHint="화면 맞추기의 숫자 선택 단계부터 다시 시작해요" accessibilityState={{ disabled }} disabled={disabled} onPress={recalibrate}
+          pressedScale={0.98} background={`${palette.background}00`} pressedBackground={palette.fill}
+          style={[styles.linkRow, { opacity: disabled ? 0.4 : 1 }]}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.linkIcon, { backgroundColor: palette.fill }]}>
             <SymbolView name={{ ios: 'arrow.counterclockwise', android: 'restart_alt', web: 'restart_alt' }} size={20} weight="semibold" tintColor={palette.highlight} />
           </View>
@@ -177,7 +176,7 @@ export default function CorrectionScreen() {
           <View accessible={false} importantForAccessibility="no-hide-descendants">
             <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={18} weight="semibold" tintColor={palette.textSecondary} />
           </View>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
 
       <BottomActionBar background={palette.background} onHeight={setBarHeight}>
@@ -214,8 +213,6 @@ const styles = StyleSheet.create({
   headerSpace: { width: MinTouchTarget },
   content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingBottom: Spacing.three, gap: Spacing.three },
   preview: { height: 210, borderRadius: 24 },
-  toggle: { flexDirection: 'row', gap: ButtonGap },
-  toggleButton: { flex: 1, flexDirection: 'row' },
   controls: { paddingHorizontal: Spacing.three, borderWidth: 1.5, borderRadius: 24 },
   colorSection: { paddingVertical: Spacing.three, gap: Spacing.three },
   sectionTitle: { fontSize: FontSize.body, fontWeight: 700 },

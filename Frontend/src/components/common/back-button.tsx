@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { MinTouchTarget, type Palette } from '@/constants/a11y';
+import { PressableScale } from '@/components/common/pressable-scale';
 
 type Props = {
   /** 스크린리더가 읽을 이름. 예: "작품 목록으로" */
@@ -14,7 +15,7 @@ type Props = {
 /** 왼쪽 위의 둥근 뒤로 가기 버튼. 기본 동작은 `router.back()`. */
 export function BackButton({ label, palette, onPress }: Props) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress ?? (() => router.back())}
@@ -30,7 +31,7 @@ export function BackButton({ label, palette, onPress }: Props) {
         weight="bold"
         tintColor={palette.text}
       />
-    </Pressable>
+    </PressableScale>
   );
 }
 

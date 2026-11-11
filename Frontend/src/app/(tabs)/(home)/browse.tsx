@@ -28,6 +28,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
+import { PressableScale } from '@/components/common/pressable-scale';
 import {
   ButtonHeight,
   ButtonRadius,
@@ -203,7 +204,7 @@ export default function BrowseScreen() {
 
         {current && (
           <View style={styles.controls}>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`${current.title} 작품 보기`}
               onPress={() => openArtwork(current)}
@@ -212,7 +213,7 @@ export default function BrowseScreen() {
                 { backgroundColor: palette.accent, opacity: pressed ? 0.8 : 1 },
               ]}>
               <Text style={[styles.openText, { color: palette.accentText }]}>작품 보기</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         )}
       </ScrollView>
@@ -303,7 +304,7 @@ type RoundButtonProps = {
 
 function RoundButton({ direction, a11yLabel, disabled, palette, onPress }: RoundButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityState={{ disabled }}
@@ -327,7 +328,7 @@ function RoundButton({ direction, a11yLabel, disabled, palette, onPress }: Round
         weight="bold"
         tintColor={palette.text}
       />
-    </Pressable>
+    </PressableScale>
   );
 }
 

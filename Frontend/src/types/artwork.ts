@@ -16,8 +16,12 @@ export type Description = {
 
 export type Artwork = {
   id: string;
+  /** 앱에 보이는 이름은 한국어 */
   title: string;
   artist: string;
+  /** 원제·원어 작가명(실제 명패 언어). 없을 수 있다 */
+  original_title?: string | null;
+  original_artist?: string | null;
   year: string | null;
   background: string | null;
   source_url: string | null;

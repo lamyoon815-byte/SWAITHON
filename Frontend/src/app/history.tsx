@@ -3,12 +3,13 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { SectionList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useHistory } from '@/hooks/use-history';
@@ -58,12 +59,15 @@ function HistoryCard({ item, palette }: { item: ViewingRecord; palette: Palette 
   const summary = historySummary(item);
   const uri = item.artwork.image_url;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${item.artwork.title}, ${summary}`}
       accessibilityHint="기록된 보정값으로 작품을 열어요"
       onPress={() => router.push({ pathname: '/artwork/[id]', params: { id: item.artwork.id, history: item.id } })}
-      style={({ pressed }) => [styles.card, { backgroundColor: pressed ? palette.fill : palette.surface, borderColor: palette.outline }]}>
+      pressedScale={0.98}
+      background={palette.surface}
+      pressedBackground={palette.fill}
+      style={[styles.card, { borderColor: palette.outline }]}>
       <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.thumbnail, { backgroundColor: palette.fill }]}>
         {uri && failedUri !== uri ? <Image source={{ uri }} contentFit="cover" style={styles.image} onError={() => setFailedUri(uri)} /> : <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={30} tintColor={palette.textSecondary} />}
       </View>
@@ -74,7 +78,7 @@ function HistoryCard({ item, palette }: { item: ViewingRecord; palette: Palette 
       <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={22} weight="semibold" tintColor={palette.text} />
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

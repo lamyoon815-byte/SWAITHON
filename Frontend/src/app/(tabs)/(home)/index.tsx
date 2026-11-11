@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtworkCard } from '@/components/common/artwork-card';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { MuseumCard } from '@/components/home/museum-card';
 import {
   ButtonGap,
@@ -146,7 +147,7 @@ export default function HomeScreen() {
               )}
             </View>
             {!!museum && !!artworks?.length && (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="크게 넘겨보기"
                 accessibilityHint="작품을 한 점씩 크게 보며 넘겨요"
@@ -163,7 +164,7 @@ export default function HomeScreen() {
                   weight="bold"
                   tintColor={Mustard}
                 />
-              </Pressable>
+              </PressableScale>
             )}
           </View>
 
@@ -199,12 +200,16 @@ export default function HomeScreen() {
               이 미술관에 등록된 작품이 없어요
             </Text>
           ) : (
-            works.map((a, i) => (
-              <View key={a.id}>
-                {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
-                <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
-              </View>
-            ))
+            // 목록은 한 덩어리로 묶고(바깥 gap이 행 사이에 끼지 않게), 구분선 위아래 여백을 같게 둔다.
+            // 그래야 누를 때 생기는 회색 상자가 위아래 구분선 사이 한가운데에 온다.
+            <View>
+              {works.map((a, i) => (
+                <View key={a.id}>
+                  {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
+                  <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
+                </View>
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -228,7 +233,7 @@ type WayButtonProps = {
 /** 검색창 아래 반반 칸. 아이콘은 가는 선 모양으로 작게, 옅은 원 안에 여유 있게 둔다. */
 function WayButton({ ios, android, label, hint, palette, onPress }: WayButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
@@ -259,7 +264,7 @@ function WayButton({ ios, android, label, hint, palette, onPress }: WayButtonPro
           </Text>
         </>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -273,7 +278,7 @@ function PillButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
@@ -281,7 +286,7 @@ function PillButton({
         { backgroundColor: palette.accent, opacity: pressed ? 0.8 : 1 },
       ]}>
       <Text style={[styles.pillText, { color: palette.accentText }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -303,6 +308,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1.5,
+    marginVertical: 6,
   },
   skeletonCard: {
     height: 96,

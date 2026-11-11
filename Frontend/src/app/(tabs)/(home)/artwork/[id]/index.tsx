@@ -17,9 +17,10 @@ import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
-import { BigButton } from '@/components/common/big-button';
 import { StrengthControl } from '@/components/artwork/strength-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
+import { SegmentedControl } from '@/components/common/segmented-control';
+import { PressableScale } from '@/components/common/pressable-scale';
 import {
   ButtonGap,
   ButtonHeight,
@@ -142,7 +143,7 @@ export default function ArtworkScreen() {
           <View style={styles.heroBack}>
             <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="작품 확대해서 보기"
             onPress={openZoom}
@@ -157,7 +158,7 @@ export default function ArtworkScreen() {
               tintColor="#FFFFFF"
             />
             <Text style={styles.zoomText}>확대</Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         <View style={styles.info}>
@@ -170,29 +171,23 @@ export default function ArtworkScreen() {
           <Text style={[styles.artist, { color: palette.textSecondary }]}>
             {[artwork.artist, artwork.year].filter(Boolean).join(' · ')}
           </Text>
+          {/* 미술관 명패는 원어라 원제도 작게 둔다. 스크린리더는 "원제"라고 먼저 알려 준다. */}
+          {!!artwork.original_title && artwork.original_title !== artwork.title && (
+            <Text accessibilityLabel={`원제, ${[artwork.original_title, artwork.original_artist].filter(Boolean).join(', ')}`}
+              style={[styles.original, { color: palette.textSecondary }]}>
+              {[artwork.original_title, artwork.original_artist].filter(Boolean).join(' · ')}
+            </Text>
+          )}
         </View>
 
-        <View accessibilityRole="radiogroup" accessibilityLabel="보기 방식" style={styles.toggle}>
-          {/* Each button sits in an equal half, and BigButton reserves the ✓ slot itself,
-              so selecting never resizes a button or moves its label. */}
-          <View style={styles.toggleItem}>
-            <BigButton
-              label="보정본"
-              radio
-              onPress={() => setOriginal(false)}
-              palette={palette}
-              selected={!original}
-            />
-          </View>
-          <View style={styles.toggleItem}>
-            <BigButton
-              label="원본 보기"
-              radio
-              onPress={() => setOriginal(true)}
-              palette={palette}
-              selected={original}
-            />
-          </View>
+        <View style={styles.toggle}>
+          <SegmentedControl
+            accessibilityLabel="보기 방식"
+            options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본 보기' }] as const}
+            value={original ? 'original' : 'corrected'}
+            onChange={(next) => setOriginal(next === 'original')}
+            palette={palette}
+          />
         </View>
 
         <View style={styles.strength}>
@@ -206,7 +201,7 @@ export default function ArtworkScreen() {
 
         {/* Always shown: the narration screen explains when there is no reviewed narration yet. */}
         <View style={styles.audioRow}>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="음성 해설 듣기"
             accessibilityHint="한 문장씩 읽어 주는 화면이 열려요"
@@ -222,7 +217,7 @@ export default function ArtworkScreen() {
               tintColor={palette.accentText}
             />
             <Text style={[styles.audioText, { color: palette.accentText }]}>음성 해설 듣기</Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         <View style={styles.descHeader}>
@@ -339,7 +334,7 @@ type SmallButtonProps = {
 
 function SizeButton({ small, ...p }: SmallButtonProps & { small?: boolean }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={p.a11yLabel}
       accessibilityState={{ disabled: p.disabled }}
@@ -355,7 +350,7 @@ function SizeButton({ small, ...p }: SmallButtonProps & { small?: boolean }) {
       <Text style={[styles.sizeText, { color: p.palette.text, fontSize: small ? 16 : 20 }]}>
         {p.label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -373,7 +368,7 @@ function SiblingButton({ direction, ...p }: SmallButtonProps & { direction: 'pre
     />
   );
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={p.a11yLabel}
       accessibilityState={{ disabled: p.disabled }}
@@ -389,7 +384,7 @@ function SiblingButton({ direction, ...p }: SmallButtonProps & { direction: 'pre
       {direction === 'prev' && chevron}
       <Text style={[styles.siblingText, { color: p.palette.text }]}>{p.label}</Text>
       {direction === 'next' && chevron}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -455,16 +450,15 @@ const styles = StyleSheet.create({
     fontWeight: 600,
     textAlign: 'center',
   },
+  original: {
+    fontSize: 16,
+    fontWeight: 500,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
   toggle: {
-    flexDirection: 'row',
-    gap: ButtonGap,
     paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
-  },
-  // flexBasis 0: both halves start from zero width and split the row evenly, whatever the label.
-  toggleItem: {
-    flexGrow: 1,
-    flexBasis: 0,
   },
   strength: {
     paddingHorizontal: ScreenPadding,
