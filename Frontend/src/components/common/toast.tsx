@@ -7,8 +7,8 @@
  */
 
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useSyncExternalStore } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { AccessibilityInfo, Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
 
@@ -72,10 +72,24 @@ function subscribe(listener: () => void) {
 
 const getToast = () => current;
 
+/** 열린 키보드 높이(닫혀 있으면 0). iOS는 키보드가 움직이기 시작할 때, Android는 다 열린 뒤에 알 수 있다. */
+function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  return height;
+}
+
 export function ToastHost() {
   const toast = useSyncExternalStore(subscribe, getToast, getToast);
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const bottom = useTabBarBottom() + TabBarHeight + Spacing.three;
+  const tabBarBottom = useTabBarBottom();
+  const keyboard = useKeyboardHeight();
+  // 키보드가 열려 있으면 키보드 바로 위에 띄운다(로그인 화면 등). 아니면 떠 있는 탭 바 위.
+  const bottom = keyboard > 0 ? keyboard + Spacing.three : tabBarBottom + TabBarHeight + Spacing.three;
   // One step lighter than the dark background, like Toss; charcoal on the light background.
   const pill = scheme === 'dark' ? Colors.dark.backgroundSelected : '#33353B';
 
