@@ -1,4 +1,4 @@
-// TODO(BE): 미술관 API가 없어 mock 전용 모양 (README 9장 BE 요청 1번).
+// GET /museums 응답.
 
 export type Museum = {
   id: string;

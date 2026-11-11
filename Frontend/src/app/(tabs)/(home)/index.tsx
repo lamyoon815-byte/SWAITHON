@@ -6,6 +6,7 @@
  * 목록은 불러오는 중 · 오류 · 빈 상태 · 결과 네 가지를 모두 그린다.
  */
 
+import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -62,10 +63,17 @@ export default function HomeScreen() {
   const pressOut = () => {
     if (!reduceMotion) barScale.set(withSpring(1, { damping: 14, stiffness: 320 }));
   };
-  const { settings, loaded } = useSettings();
+  const { settings, loaded, updateSettings } = useSettings();
   const museumId = settings.recent_museum_id;
   const museumsRes = useResource('museums', getMuseums);
   const artworksRes = useResource(museumId, () => getMuseumArtworks(museumId!));
+
+  useEffect(() => {
+    const museums = museumsRes.data;
+    if (loaded && museums?.length && !museums.some((m) => m.id === museumId)) {
+      void updateSettings({ recent_museum_id: museums[0].id });
+    }
+  }, [loaded, museumId, museumsRes.data, updateSettings]);
 
   const museum = museumsRes.data?.find((m) => m.id === museumId);
   const artworks = artworksRes.data;

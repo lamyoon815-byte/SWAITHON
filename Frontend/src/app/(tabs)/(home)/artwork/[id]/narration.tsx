@@ -4,14 +4,14 @@
  * 아래 고정 재생판(진행 · 이전 문장 · 재생/멈춤 · 다음 문장 · 이 문장 반복 · 속도).
  * 지금 읽는 문장은 머스타드 카드로 바뀌고 화면이 그 문장으로 따라간다. 문장을 누르면 거기서부터 읽는다.
  * 사실/해석은 색이 아니라 "사실"·"해석" 글자 표시로 구분한다.
- * 검수 해설이 없으면(409) 안내만 보여 준다. 개발 빌드에서는 예시 문장으로 화면을 확인할 수 있다.
+ * 검수 해설이 없으면(409) 등록 원본으로 AI 해설을 생성할 수 있다. 생성 결과는 미검수로 표시한다.
  */
 
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,8 +31,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { ApiError, getArtwork, getNarration } from '@/lib/api';
-import type { NarrationMode, NarrationSegment } from '@/types/narration';
+import { ApiError, getArtwork, getNarration, generateNarration } from '@/lib/api';
+import type { NarrationMode, GeneratedNarration } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
 // TODO(A): 로그인 후 받은 시각 프로필의 narration_mode · speech_rate로 시작한다.
@@ -45,23 +45,6 @@ const MODES: { mode: NarrationMode; label: string }[] = [
   { mode: 'interpretations', label: '해석' },
 ];
 
-/** 개발 빌드에서만. 작품에 대한 내용이 아니라 화면 확인용이라는 것을 문장 자체로 밝힌다. */
-const DEV_SAMPLE: NarrationSegment[] = [
-  { type: 'fact', text: '화면 확인용 예시 문장입니다. 첫 번째 문장이에요.', region_index: null },
-  { type: 'fact', text: '지금 읽는 문장은 노란 카드로 바뀌어요.', region_index: null },
-  { type: 'fact', text: '문장을 누르면 그 문장부터 다시 읽어요.', region_index: null },
-  {
-    type: 'interpretation',
-    text: '가능한 감정적 해석입니다. 해석 문장에는 해석 표시가 붙어요.',
-    region_index: null,
-  },
-  {
-    type: 'interpretation',
-    text: '가능한 감정적 해석입니다. 마지막 예시 문장이에요.',
-    region_index: null,
-  },
-];
-
 export default function NarrationScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
@@ -70,13 +53,17 @@ export default function NarrationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
   const narrationRes = useResource(id ? `narration:${id}` : null, () => getNarration(id!));
-  const [sample, setSample] = useState(false);
+  const [generated, setGenerated] = useState<GeneratedNarration | null>(null);
+  const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
+  const generationLock = useRef(false);
   const [mode, setMode] = useState<NarrationMode>(START_MODE);
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
 
-  const all = sample ? DEV_SAMPLE : (narrationRes.data?.segments ?? []);
+  const ai = generated?.artwork_id === id ? generated : null;
+  const generationState = generation?.id === id ? generation : null;
+  const all = ai?.segments ?? narrationRes.data?.segments ?? [];
   const segments = all.filter(
     (s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'),
   );
@@ -97,12 +84,30 @@ export default function NarrationScreen() {
   }, [player.index, player.playing, reduceMotion]);
 
   const err = narrationRes.error;
-  const missing = !sample && err instanceof ApiError && (err.status === 409 || err.status === 404);
-  const failed = !sample && !!err && !missing;
-  const loading = !sample && !narrationRes.data && !err;
+  const missing = !ai && err instanceof ApiError && err.status === 409;
+  const failed = !ai && !!err && !missing;
+  const loading = !ai && !narrationRes.data && !err;
   const total = segments.length;
   const atFirst = player.index <= 0;
   const atLast = player.index >= total - 1;
+
+  const createNarration = async () => {
+    if (!id || generationLock.current) return;
+    generationLock.current = true;
+    setGeneration({ id, busy: true });
+    try {
+      const result = await generateNarration(id);
+      player.reset();
+      setGenerated(result);
+      setGeneration({ id, busy: false });
+    } catch (error) {
+      setGeneration({ id, busy: false, error: error instanceof ApiError && error.status === 429
+        ? 'AI 해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
+        : error instanceof ApiError && error.status === 503
+          ? 'AI 해설을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'
+          : 'AI 해설을 만들지 못했어요. 다시 시도해 주세요.' });
+    } finally { generationLock.current = false; }
+  };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -142,6 +147,12 @@ export default function NarrationScreen() {
           </View>
         )}
 
+        {Platform.OS === 'ios' && <Text style={{ color: palette.textSecondary, fontSize: 16, lineHeight: 24 }}>
+          소리가 안 들리면 무음 모드를 해제하고 음량을 올려 주세요.
+        </Text>}
+        {ai && <Text accessibilityRole="alert" style={{ color: palette.textSecondary, fontSize: 18, lineHeight: 28 }}>
+          {ai.warning}
+        </Text>}
         {all.length > 0 ? (
           <>
             <View
@@ -276,13 +287,14 @@ export default function NarrationScreen() {
             {failed && (
               <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />
             )}
-            {missing && __DEV__ && (
-              <PillButton
-                label="예시 문장으로 화면 보기 (개발용)"
-                palette={palette}
-                onPress={() => setSample(true)}
-              />
-            )}
+            {missing && <>
+              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+                작품 사진과 정보를 바탕으로 AI 해설을 만들 수 있어요. 생성한 해설은 미검수임을 표시해 드려요.
+              </Text>
+              {generationState?.error && <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{generationState.error}</Text>}
+              <PillButton label={generationState?.busy ? 'AI 해설을 만들고 있어요…' : 'AI 해설 생성하기'}
+                palette={palette} onPress={createNarration} disabled={generationState?.busy} />
+            </>}
           </View>
         )}
       </ScrollView>
@@ -484,18 +496,22 @@ function PillButton({
   label,
   palette,
   onPress,
+  disabled = false,
 }: {
   label: string;
   palette: Palette;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled, busy: disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.pill,
-        { backgroundColor: palette.accent, opacity: pressed ? 0.8 : 1 },
+        { backgroundColor: palette.accent, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
       <Text style={[styles.pillText, { color: palette.accentText }]}>{label}</Text>
     </Pressable>

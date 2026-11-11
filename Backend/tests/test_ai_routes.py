@@ -83,6 +83,44 @@ class AIRouteTests(unittest.TestCase):
         self.assertEqual(self.client.get("/artworks").json()["total"], 1)
         self.assertEqual(before, {path.name for path in self.app.state.catalog.images_dir.iterdir()})
 
+    def test_generate_registered_narration_uses_metadata_and_stays_unreviewed(self):
+        self.seed("pending")
+        self.assertEqual(self.client.get("/artworks/sample/narration").status_code, 409)
+        before = {path.name for path in self.app.state.catalog.images_dir.iterdir()}
+        with patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            response = self.client.post("/artworks/sample/narration")
+        self.assertEqual(response.status_code, 200, response.text)
+        data = response.json()
+        self.assertEqual(data["review_status"], "unreviewed")
+        self.assertFalse(data["fallback"])
+        self.assertEqual(data["segments"][0]["text"], DESCRIPTION["facts"][0])
+        self.assertTrue(data["segments"][1]["text"].startswith("가능한 감정적 해석입니다."))
+        self.assertEqual(describe.call_args.args[1]["title"], "작품")
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        # Generated text must never silently become a reviewed catalog description.
+        self.assertEqual(self.client.get("/artworks/sample/narration").status_code, 409)
+        self.assertIsNone(self.client.get("/artworks/sample").json()["description"])
+        self.assertEqual(before, {path.name for path in self.app.state.catalog.images_dir.iterdir()})
+
+    def test_generated_narration_fallback_is_not_playable(self):
+        fallback = FallbackDescription(facts=["해설을 생성하지 못했습니다."], interpretations=[], regions=[], mood_keywords=[])
+        with patch.object(FixtureGemini, "describe", return_value=fallback):
+            response = self.client.post("/artworks/sample/narration")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["fallback"])
+        self.assertEqual(response.json()["segments"], [])
+        self.assertEqual(response.json()["text"], "")
+
+    def test_generated_narration_errors_and_shared_ai_rate_limit(self):
+        self.assertEqual(self.client.post("/artworks/missing/narration").status_code, 404)
+        with patch.object(FixtureGemini, "describe", side_effect=HTTPException(503, "AI 설정 필요")):
+            self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 503)
+        for _ in range(4):
+            self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
+        self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 429)
+        # The existing analyze route shares that same limit.
+        self.assertEqual(self.client.post("/analyze", files={"image": ("x.png", self.image, "image/png")}).status_code, 429)
+
     def test_threshold_rejection_and_boundary(self):
         self.app.state.recognition.match_threshold = 0.71
         response = self.client.post("/recognize", headers=self.headers, files={"image": ("x.png", self.image)})

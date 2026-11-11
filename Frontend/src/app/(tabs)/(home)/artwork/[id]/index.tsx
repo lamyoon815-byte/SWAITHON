@@ -32,16 +32,15 @@ import { useResource } from '@/hooks/use-resource';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
-import { PREVIEW_PROFILE } from '@/types/profile';
-
-// TODO(A): 로그인 후 받은 시각 프로필(use-profile)로 바꾼다. 그 전에는 차이가 보이도록 임시 값.
-const profile = PREVIEW_PROFILE;
+import { useViewing } from '@/hooks/use-viewing';
+import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
 const HERO_HEIGHT = 380;
 /** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
 const DESC_SIZES = [18, 20, 23, 26];
 
 export default function ArtworkScreen() {
+  const { profile, values } = useViewing();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottomInset = useTabBarInset();
@@ -53,6 +52,7 @@ export default function ArtworkScreen() {
   const [original, setOriginal] = useState(false);
   const [strength, setStrength] = useState(profile.strength);
   const [sizeStep, setSizeStep] = useState(1);
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, values, original, strength);
 
   // Remember it for the search screen's "최근 본 작품".
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function ArtworkScreen() {
             accessibilityHint="전체 화면에서 확대해 볼 수 있어요"
             onPress={openZoom}>
             <CorrectionCanvas
-              source={artwork.image_url}
+              source={corrected.source}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
               correction={{ ...profile, strength }}
               original={original}
@@ -126,6 +126,9 @@ export default function ArtworkScreen() {
               style={styles.heroCanvas}
             />
           </Pressable>
+          {(corrected.loading || corrected.error) ? <Text accessibilityLiveRegion="polite" style={[styles.message, { color: palette.text }]}>
+            {corrected.loading ? '색과 윤곽선을 보정하고 있어요' : '색 보정을 잠시 쓸 수 없어요. 앱의 밝기·대비 보정만 적용했어요.'}
+          </Text> : null}
           <View style={styles.heroBack}>
             <BackButton label="작품 목록으로" palette={palette} />
           </View>

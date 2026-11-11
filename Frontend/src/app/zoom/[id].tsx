@@ -15,12 +15,11 @@ import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a1
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
 import { getArtwork } from '@/lib/api';
-import { PREVIEW_PROFILE } from '@/types/profile';
-
-// TODO(A): 상세 화면과 같이 로그인 후 받은 시각 프로필로 바꾼다.
-const profile = PREVIEW_PROFILE;
+import { useViewing } from '@/hooks/use-viewing';
+import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
 export default function ZoomScreen() {
+  const { profile, values } = useViewing();
   const palette = getPalette('dark', false);
   const { id, original, strength } = useLocalSearchParams<{
     id: string;
@@ -30,6 +29,9 @@ export default function ZoomScreen() {
   }>();
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
+  const rawStrength = Number(strength ?? profile.strength);
+  const amount = Number.isFinite(rawStrength) ? Math.max(0, Math.min(1, rawStrength)) : 1;
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, values, showOriginal, amount);
 
   return (
     // A full-screen modal is its own native window, so pinch needs its own gesture root here.
@@ -49,9 +51,9 @@ export default function ZoomScreen() {
 
         {artwork ? (
           <CorrectionCanvas
-            source={artwork.image_url}
+            source={corrected.source}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-            correction={{ ...profile, strength: strength ? Number(strength) : profile.strength }}
+            correction={{ ...profile, strength: amount }}
             original={showOriginal}
             zoomable
             palette={palette}

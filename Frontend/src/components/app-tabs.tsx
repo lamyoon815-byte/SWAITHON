@@ -70,6 +70,8 @@ function withAlpha(hex: string, alpha: number) {
 function useReduceTransparency() {
   const [on, setOn] = useState(false);
   useEffect(() => {
+    // React Native Web does not provide the native transparency preference API.
+    if (typeof AccessibilityInfo.isReduceTransparencyEnabled !== 'function') return;
     AccessibilityInfo.isReduceTransparencyEnabled().then(setOn, () => {});
     const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setOn);
     return () => sub.remove();

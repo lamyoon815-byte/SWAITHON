@@ -4,7 +4,7 @@
 규칙을 바꾸고 싶으면 이 파일을 고치는 PR을 올리고 서로 확인한 뒤 머지합니다.
 
 > 📌 `TODO` 표시가 있는 칸은 아직 정해지지 않았습니다. 정해지면 바로 채워 주세요.
-> ⚠️ BE에 요청한 것(9장 "BE 요청")이 들어오기 전까지는 해당 부분을 mock으로 작업합니다.
+> 실제 백엔드만 사용합니다. `EXPO_PUBLIC_API_URL`을 설정하고 백엔드를 먼저 실행하세요. 연결 실패 시 오류를 표시합니다.
 
 ---
 
@@ -99,7 +99,7 @@ npx tsc --noEmit
 ```
 Frontend/
 ├─ assets/images/
-│  ├─ artworks/                 # mock 작품 이미지 (BE 연결 전 임시)
+│  ├─ artworks/                 # 작품 이미지 리소스
 │  └─ calibration/              # A/B 캘리브레이션 샘플 작품
 ├─ docs/
 │  ├─ design/                   # ✅ 최종 디자인 HTML (저시력 미술관 앱.html)
@@ -153,9 +153,8 @@ Frontend/
 │  │  ├─ use-resource.ts        # ✅ api.ts 결과를 화면에서 받는 작은 훅
 │  │  └─ use-tab-bar-inset.ts   # ✅ 떠 있는 탭 바만큼 아래 여백
 │  ├─ lib/
-│  │  ├─ api.ts                 # ✅ BE 호출은 여기서만. 주소가 없으면 mock (공통 파일)
+│  │  ├─ api.ts                 # 실제 BE 호출만 사용 (공통 파일)
 │  │  └─ color-matrix.ts, sharpen.ts, resize.ts   # ✅ 스파이크에서 만든 순수 함수
-│  ├─ mocks/                    # ✅ artworks.json, museums.json
 │  ├─ store/                    # 기기 저장 (✅ settings.ts: AsyncStorage, auth.ts: SecureStore 토큰, profile.ts)
 │  └─ types/                    # ✅ artwork.ts, museum.ts (공통 파일)
 ```
@@ -185,21 +184,21 @@ Frontend/
 
 | 와이어프레임 | 화면 | 파일 (`src/app/` 기준) | 우선순위 | 담당 | 상태 |
 |---|---|---|---|---|---|
-| 없음 (TODO) | 로그인 | `auth/login.tsx` | P0 | A | 와이어프레임 필요 |
-| 없음 (TODO) | 회원가입 | `auth/register.tsx` | P0 | A | 와이어프레임 필요 |
-| 5 | 온보딩 | `onboarding/index.tsx` | P0 | A | 시작 전 |
-| 6 | 캘리브레이션 (A/B 선택) | `onboarding/calibration.tsx` | P0 | A | 시작 전 |
-| 6-1 | 내 보정값 확인 | `onboarding/result.tsx` | P0 | A | 시작 전 |
+| - | 로그인 | `auth/login.tsx` | P0 | A | 실제 인증 API 연결 |
+| - | 회원가입 | `auth/register.tsx` | P0 | A | 실제 인증 API 연결 |
+| 5 | 온보딩 | `onboarding.tsx` | P0 | A | 구현 |
+| 6 | 보기 설정 테스트 | `onboarding.tsx` | P0 | A | AI 합의 규칙 반영 |
+| 6-1 | 내 보정값 확인 | `onboarding.tsx` | P0 | A | 결과 확인·기기 저장 구현 |
 | 1-3 | 작품을 찾지 못했어요 | `(tabs)/(home)/not-found.tsx` | P0 | A | 시작 전 |
-| 8 | 마이페이지 | `(tabs)/mypage/index.tsx` | P0 | A | 시작 전 (미술관 기억 부분만 B가 넣어 둠) |
-| 8-1 | 내 보정값 세부 조정 | `(tabs)/mypage/correction.tsx` | P0 | A | 시작 전 |
+| 8 | 마이페이지 | `(tabs)/mypage/index.tsx` | P0 | A | 계정·보기 설정·로그아웃 연결 |
+| 8-1 | 내 보정값 세부 조정 | `(tabs)/mypage/correction.tsx` | P0 | A | 구현 |
 | 7 | 관람 기록 | `(tabs)/mypage/history.tsx` | P1 | A | 시작 전 |
 | - | 하단 탭, 루트 레이아웃 | `_layout.tsx`, `(tabs)/_layout.tsx`, `components/app-tabs.tsx` | P0 | B | 진행 중 (디자인 반영, 로그인 분기는 A) |
-| 1 / 1-1 | 홈 (작품 선택 + 번호 입력) | `(tabs)/(home)/index.tsx` | P0 | B | 진행 중 (mock 데이터) |
-| 1-0 | 미술관 선택 | `museum.tsx` | P0 | B | 진행 중 (mock 데이터) |
+| 1 / 1-1 | 홈 (작품 선택 + 번호 입력) | `(tabs)/(home)/index.tsx` | P0 | B | 실제 BE 데이터 연결 |
+| 1-0 | 미술관 선택 | `museum.tsx` | P0 | B | 실제 BE 데이터 연결 |
 | - | 카메라 탭: 찾는 방법 고르기 | `(tabs)/camera.tsx` | P0 | B | 진행 중 |
-| 1-2 / 4 / 4-1 / 4-2 | QR 스캔 + 작품 촬영 인식 (높음·중간·낮음) | `capture.tsx` | P0 | B | 진행 중 (QR 동작, 촬영은 `/recognize` 연결 전) |
-| 2 | 작품 감상 | `(tabs)/(home)/artwork/[id]/index.tsx` | P0 | B | 진행 중 (보정 캔버스 붙이기 전) |
+| 1-2 / 4 / 4-1 / 4-2 | QR 스캔 + 작품 촬영 인식 (높음·중간·낮음) | `capture.tsx` | P0 | B | 실제 BE 연결, next_action으로 분기 |
+| 2 | 작품 감상 | `(tabs)/(home)/artwork/[id]/index.tsx` | P0 | B | 저장된 보기 설정·서버 색/윤곽선·Skia 연결 |
 | 3 | 해설 재생 | `(tabs)/(home)/artwork/[id]/narration.tsx` | P0 | B | 시작 전 |
 | 4-2 이후 | 미등록 작품 일반 분석 | `(tabs)/(home)/analyze.tsx` | P1 | B | 시작 전 |
 | - | Spike (기술 검증) | `spike.tsx` | - | - | 마이페이지 개발용 버튼으로 들어감. 필요한 것 옮긴 뒤 제거 |
@@ -230,10 +229,10 @@ Frontend/
 |---|---|---|
 | 앱 실행 | 저장된 토큰 없음 / 만료 (401) | 로그인 |
 | 로그인 | 회원가입 | 회원가입 |
-| 로그인 · 회원가입 | 성공 | `GET /me/profile` → 진단한 적 없음: 5 온보딩 / 있음: 1 홈 (`router.replace`) |
+| 로그인 · 회원가입 | 성공 | 기기에 저장한 보기 설정 없음: 온보딩 / 있음: 홈 |
 | 앱 실행 | 토큰 있음 | 위와 같이 온보딩 또는 1 홈 |
 | 8 마이페이지 | 로그아웃 | 로그인 (`POST /auth/logout` 후 토큰 삭제) |
-| 5 온보딩 | 시작하기 | 6 캘리브레이션 (1/5 → 5/5) |
+| 5 온보딩 | 시작하기 | 색 구분 확인 → 보정 종류 선택 → 색 보정 세기 → 선 굵기 → 대비 → 저장 |
 | 5 온보딩 | 건너뛰고 바로 보기 | 1 홈 (기본 보정값 저장) |
 | 6 캘리브레이션 | 5단계 끝 / 건너뛰기 | 6-1 내 보정값 확인 |
 | 6-1 내 보정값 확인 | 이 값으로 시작하기 | 1 홈 (`router.replace`, 뒤로 가기로 온보딩에 돌아가지 않게) |
@@ -247,7 +246,7 @@ Frontend/
 | 카메라 탭 | QR 코드 스캔 / 작품 촬영 (처음이면 카메라 권한 요청) | 촬영 화면 `capture?mode=qr` / `capture?mode=artwork` (탭 바 없음) |
 | 촬영 화면 (두 모드 모두) | QR 인식 성공 (자동) | 그 작품의 미술관이 현재 미술관이 되고 2 작품 감상 (촬영 화면은 뒤로 가기에서 빠짐, "작품을 찾았어요" 안내) |
 | 촬영 화면 | QR 인식 — 없는 작품 | 지금: "등록되지 않은 QR 코드예요" 안내. 1-3이 생기면 1-3 작품을 찾지 못했어요 |
-| 촬영 화면 (작품) | 촬영 | 지금: 촬영·리사이즈 후 "서버 연결 후에 동작해요" 안내. `/recognize` 연결 후 아래 4의 흐름 |
+| 촬영 화면 (작품) | 촬영 | 촬영·리사이즈 후 `/recognize/artwork` 호출. 서버의 next_action에 따라 이동·후보 확인·분석·재촬영 |
 | 촬영 화면 (QR) | 번호로 찾기 | 1 홈 입력칸 |
 | 1-3 작품을 찾지 못했어요 | 번호 다시 입력 / 카메라로 다시 찾기 / 목록에서 고르기 | 1 홈 입력칸 / 카메라 탭 / 1 홈의 목록 |
 | 1 홈 | 음성 버튼 | 기능 구현 전: "음성으로 찾기는 준비 중이에요" 안내만 (화면 이동 없음) |
@@ -316,8 +315,8 @@ export type Artwork = {
 - `description`이 `null`이면 "아직 해설이 준비되지 않았어요"를 보여주고 해설 버튼을 비활성화합니다 (데모용 모나리자도 현재 `null`).
 - 사실(`facts`)과 해석(`interpretations`)은 화면과 음성 모두에서 **섞지 않고 따로** 보여줍니다.
 - **썸네일은 따로 없습니다.** 목록에서도 `image_url`을 `expo-image`로 작게 띄웁니다. 느리면 BE에 썸네일을 요청합니다.
-- 작품 번호·미술관 ID는 BE에 반영됐습니다. FE의 기존 mock 타입·API 연결 시 `number`, `museum_id`, `museum`의 null을 처리합니다. 번호는 문자열로 유지하며 숫자로 바꾸지 않습니다.
-- mock 데이터는 `src/mocks/artworks.json`(위 모양 그대로), 이미지는 `assets/images/artworks/<id>.jpg`. 공공 도메인 작품만 씁니다.
+- 작품 번호·미술관 ID는 BE에 반영됐습니다. FE API 연결 시 `number`, `museum_id`, `museum`의 null을 처리합니다. 번호는 문자열로 유지하며 숫자로 바꾸지 않습니다.
+- 작품·미술관·이미지는 실제 BE 카탈로그에서 가져옵니다. 임시 데이터 대체는 사용하지 않습니다.
 
 ### 6.2 해설
 
@@ -340,7 +339,7 @@ export type Narration = {
 
 ### 6.3 촬영 인식
 
-`POST /recognize` (로그인 필요) — multipart `image`(긴 변 1024px JPEG), `mode`(`artwork` | `placard`)
+`POST /recognize/artwork` 또는 `/recognize/placard` (로그인 불필요) — multipart `image`(긴 변 1024px JPEG). 응답의 `next_action`으로 분기하며 `message`를 안내합니다.
 
 ```ts
 export type RecognitionResult = {
@@ -429,7 +428,7 @@ export type DeviceSettings = {
 - 주소는 **`EXPO_PUBLIC_API_URL`** 에서 읽고, 호출은 `src/lib/api.ts` 한 곳에 모읍니다. 주소를 코드에 하드코딩하지 않습니다.
 - 스파이크의 `EXPO_PUBLIC_UPLOAD_URL`은 본 구현에서 `EXPO_PUBLIC_API_URL`로 합칩니다.
 - API 키(Gemini 등)는 **앱에 절대 넣지 않습니다.** `EXPO_PUBLIC_` 변수는 앱 번들에 그대로 들어갑니다.
-- `EXPO_PUBLIC_API_URL`이 비어 있으면 `api.ts`가 `src/mocks/`를 돌려줍니다. BE가 안 떠 있어도 화면 작업이 막히지 않게 합니다.
+- `EXPO_PUBLIC_API_URL`은 필수입니다. 주소가 없거나 서버가 꺼져 있으면 오류를 표시하며 임시 데이터를 반환하지 않습니다.
 - 오류 처리: 401 → 토큰 삭제 후 로그인 화면, 404 → 1-3 작품을 찾지 못했어요, 409 → 해설 준비 중, 429 → "잠시 후 다시 시도해 주세요", 503 → "지금은 이 기능을 쓸 수 없어요". 오류 문구도 화면과 음성으로 같이 알립니다.
 
 | 메서드 | 경로 | 로그인 | 쓰는 화면 |
@@ -437,7 +436,7 @@ export type DeviceSettings = {
 | GET | `/artworks?limit&offset` | | 1 홈 목록 |
 | GET | `/artworks/{id}` | | 2, 3, 4-1 |
 | GET | `/artworks/{id}/narration` | 필요 | 3 해설 재생 |
-| POST | `/recognize` | 필요 | 4 촬영 인식 |
+| POST | `/recognize/artwork` | 불필요 | 4 촬영 인식 |
 | POST | `/analyze` | 필요 | 미등록 작품 (P1) |
 | GET / PUT | `/me/profile` | 필요 | 6-1, 8, 8-1 |
 | GET / POST / DELETE | `/me/history` | 필요 | 2(기록 저장), 7 |
@@ -553,7 +552,7 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 
 | 항목 | 결정 | 반영 |
 |---|---|---|
-| 로그인 | **로그인 없이 기기 로컬 저장만 쓴다** (2026-11-06 변경, 이전 결정: 로그인·회원가입 화면 제작). 저시력 사용자에게 가입 절차의 부담이 크고 클라우드 저장이 꼭 필요하지 않음. 설정은 `store/settings.ts`(AsyncStorage)에 두고, BE의 인식·해설·보정 API는 토큰 없이 부른다. 온보딩(5)의 "가입 없이 이 기기에만 저장돼요" 문구는 그대로 둔다. 5.1의 로그인·회원가입 화면은 만들지 않는다 | 5.1, 5.2, 6.4 |
+| 로그인 | **로그인·회원가입 사용** (2026-11-11 변경). 실제 `/auth/login`, `/auth/register`, `/auth/logout`에 연결하고 휴대폰 세션은 SecureStore에 보관. 보기 설정은 계정 로그인과 별개로 이 기기에 저장하며 AI API는 기존처럼 비회원 호출도 지원 | 5.1, 5.2, 6.4 |
 | 촬영 방식 | **자동 촬영을 넣는다**. 디자인에는 셔터 버튼이 있어 지금은 셔터로 찍는다. 자동 촬영을 붙인 뒤 셔터를 남길지는 9.3에서 정한다. [tech-review 1-1](../docs/tech-review.md#1-결정-사항)도 자동 촬영 지원으로 반영됨 | 6.3 |
 | 음성으로 작품 찾기 | **버튼은 화면에 넣는다.** 누르면 "준비 중" 안내만 하고, 기능(음성 인식)은 dev build로 바꿀 때 붙인다 | 3, 5.2 |
 | 하단 탭 | **홈 · 카메라 · 마이** (디자인). 화면 위에 떠 있는 알약 모양. 선택된 탭은 머스터드 배경 (디자인의 회색은 라이트 모드에서 안 보여서 바꿈). 관람 기록은 마이페이지에서 들어감 | 4 |
@@ -578,8 +577,16 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 | # | 항목 | 쟁점 | 결정 |
 |---|---|---|---|
 | 1 | 스크린리더 켰을 때 해설 방식 | expo-speech TTS vs `announceForAccessibility` 중 기본값 | TODO |
-| 2 | 캘리브레이션 5단계 내용 | 6의 "2 / 5 번째"에서 각 단계가 무엇을 비교하는지 (예: 대비, 밝기, 선명도, 색각 2단계). A/B 선택 결과를 `VisualProfile` 값으로 바꾸는 규칙 | TODO |
-| 3 | 로그인·회원가입 와이어프레임 | 화면 구성, 온보딩 앞인지 뒤인지 (지금 문서는 로그인 → 온보딩 순서) | TODO |
+| 2 | 캘리브레이션 | [AI 합의 규칙](../docs/ai-calibration.md), 청색판 포함 복수 실패는 직접 고르기. 로컬 필드 `color_type`, `severity`, `edge`, `contrast` 사용 | 구현 |
+| 3 | 로그인·회원가입 | 실제 API 연결. 로그인 → 기기 보기 설정 확인 → 온보딩 또는 홈 | 구현 |
 | 4 | 자동 촬영 세부값 | 촬영 간격, 포기 시간(예: 15초), 셔터음 처리. 실기기에서 정함 | TODO |
 | 5 | 배경 음악 | 2의 "음악 듣기"와 8의 "배경 음악 자동 재생". 음원과 `mood_keywords` 매핑은 누가 준비하는지, P2 유지 여부 | TODO |
 | 6 | 촬영 셔터 | 디자인의 셔터 버튼과 9.1의 자동 촬영을 같이 둘지 (자동 촬영 + 셔터는 수동 재시도용 등) | TODO |
+
+## 2026-11-11 인증·보기 설정 반영
+
+- 첫 실행은 로그인. 회원가입 성공 시 즉시 로그인되며 보기 설정이 없는 기기는 온보딩으로 이동합니다. 로그아웃은 서버 세션을 무효화하고 기기 토큰을 지웁니다.
+- `store/viewing.ts`에 `color_type`, `severity`, `edge`, `contrast`, `brightness`, `sharpness`를 저장합니다. 이 설정은 이 기기의 계정들 사이에서 공유하며 서버에 자동 동기화하지 않습니다.
+- 마이페이지에서 종류·색 보정·선 굵기·대비(0.5~2)·밝기(-1~1)·선명도를 조정할 수 있습니다. 저장 전 미리보기는 CALIBRATION의 색/윤곽선 그림을 각각 사용합니다.
+- 작품 화면은 서버 `/correction`으로 색·윤곽선만 적용합니다. 서버에는 항상 `contrast: 1`, `brightness: 0`, `sharpness: 0`을 보내고 앱 Skia에서 밝기·대비·선명도를 적용합니다. 성공한 서버 이미지는 재사용하고 슬라이더 이동 중 호출을 지연합니다.
+- 확인 명령: `node --test scripts/tests/auth-calibration.test.cjs`, `npx expo lint`, `npx tsc --noEmit`.

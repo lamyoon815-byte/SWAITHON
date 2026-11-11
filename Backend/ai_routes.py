@@ -81,6 +81,26 @@ class NarrationResult(BaseModel):
     review_status: Literal["reviewed"]
 
 
+class GeneratedNarrationResult(AnalysisResult):
+    artwork_id: str
+    mode: Literal["both"] = "both"
+    segments: list[NarrationSegment]
+    text: str
+
+
+def narration_segments(description: dict, mode: str = "both") -> list[dict]:
+    segments = []
+    if mode in {"facts", "both"}:
+        indices = description.get("fact_region_indices") or [None] * len(description["facts"])
+        segments.extend({"type": "fact", "text": text, "region_index": index}
+                        for text, index in zip(description["facts"], indices))
+    if mode in {"interpretations", "both"}:
+        indices = description.get("interpretation_region_indices") or [None] * len(description["interpretations"])
+        segments.extend({"type": "interpretation", "text": "가능한 감정적 해석입니다. " + text, "region_index": index}
+                        for text, index in zip(description["interpretations"], indices))
+    return segments
+
+
 async def read_upload(image: UploadFile):
     try:
         if image.size is not None and image.size > MAX_UPLOAD_BYTES:
@@ -267,6 +287,26 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 "fallback": getattr(description, "fallback", False),
                 "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
 
+    @router.post("/artworks/{artwork_id}/narration", response_model=GeneratedNarrationResult,
+                 tags=["작품 해설"], summary="등록 작품의 AI 해설 생성 (미검수)",
+                 description="등록 원본과 카탈로그 메타데이터로 Gemini 해설을 생성합니다. 검수 완료로 저장하지 않습니다. "
+                             "AI 공통 호출 제한·예산을 적용합니다. fallback이면 segments는 비어 있으며 재생하지 않습니다.")
+    async def generate_narration(request: Request, response: Response, artwork_id: str):
+        response.headers["Cache-Control"] = "no-store"
+        record = await run_in_threadpool(catalog.get, artwork_id)
+        if record is None:
+            raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
+        ai_limiter.check(client_key(request))
+        content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
+        normalized = await run_in_threadpool(normalize_image, content)
+        description = await run_in_threadpool(gemini.describe, normalized.content, record)
+        fallback = getattr(description, "fallback", False)
+        segments = [] if fallback else narration_segments(description.model_dump())
+        return {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
+                "segments": segments, "text": "\n".join(segment["text"] for segment in segments),
+                "review_status": "unreviewed", "fallback": fallback,
+                "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
+
     @router.get("/artworks/{artwork_id}/narration", response_model=NarrationResult, tags=["작품 해설"], summary="감상 모드에 맞는 검수 해설 텍스트 조회",
                 description="로그인 불필요. mode는 기기에 저장한 감상 모드를 보내며 생략 시 both입니다. 반환된 text를 앱의 expo-speech로 재생합니다.")
     def narration(artwork_id: str,
@@ -276,18 +316,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
         if record["description"] is None:
             raise HTTPException(409, "검수된 해설이 아직 없습니다.")
-        selected = mode
-        description = record["description"]
-        segments = []
-        if selected in {"facts", "both"}:
-            indices = description.get("fact_region_indices") or [None] * len(description["facts"])
-            segments.extend({"type": "fact", "text": text, "region_index": index}
-                            for text, index in zip(description["facts"], indices))
-        if selected in {"interpretations", "both"}:
-            indices = description.get("interpretation_region_indices") or [None] * len(description["interpretations"])
-            segments.extend({"type": "interpretation", "text": "가능한 감정적 해석입니다. " + text, "region_index": index}
-                            for text, index in zip(description["interpretations"], indices))
-        return {"artwork_id": artwork_id, "mode": selected, "segments": segments,
+        segments = narration_segments(record["description"], mode)
+        return {"artwork_id": artwork_id, "mode": mode, "segments": segments,
                 "text": "\n".join(segment["text"] for segment in segments), "review_status": "reviewed"}
 
     return router

@@ -18,3 +18,9 @@ export type Narration = {
   text: string;
   review_status: 'reviewed';
 };
+
+export type GeneratedNarration = Omit<Narration, 'review_status'> & {
+  review_status: 'unreviewed';
+  warning: string;
+  fallback: boolean;
+};
