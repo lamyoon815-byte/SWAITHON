@@ -18741,23 +18741,6 @@
   "review_status": "pending"
  },
  {
-  "id": "aic-1195",
-  "title": "그랑드 자트 섬의 일요일 오후를 위한 유화 습작",
-  "original_title": "Oil Sketch for \"A Sunday on La Grande Jatte — 1884\"",
-  "artist": "조르주 쇠라",
-  "original_artist": "Georges Seurat",
-  "year": "1884",
-  "number": "1195",
-  "museum": "시카고 미술관",
-  "museum_area": "미국 시카고",
-  "license": "CC0 Public Domain Designation (설명문: Art Institute of Chicago, CC BY 4.0)",
-  "museum_id": "aic",
-  "background": "This small oil on thin wood panel is one of over 20 painted studies Georges Seurat made for A Sunday on La Grande Jatte—1884 . Although at first glance its composition seems similar to the finished canvas, its 20 or more figures have little to do with the final version. The trio at right with an elderly seated figure, for example, was completely rethought in the completed work, where they are replaced by a man in a top hat and a woman walking a monkey on a leash. This ironic combination of grand solemnity and wry humor is totally absent from the sketch’s awkwardly positioned figures.",
-  "source_url": "https://www.artic.edu/artworks/61616",
-  "image_path": "data/open-access/aic-1195.jpg",
-  "review_status": "pending"
- },
- {
   "id": "aic-1196",
   "title": "풍경, 일몰",
   "original_title": "Landscape, Sunset",
@@ -25858,22 +25841,6 @@
   "museum_id": "met",
   "source_url": "https://www.metmuseum.org/art/collection/search/436575",
   "image_path": "data/open-access/met-36.jpg",
-  "review_status": "pending"
- },
- {
-  "id": "met-37",
-  "title": "그랑드 자트 섬의 일요일 오후를 위한 습작",
-  "original_title": "Study for \"A Sunday on La Grande Jatte\"",
-  "artist": "조르주 쇠라",
-  "original_artist": "Georges Seurat",
-  "year": "1884",
-  "number": "37",
-  "museum": "메트로폴리탄 미술관",
-  "museum_area": "미국 뉴욕",
-  "license": "Public Domain (The Met Open Access, CC0)",
-  "museum_id": "met",
-  "source_url": "https://www.metmuseum.org/art/collection/search/437658",
-  "image_path": "data/open-access/met-37.jpg",
   "review_status": "pending"
  },
  {
