@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 
-/** Only a wide artwork in the enlarged viewer may follow the device's orientation. */
-export function useZoomOrientation(source: string | undefined) {
+/** Wide art can follow device rotation or force landscape in the image-only viewer. */
+export function useZoomOrientation(source: string | undefined, forceLandscape = false) {
   const navigation = useNavigation();
   const [measured, setMeasured] = useState<{ source: string; wide: boolean } | null>(null);
   const wide = !!source && measured?.source === source && measured.wide;
@@ -18,10 +18,10 @@ export function useZoomOrientation(source: string | undefined) {
   }, [source]);
 
   useFocusEffect(useCallback(() => {
-    navigation.setOptions({ orientation: wide ? 'default' : 'portrait' });
+    navigation.setOptions({ orientation: wide ? (forceLandscape ? 'landscape' : 'default') : 'portrait' });
     // Closing the inline viewer, navigating back, and changing artworks all restore portrait.
     return () => { navigation.setOptions({ orientation: 'portrait' }); };
-  }, [navigation, wide]));
+  }, [navigation, wide, forceLandscape]));
 
   return wide;
 }

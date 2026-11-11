@@ -31,7 +31,7 @@ function setup() {
   vm.runInNewContext(js, { module, exports: module.exports, require: (name) => {
     assert.ok(name in mocks, name); return mocks[name];
   } });
-  return { measurements, options, render: (uri) => module.exports.useZoomOrientation(uri),
+  return { measurements, options, render: (uri, force) => module.exports.useZoomOrientation(uri, force),
     close: () => { effectCleanup?.(); focusCleanup?.(); } };
 }
 
@@ -65,5 +65,22 @@ test('switching from wide to portrait artwork ignores late results and locks por
   assert.equal(h.options.at(-1), 'portrait');
   old.success(2000, 900);
   assert.equal(h.render('new-portrait'), false);
+  h.close();
+});
+
+test('image-only viewing forces wide art to landscape without waiting for a device rotation', () => {
+  const h = setup(); h.render('wide', true);
+  h.measurements[0].success(1600, 900);
+  assert.equal(h.render('wide', true), true);
+  assert.equal(h.options.at(-1), 'landscape');
+  h.close();
+  assert.equal(h.options.at(-1), 'portrait');
+});
+
+test('image-only viewing never forces portrait art to landscape', () => {
+  const h = setup(); h.render('portrait', true);
+  h.measurements[0].success(900, 1600);
+  assert.equal(h.render('portrait', true), false);
+  assert.equal(h.options.at(-1), 'portrait');
   h.close();
 });
