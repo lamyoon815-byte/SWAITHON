@@ -103,7 +103,7 @@ export default function CorrectionScreen() {
         <View style={styles.headerSpace} />
       </View>
 
-      <View style={styles.pinnedPreview}>
+      <View style={[styles.pinnedPreview, { backgroundColor: palette.background }]}>
         <CorrectionCanvas
           source={preview}
           accessibilityLabel="반 고흐의 프로방스의 농가, 색 보정과 윤곽선 강조를 함께 적용한 미리보기"
@@ -112,11 +112,14 @@ export default function CorrectionScreen() {
           palette={palette}
           style={styles.preview}
         />
-        <SegmentedControl accessibilityLabel="보기 방식" palette={palette} value={original ? 'original' : 'corrected'} onChange={(next) => setOriginal(next === 'original')}
-          options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본' }] as const} />
+        <View pointerEvents="none" style={[styles.previewFade, {
+          experimental_backgroundImage: `linear-gradient(180deg, ${palette.background} 0%, ${palette.background}CC 35%, ${palette.background}00 100%)`,
+        }]} />
       </View>
 
       <ScrollView style={styles.settingsScroll} contentContainerStyle={[styles.content, { paddingBottom: barHeight + 40 }]}>
+        <SegmentedControl accessibilityLabel="보기 방식" palette={palette} value={original ? 'original' : 'corrected'} onChange={(next) => setOriginal(next === 'original')}
+          options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본' }] as const} />
         {(!loaded || error) && (
           <Text accessibilityLiveRegion="polite" style={[styles.note, { color: palette.textSecondary }]}>
             {error ? '저장된 보정값을 불러오지 못했어요.' : '보정값을 불러오는 중이에요.'}
@@ -201,9 +204,10 @@ const styles = StyleSheet.create({
   header: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   title: { flex: 1, fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center' },
   headerSpace: { width: MinTouchTarget },
-  pinnedPreview: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingBottom: Spacing.three, gap: Spacing.three },
+  pinnedPreview: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, zIndex: 1 },
+  previewFade: { position: 'absolute', left: 0, right: 0, bottom: -8, height: 8 },
   settingsScroll: { flex: 1 },
-  content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingBottom: Spacing.three, gap: Spacing.three },
+  content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, paddingBottom: Spacing.three, gap: Spacing.three },
   preview: { height: 210, borderRadius: 24 },
   controls: { paddingHorizontal: Spacing.three, borderWidth: 1.5, borderRadius: 24 },
   colorSection: { paddingVertical: Spacing.three, gap: Spacing.three },

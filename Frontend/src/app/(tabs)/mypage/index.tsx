@@ -178,12 +178,13 @@ export default function MyPageScreen() {
               <View accessible={false} importantForAccessibility="no-hide-descendants"><SymbolView name={{ ios: 'music.note', android: 'music_note', web: 'music_note' }} size={26} tintColor={palette.text} /></View>
               <View style={styles.rowText}>
                 <Text style={[styles.label, { color: palette.text }]}>배경 음악</Text>
-                <Text style={[styles.description, { color: palette.textSecondary }]}>해설을 들을 때 분위기에 맞는 음악을 작게 깔아요.</Text>
               </View>
-              <Text style={[styles.value, { color: palette.textSecondary }]}>{settings.background_music ? 'ON' : 'OFF'}</Text>
+              <View style={styles.musicValue}>
               <Switch accessibilityLabel="배경 음악" accessibilityState={{ checked: settings.background_music, disabled: !loaded }} disabled={!loaded} value={settings.background_music}
                 trackColor={{ false: palette.outline, true: palette.highlight }} thumbColor={palette.text} ios_backgroundColor={palette.outline}
                 onValueChange={(background_music) => { void updateSettings({ background_music }); }} />
+                <Text style={[styles.value, styles.musicStatus, { color: palette.textSecondary }]}>{settings.background_music ? 'ON' : 'OFF'}</Text>
+              </View>
             </View>
           </View>
           <View style={[styles.card, card]}>
@@ -347,6 +348,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1.5, borderRadius: 24, overflow: 'hidden' },
   row: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
   rowText: { flex: 1, gap: Spacing.two },
+  musicValue: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  musicStatus: { minWidth: 32 },
   label: { fontSize: FontSize.body, fontWeight: 700 },
   description: { fontSize: FontSize.label, lineHeight: 27 },
   value: { flexShrink: 1, fontSize: FontSize.label, textAlign: 'right' },
