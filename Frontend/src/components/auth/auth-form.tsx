@@ -85,48 +85,38 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               </Text>
             </View>
 
+            {/* One slim row per field: "label : input". The label is visible, so no separate caption line. */}
             <View style={styles.fields}>
-              {signup && <View style={styles.group}>
-                <Text style={[styles.label, { color: palette.text }]}>이름</Text>
-                <View style={fieldStyle('nickname')}>
-                  <TextInput accessibilityLabel="이름" placeholder="앱에서 사용할 이름" placeholderTextColor={palette.textSecondary}
-                    value={nickname} onChangeText={edit('nickname', setNickname)} editable={!busy} maxLength={40} autoComplete="nickname"
-                    onFocus={() => setFocused('nickname')} onBlur={() => setFocused(null)} style={inputStyle} />
-                </View>
+              {signup && <View style={[fieldStyle('nickname'), styles.inputRow]}>
+                <Text style={[styles.label, { color: palette.text }]}>이름 :</Text>
+                <TextInput accessibilityLabel="이름" placeholder="ex. 김모미" placeholderTextColor={palette.textSecondary}
+                  value={nickname} onChangeText={edit('nickname', setNickname)} editable={!busy} maxLength={40} autoComplete="nickname"
+                  onFocus={() => setFocused('nickname')} onBlur={() => setFocused(null)} style={inputStyle} />
               </View>}
-              <View style={styles.group}>
-                <Text style={[styles.label, { color: palette.text }]}>이메일</Text>
-                <View style={[fieldStyle('email'), styles.inputRow]}>
-                  <TextInput accessibilityLabel="이메일" placeholder="name@example.com" placeholderTextColor={palette.textSecondary}
-                    value={email} onChangeText={edit('email', setEmail)} editable={!busy} keyboardType="email-address" autoCapitalize="none"
-                    autoCorrect={false} autoComplete="email" textContentType="emailAddress"
-                    onFocus={() => setFocused('email')} onBlur={() => setFocused(null)} style={inputStyle} />
-                  <View style={styles.fieldIcon} pointerEvents="none" accessibilityElementsHidden>
-                    <SymbolView name={{ ios: 'envelope.fill', android: 'mail', web: 'mail' }} size={24} tintColor={palette.textSecondary} />
-                  </View>
-                </View>
+              <View style={[fieldStyle('email'), styles.inputRow]}>
+                <Text style={[styles.label, { color: palette.text }]}>이메일 :</Text>
+                <TextInput accessibilityLabel="이메일" placeholder="ex. name@gmail.com" placeholderTextColor={palette.textSecondary}
+                  value={email} onChangeText={edit('email', setEmail)} editable={!busy} keyboardType="email-address" autoCapitalize="none"
+                  autoCorrect={false} autoComplete="email" textContentType="emailAddress"
+                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)} style={inputStyle} />
               </View>
-              <View style={styles.group}>
-                <Text style={[styles.label, { color: palette.text }]}>비밀번호</Text>
-                <View style={[fieldStyle('password'), styles.inputRow]}>
-                  <TextInput accessibilityLabel="비밀번호" placeholder="8자 이상 입력해 주세요" placeholderTextColor={palette.textSecondary}
-                    value={password} onChangeText={edit('password', setPassword)} editable={!busy} secureTextEntry={!visible} maxLength={128}
-                    autoCapitalize="none" autoCorrect={false} autoComplete={signup ? 'new-password' : 'current-password'}
-                    textContentType={signup ? 'newPassword' : 'password'} style={inputStyle}
-                    onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
-                    returnKeyType={signup ? 'next' : 'go'} onSubmitEditing={signup ? undefined : submit} />
-                  {passwordToggle}
-                </View>
+              <View style={[fieldStyle('password'), styles.inputRow]}>
+                <Text style={[styles.label, { color: palette.text }]}>비밀번호 :</Text>
+                <TextInput accessibilityLabel="비밀번호" placeholder="ex. 8자 이상" placeholderTextColor={palette.textSecondary}
+                  value={password} onChangeText={edit('password', setPassword)} editable={!busy} secureTextEntry={!visible} maxLength={128}
+                  autoCapitalize="none" autoCorrect={false} autoComplete={signup ? 'new-password' : 'current-password'}
+                  textContentType={signup ? 'newPassword' : 'password'} style={inputStyle}
+                  onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
+                  returnKeyType={signup ? 'next' : 'go'} onSubmitEditing={signup ? undefined : submit} />
+                {passwordToggle}
               </View>
-              {signup && <View style={styles.group}>
-                <Text style={[styles.label, { color: palette.text }]}>비밀번호 확인</Text>
-                <View style={fieldStyle('confirm')}>
-                  <TextInput accessibilityLabel="비밀번호 확인" placeholder="한 번 더 입력해 주세요" placeholderTextColor={palette.textSecondary}
-                    value={confirm} onChangeText={edit('confirm', setConfirm)} editable={!busy} secureTextEntry={!visible} maxLength={128}
-                    autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword"
-                    onFocus={() => setFocused('confirm')} onBlur={() => setFocused(null)}
-                    returnKeyType="go" onSubmitEditing={submit} style={inputStyle} />
-                </View>
+              {signup && <View style={[fieldStyle('confirm'), styles.inputRow]}>
+                <Text style={[styles.label, { color: palette.text }]}>확인 :</Text>
+                <TextInput accessibilityLabel="비밀번호 확인" placeholder="비밀번호 한 번 더" placeholderTextColor={palette.textSecondary}
+                  value={confirm} onChangeText={edit('confirm', setConfirm)} editable={!busy} secureTextEntry={!visible} maxLength={128}
+                  autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword"
+                  onFocus={() => setFocused('confirm')} onBlur={() => setFocused(null)}
+                  returnKeyType="go" onSubmitEditing={submit} style={inputStyle} />
               </View>}
             </View>
 
@@ -158,13 +148,11 @@ const styles = StyleSheet.create({
   brand: { fontSize: 17, fontWeight: '800', letterSpacing: 1 },
   title: { fontSize: 30, lineHeight: 40, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },
   copy: { fontSize: 18, lineHeight: 28, textAlign: 'center' },
-  fields: { gap: Spacing.three }, group: { gap: Spacing.two },
-  // 라벨은 박스의 둥근 모서리가 끝나는 곳(=radius)에서 시작한다. 입력 글자도 border 2 + padding 14 = 16에서 시작해 같은 선에 맞는다.
+  fields: { gap: 12 },
   field: { paddingHorizontal: FieldRadius - 2, borderWidth: 2, borderRadius: FieldRadius },
-  label: { fontSize: 17, fontWeight: '700', paddingLeft: FieldRadius }, inputRow: { flexDirection: 'row', alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, paddingVertical: 8, paddingHorizontal: 0, fontSize: 18 },
-  eyeButton: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
-  fieldIcon: { width: 40, alignItems: 'center' },
+  label: { fontSize: 17, fontWeight: '700', marginRight: 10 }, inputRow: { flexDirection: 'row', alignItems: 'center' },
+  input: { flex: 1, minWidth: 0, minHeight: 52, paddingVertical: 6, paddingHorizontal: 0, fontSize: 17 },
+  eyeButton: { width: 48, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
   actions: { gap: 12 }, row: { flexDirection: 'row' },
   footerLabel: { fontSize: 17, textAlign: 'center', paddingTop: 6 },
   credit: { fontSize: 13, textAlign: 'center', lineHeight: 20 },

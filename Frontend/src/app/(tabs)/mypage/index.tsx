@@ -16,12 +16,11 @@ import { NARRATION_OPTIONS } from '@/constants/narration';
 import { MaxContentWidth, ScreenPadding, Scrim, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvatar } from '@/hooks/use-avatar';
-import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { getMuseums, logout as apiLogout } from '@/lib/api';
+import { logout as apiLogout } from '@/lib/api';
 import type { DeviceSettings } from '@/store/settings';
 import type { NarrationMode } from '@/types/narration';
 
@@ -37,8 +36,7 @@ export default function MyPageScreen() {
   const palette = getPalette('dark', false);
   const bottomInset = useTabBarInset();
   const { settings, loaded, updateSettings } = useSettings();
-  const { data: museums, error: museumError, reload: reloadMuseums } = useResource('museums', getMuseums);
-  const [sheet, setSheet] = useState<'font' | 'narration' | 'museum' | 'photo' | null>(null);
+  const [sheet, setSheet] = useState<'font' | 'narration' | 'photo' | null>(null);
   const { session } = useAuth();
   const user = session?.user ?? null;
   const { avatar, setAvatar, clearAvatar } = useAvatar(user?.id);
@@ -50,18 +48,12 @@ export default function MyPageScreen() {
   const openSheet = (kind: NonNullable<typeof sheet>) => { setShown(kind); setSheet(kind); };
   const [modeDraft, setModeDraft] = useState<NarrationMode>(profile.narration_mode);
   const narrationLabel = NARRATION_OPTIONS.find((option) => option.value === profile.narration_mode)?.label ?? '둘 다 듣기';
-  const museum = museums?.find((m) => m.id === settings.recent_museum_id);
   const fontLabel = FONT_OPTIONS.find((option) => option.value === settings.font_scale)?.label ?? '기본';
   const card = { backgroundColor: palette.surface, borderColor: palette.outline };
 
   const selectFont = async (font_scale: DeviceSettings['font_scale']) => {
     await updateSettings({ font_scale });
     showToast('글씨 크기 설정을 저장했어요', 'success');
-  };
-  const clearMuseum = async () => {
-    await updateSettings({ recent_museum_id: null });
-    setSheet(null);
-    showToast('미술관 기억을 지웠어요', 'success');
   };
   const openNarration = () => {
     setModeDraft(profile.narration_mode);
@@ -164,9 +156,6 @@ export default function MyPageScreen() {
             <SettingRow label="관람 기록" icon={{ ios: 'clock.arrow.circlepath', android: 'history' }} palette={palette} onPress={() => router.push('/history')} />
           </View>
           <View style={[styles.card, card]}>
-            <SettingRow label="방문한 미술관" icon={{ ios: 'building.columns', android: 'account_balance' }} palette={palette} onPress={() => openSheet('museum')} />
-          </View>
-          <View style={[styles.card, card]}>
             <SettingRow label="앱 소개 다시 보기" icon={{ ios: 'sparkles', android: 'auto_awesome' }} palette={palette} onPress={() => router.push('/onboarding')} />
           </View>
         </View>
@@ -181,7 +170,7 @@ export default function MyPageScreen() {
           </>
         )}
       </ScrollView>
-      <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : shown === 'photo' ? '프로필 사진' : '방문한 미술관'} palette={palette} dismissible={!savingMode} onClose={() => setSheet(null)}>
+      <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : '프로필 사진'} palette={palette} dismissible={!savingMode} onClose={() => setSheet(null)}>
                 {shown === 'photo' ? (
                   <>
                     <View style={styles.photoPreview}><Avatar uri={avatar} name={user?.nickname} size={88} palette={palette} /></View>
@@ -226,22 +215,7 @@ export default function MyPageScreen() {
                       );
                     })}
                   </View>
-                ) : (
-                  <>
-                    <Text style={[styles.body, { color: palette.textSecondary }]}>현재는 마지막으로 선택한 미술관 하나만 기억해요. 실제 방문 이력은 저장하지 않아요.</Text>
-                    <Text style={[styles.museumName, { color: palette.text }]}>
-                      {museumError ? '미술관 정보를 불러오지 못했어요' : !loaded || (settings.recent_museum_id && !museums) ? '미술관을 불러오는 중이에요' : museum?.name ?? '저장된 미술관이 없어요'}
-                    </Text>
-                    {!!museumError && (
-                      <View style={styles.buttonRow}>
-                        <BigButton label="다시 불러오기" selected={false} palette={palette} onPress={reloadMuseums} />
-                      </View>
-                    )}
-                    <View style={styles.buttonRow}>
-                      <BigButton label="미술관 기억 지우기" selected={false} palette={palette} disabled={!loaded || !settings.recent_museum_id} onPress={() => { void clearMuseum(); }} />
-                    </View>
-                  </>
-                )}
+                ) : null}
                 {shown === 'narration' ? (
                   <View style={[styles.buttonRow, styles.saveRow]}><BigButton label={savingMode ? '저장 중…' : '저장하기'} palette={palette} disabled={savingMode || profileError} onPress={() => { void saveNarration(); }} /></View>
                 ) : shown === 'font' ? (
@@ -355,5 +329,4 @@ const styles = StyleSheet.create({
   optionTitle: { fontSize: FontSize.button, fontWeight: 700, textAlign: 'left' },
   optionDescription: { fontSize: 16, lineHeight: 24, textAlign: 'left' },
   body: { fontSize: FontSize.body, lineHeight: 30 },
-  museumName: { fontSize: FontSize.body, fontWeight: 700 },
 });

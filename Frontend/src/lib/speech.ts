@@ -1,34 +1,63 @@
 /**
- * 한국어 음성 해설. expo-speech는 기기에 깔린 OS 음성(iOS AVSpeechSynthesizer, Android TTS 엔진)을 쓴다.
- * 기본값은 저품질(compact) 음성이 잡히는 경우가 많아서, 설치된 한국어 음성 중 가장 좋은 것을 고른다.
- * iOS: 설정 > 손쉬운 사용 > 콘텐츠 말하기 > 음성 > 한국어에서 "향상된/프리미엄" 음성을 내려받으면 그 음성을 쓴다.
+ * 한국어 안내 음성. 앱의 모든 음성은 서버 `/speech`가 만든 GPT 음성(OpenAI)으로 재생한다.
+ * 같은 문장은 서버 DB와 기기 캐시에 저장되므로 두 번째부터는 바로 재생된다.
+ * 한 번에 하나의 안내만 재생하고, 새 안내나 stopSpeaking()이 이전 안내를 끊는다.
  */
 
-import * as Speech from 'expo-speech';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
 
-let best: Promise<string | undefined> | null = null;
+import { getSpeechAudio } from '@/lib/speech-audio';
 
-function rank(v: Speech.Voice) {
-  const id = v.identifier.toLowerCase();
-  if (id.includes('premium')) return 3;
-  if (v.quality === Speech.VoiceQuality.Enhanced || id.includes('enhanced')) return 2;
-  if (id.includes('compact')) return 0;
-  return 1;
+type Options = { rate?: number; onDone?: () => void; onError?: () => void };
+
+let token = 0;
+let player: AudioPlayer | null = null;
+let subscription: { remove(): void } | null = null;
+
+function release() {
+  subscription?.remove();
+  subscription = null;
+  if (player) {
+    player.pause();
+    player.release();
+    player = null;
+  }
 }
 
-/** 설치된 한국어 음성 중 가장 품질이 좋은 음성 id. 없으면 undefined(시스템 기본). */
-export function bestKoreanVoice() {
-  best ??= Speech.getAvailableVoicesAsync()
-    .then((voices) =>
-      voices
-        .filter((v) => v.language.toLowerCase().startsWith('ko'))
-        .sort((a, b) => rank(b) - rank(a))[0]?.identifier,
-    )
-    .catch(() => undefined);
-  return best;
+/** 재생 중이거나 준비 중인 안내 음성을 멈춘다. 늦게 도착한 음성도 재생되지 않는다. */
+export function stopSpeaking() {
+  token++;
+  release();
 }
 
-export async function speakKorean(text: string, options: Speech.SpeechOptions = {}) {
-  const voice = await bestKoreanVoice();
-  Speech.speak(text, { language: 'ko-KR', ...options, ...(voice ? { voice } : {}) });
+export async function speakKorean(text: string, { rate = 1, onDone, onError }: Options = {}) {
+  const mine = ++token;
+  release();
+  try {
+    await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false, interruptionMode: 'duckOthers' });
+    const uri = await getSpeechAudio(text);
+    if (mine !== token) return;
+    const audio = createAudioPlayer(uri, { updateInterval: 100 });
+    player = audio;
+    let started = false;
+    const changed = (status: AudioStatus) => {
+      if (mine !== token) return;
+      if (status.error) {
+        release();
+        onError?.();
+      } else if (status.didJustFinish) {
+        release();
+        onDone?.();
+      } else if (status.isLoaded && !started) {
+        started = true;
+        audio.shouldCorrectPitch = true;
+        audio.setPlaybackRate(rate, 'high');
+        audio.play();
+      }
+    };
+    subscription = audio.addListener('playbackStatusUpdate', changed);
+    changed(audio.currentStatus);
+  } catch {
+    if (mine === token) onError?.();
+  }
 }
