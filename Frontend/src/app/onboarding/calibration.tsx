@@ -56,7 +56,8 @@ export default function CalibrationScreen() {
     : phase === 'edge' ? '윤곽선이 또렷하게 보이나요?' : phase === 'contrast' ? '밝은 부분이 구분되나요?' : '보기 설정을 찾았어요';
   const description = plate ? '그림 속 숫자를 고르거나 말로 답해 주세요.' : phase === 'manual' ? '편하게 보는 데 필요한 색 보정을 골라 주세요.'
     : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast' ? CALIBRATION.contrast.question : '설정을 확인하고 감상을 시작해 보세요.';
-  useSpeech(`${progress}. ${question} ${description}`);
+  // Number plates read only the question and the buttons, e.g. "어떤 숫자가 보이나요? 97, 45, 71, 숫자가 안 보여요".
+  useSpeech(plate ? `${question} ${plate.choices.join(', ')}` : `${question} ${description}`);
 
   const moveBack = () => {
     if (savingLock.current) return;
