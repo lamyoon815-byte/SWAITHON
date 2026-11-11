@@ -11,7 +11,7 @@
 import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 
 /** 해설 음성(1.0)에 비한 배경 음악 크기 */
-export const MUSIC_VOLUME = 0.18;
+export const MUSIC_VOLUME = 0.25;
 export const FADE_IN_MS = 1500;
 export const FADE_OUT_MS = 2000;
 /** 해설이 멈춘 뒤 음악을 이만큼 더 들려준 다음 줄이기 시작한다. */
