@@ -37,7 +37,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useHistory } from '@/hooks/use-history';
 import { useRecordViewing } from '@/hooks/use-record-viewing';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
+import { ApiError, generateNarration, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
 
 const HERO_HEIGHT = 380;
@@ -58,6 +58,16 @@ export default function ArtworkScreen() {
   const { data: museums } = useResource('museums', getMuseums);
   const museumId = artwork?.museum_id || null;
   const { data: siblings } = useResource(museumId, () => getMuseumArtworks(museumId!));
+  // 검수된 해설이 없으면 AI 해설을 만들어 보여 준다. 해설 화면·크게 보기와 같은 키라 한 번만 만든다.
+  // 작품을 받기 전에는 artwork가 비어 있다. `artwork!.id`처럼 쓰면 React Compiler가 값을 미리 읽어
+  // 받기 전에 에러가 나므로, 안전하게 꺼낸 id만 쓴다.
+  const artworkId = artwork?.id;
+  const needsAi = !!artworkId && !artwork?.description;
+  const aiRes = useResource(needsAi ? `ai-narration:${artworkId}` : null, () => generateNarration(artworkId ?? ''));
+  const aiDescription = aiRes.data ? {
+    facts: aiRes.data.segments.filter((s) => s.type === 'fact').map((s) => s.text),
+    interpretations: aiRes.data.segments.filter((s) => s.type === 'interpretation').map((s) => s.text),
+  } : null;
   const [original, setOriginal] = useState(false);
   const [chosenStrength, setStrength] = useState<number | null>(null);
   const strength = chosenStrength ?? profile.strength;
@@ -117,7 +127,7 @@ export default function ArtworkScreen() {
     );
   }
 
-  const description = artwork.description;
+  const description = artwork.description ?? aiDescription;
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -244,6 +254,13 @@ export default function ArtworkScreen() {
         </View>
 
         <View style={styles.desc}>
+          {!artwork.description && aiDescription && (
+            <View accessible accessibilityLabel={`AI가 만든 해설이에요. ${aiRes.data?.warning ?? '전문가가 검수하지 않았어요.'}`}
+              style={[styles.aiBadge, { borderColor: palette.outline }]}>
+              <SymbolView name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }} size={16} tintColor={palette.textSecondary} />
+              <Text style={[styles.aiBadgeText, { color: palette.textSecondary }]}>AI 해설 · 미검수</Text>
+            </View>
+          )}
           {description ? (
             <>
               <Text
@@ -293,8 +310,14 @@ export default function ArtworkScreen() {
               )}
               <Text
                 style={[styles.descPending, { color: palette.textSecondary, fontSize: descSize }]}>
-                아직 해설이 준비되지 않았어요
+                {needsAi && !aiRes.error ? 'AI 해설을 만들고 있어요…' : '아직 해설이 준비되지 않았어요'}
               </Text>
+              {needsAi && !!aiRes.error && (
+                <PressableScale accessibilityRole="button" accessibilityLabel="AI 해설 다시 만들기" onPress={aiRes.reload}
+                  style={[styles.aiRetry, { backgroundColor: palette.fill }]}>
+                  <Text style={[styles.aiRetryText, { color: palette.text }]}>AI 해설 다시 만들기</Text>
+                </PressableScale>
+              )}
             </>
           )}
         </View>
@@ -524,6 +547,33 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
     fontSize: 16,
     fontWeight: 800,
+  },
+  aiBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    marginBottom: Spacing.two,
+  },
+  aiBadgeText: {
+    fontSize: 15,
+    fontWeight: 700,
+  },
+  aiRetry: {
+    alignSelf: 'flex-start',
+    minHeight: MinTouchTarget,
+    paddingHorizontal: Spacing.three,
+    borderRadius: ButtonRadius,
+    justifyContent: 'center',
+    marginTop: Spacing.two,
+  },
+  aiRetryText: {
+    fontSize: FontSize.label,
+    fontWeight: 700,
   },
   descPending: {
     fontWeight: 600,

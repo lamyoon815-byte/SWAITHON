@@ -40,6 +40,8 @@ import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { spokenNumbers } from '@/lib/spoken-answer';
+import { useVoiceAnswer } from '@/hooks/use-voice-answer';
 import type { MuseumNext } from '@/types/museum';
 
 const SearchBarHeight = 64;
@@ -76,6 +78,33 @@ export default function HomeScreen() {
   const retry = () => {
     museumsRes.reload();
     artworksRes.reload();
+  };
+
+  // 음성으로 찾기: 번호("12번", "십이")나 제목·작가 이름을 말하면 현재 미술관에서 찾아 연다.
+  const voice = useVoiceAnswer();
+  const findByVoice = () => {
+    if (!museum || !artworks) {
+      showToast('먼저 미술관을 골라 주세요', 'warning');
+      return;
+    }
+    voice.toggle({
+      onText: (text) => {
+        const numbers = spokenNumbers(text);
+        const squash = (value: string) => value.replace(/[\s.,·:;'"!?()-]/g, '').toLowerCase();
+        const said = squash(text);
+        const byNumber = works.find((a) => a.number && numbers.includes(String(Number(a.number))));
+        const byName = said.length >= 2 ? works.find((a) => [a.title, a.original_title, a.artist, a.original_artist]
+          .some((name) => name && (squash(name).includes(said) || said.includes(squash(name))))) : undefined;
+        const found = byNumber ?? byName;
+        if (found) {
+          showToast(`"${found.title}" 작품을 열어요`, 'success');
+          openArtwork(found.id);
+        } else {
+          showToast(text ? `"${text}"(으)로 들었어요. 맞는 작품을 찾지 못했어요` : '잘 들리지 않았어요. 다시 말해 주세요', 'warning');
+        }
+      },
+      onError: (message) => showToast(message, 'warning'),
+    });
   };
 
   const openPicker = (next?: MuseumNext) =>
@@ -126,11 +155,12 @@ export default function HomeScreen() {
             onPress={() => router.navigate('/camera')}
           />
           <WayButton
-            ios="mic"
-            android="mic"
-            label="음성으로 찾기"
+            ios={voice.state === 'recording' ? 'stop.fill' : 'mic'}
+            android={voice.state === 'recording' ? 'stop' : 'mic'}
+            label={voice.state === 'recording' ? '듣고 있어요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 찾기'}
+            hint={voice.state === 'recording' ? '다 말했으면 누르세요' : '작품 번호나 제목을 말해 주세요'}
             palette={palette}
-            onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
+            onPress={findByVoice}
           />
         </View>
 
@@ -370,9 +400,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: Spacing.two,
   },
-  // Slim (44, the minimum tap size) so it reads as a header action, not a main button.
+  // 저시력 기준 최소 터치 크기(56). 글자는 작품 목록 제목보다 작게 둬서 주 버튼처럼 보이지 않게 한다.
   browse: {
-    minHeight: 44,
+    minHeight: ButtonHeight,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: ButtonRadius,
@@ -381,7 +411,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   browseText: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 800,
   },
   listTitle: {
@@ -389,7 +419,7 @@ const styles = StyleSheet.create({
     fontWeight: 800,
   },
   count: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 600,
   },
   messageBox: {
