@@ -18,14 +18,14 @@ class TranscriptionTests(unittest.TestCase):
         self.env.start(); self.addCleanup(self.env.stop)
         self.calls = []
 
-    def client(self, status=200, payload=None, raises=None):
+    def client(self, status=200, payload=None, raises=None, catalog=None):
         def post(url, body, headers, timeout):
             self.calls.append((url, body, headers))
             if raises: raise raises
             return status, json.dumps(payload if payload is not None else {"text": " 45 ", "usage": {"type": "tokens", "input_tokens": 80, "output_tokens": 3}}).encode()
         self.service = OpenAITranscriptionService(Path(self.temp.name), post)
         app = FastAPI()
-        app.include_router(create_transcription_router(self.service))
+        app.include_router(create_transcription_router(self.service, catalog))
         return TestClient(app)
 
     def send(self, client, content=b"fake-m4a", content_type="audio/m4a"):
@@ -43,6 +43,25 @@ class TranscriptionTests(unittest.TestCase):
         self.assertEqual(headers["Authorization"], "Bearer test-openai-key")
         self.assertEqual(self.service.budget.summary()["calls"], 1)
         self.assertEqual(self.service.budget.pending_krw, 0)
+
+    def test_artwork_search_uses_catalog_titles_as_hint(self):
+        class Catalog:
+            def list(self, limit, offset):
+                return [{"title": "수련", "artist": "클로드 모네"}, {"title": "침실", "artist": "빈센트 반 고흐"}], 2
+
+        client = self.client(catalog=Catalog())
+        response = client.post("/transcribe", data={"purpose": "artwork"},
+                               files={"audio": ("answer.m4a", b"fake-m4a", "audio/m4a")})
+        self.assertEqual(response.status_code, 200)
+        body = self.calls[0][1].decode()
+        self.assertIn("작품의 제목, 작가 이름", body)
+        self.assertIn("수련, 클로드 모네, 침실, 빈센트 반 고흐", body)
+        self.assertNotIn("시력 확인", body)
+        # 기본(화면 맞추기)은 숫자 힌트 그대로
+        self.send(client)
+        self.assertIn("시력 확인", self.calls[1][1].decode())
+        self.assertEqual(client.post("/transcribe", data={"purpose": "other"},
+                                     files={"audio": ("a.m4a", b"x", "audio/m4a")}).status_code, 422)
 
     def test_upstream_error_releases_reservation(self):
         response = self.send(self.client(status=500, payload={"error": "boom"}))

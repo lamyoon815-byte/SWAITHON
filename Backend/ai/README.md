@@ -175,3 +175,14 @@ CLIP 본체는 고정하고 임베딩 뒤의 작은 잔차 어댑터만 대조 �
 
 검증용 비교 이미지와 수치: `Backend\.venv\Scripts\python.exe Backend\ai\correction_demo.py` → `Backend/data/eval/correction/`
 (등록 작품 21점, 색각이상 시뮬레이션에서 구분이 사라진 색 쌍 중 보정 후 다시 구분되는 비율: 적색약 66%, 녹색약 64%, 청색약 84%)
+
+### 음성 인식 (`POST /transcribe`, `ai/transcription.py`)
+
+OpenAI 받아쓰기(`OPENAI_STT_*`, Gemini와 별도 예산)로 짧은 음성을 글자로 바꿉니다. `purpose`로 쓰임을 나눕니다.
+
+| purpose | 쓰는 곳 | 받아쓰기 힌트 | 글자 → 결과 |
+|---|---|---|---|
+| `answer`(기본) | 화면 맞추기 숫자 답 | 검사판 숫자 예시 | 앱 `spoken-answer.ts`가 보기와 맞춤 → `/calibration/voice-answers`에 저장 |
+| `artwork` | 작품 찾기 화면 🎤 | 등록 작품의 한국어 제목·작가 (최대 400자) | 앱 `voice-search.ts`가 지금 미술관 작품에서 찾음 |
+
+작품 음성 검색은 "5번"처럼 번호만 말하면 번호로 찾고, "수련"·"모네 수련 찾아줘"·"거대한 파도"(괄호 속 별칭)·"고흐"(작가)처럼 말하면 제목·작가로 찾습니다. 받아쓰기가 조금 틀려도("물뿌리게") 글자 겹침 정도로 찾고, 하나면 바로 열고 여러 개면 목록으로 보여 줍니다. 규칙 확인: `node Frontend/scripts/tests/voice-search.test.cjs`

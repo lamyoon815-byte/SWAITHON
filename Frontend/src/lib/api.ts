@@ -174,9 +174,11 @@ export function analyzeArtwork(uri: string): Promise<AnalysisResult> {
   return upload<AnalysisResult>('/analyze', uri);
 }
 
-/** 짧은 음성 답(화면 맞추기 숫자 등)을 글자로 (`POST /transcribe`). 녹음 파일은 m4a. */
-export async function transcribeAnswer(uri: string): Promise<string> {
+/** 짧은 음성을 글자로 (`POST /transcribe`). 녹음 파일은 m4a.
+ * purpose: 'answer'(화면 맞추기 숫자 답, 기본) · 'artwork'(작품 음성 검색, 등록 작품 이름을 받아쓰기 힌트로 씀) */
+export async function transcribeAnswer(uri: string, purpose: 'answer' | 'artwork' = 'answer'): Promise<string> {
   const body = new FormData();
+  body.append('purpose', purpose);
   if (Platform.OS === 'web') {
     const audio = await fetch(uri);
     body.append('audio', await audio.blob(), 'answer.webm');

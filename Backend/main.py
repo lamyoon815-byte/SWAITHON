@@ -87,7 +87,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     application.state.speech = OpenAISpeechService(store.data_dir)
     application.include_router(create_speech_router(application.state.speech))
     application.state.transcription = OpenAITranscriptionService(store.data_dir)
-    application.include_router(create_transcription_router(application.state.transcription))
+    application.include_router(create_transcription_router(application.state.transcription, store))
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,

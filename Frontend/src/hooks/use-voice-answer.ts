@@ -16,7 +16,7 @@ const MAX_SECONDS = 6;
 export type VoiceAnswerState = 'idle' | 'recording' | 'thinking';
 type Handlers = { onText: (text: string) => void; onError: (message: string) => void };
 
-export function useVoiceAnswer() {
+export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [state, setState] = useState<VoiceAnswerState>('idle');
   const stateRef = useRef<VoiceAnswerState>('idle');
@@ -36,7 +36,7 @@ export function useVoiceAnswer() {
       if (cancelled.current) return;
       const uri = recorder.uri;
       if (!uri) throw new Error('no recording');
-      const text = await transcribeAnswer(uri);
+      const text = await transcribeAnswer(uri, purpose);
       if (!cancelled.current) handlers.current?.onText(text);
     } catch (error) {
       if (!cancelled.current) {
@@ -45,7 +45,7 @@ export function useVoiceAnswer() {
     } finally {
       if (!cancelled.current) set('idle');
     }
-  }, [recorder]);
+  }, [purpose, recorder]);
 
   const start = useCallback(async (next: Handlers) => {
     if (stateRef.current !== 'idle') return;

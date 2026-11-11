@@ -7,7 +7,9 @@ import secrets
 import urllib.error
 import urllib.request
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
@@ -25,6 +27,31 @@ ALLOWED_TYPES = {"audio/m4a", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/mp
 EXTENSION_TYPES = {".m4a": "audio/mp4", ".mp4": "audio/mp4", ".aac": "audio/aac", ".wav": "audio/wav", ".webm": "audio/webm", ".mp3": "audio/mpeg"}
 # 숫자 답 위주로 알아듣도록 힌트를 준다(지시가 아니라 받아쓰기 맥락).
 PROMPT = "시력 확인 그림의 숫자를 말합니다. 예: 45, 29, 73, 86, 숫자가 안 보여요."
+# 작품 음성 검색(purpose=artwork): 등록 작품의 제목·작가 이름을 받아쓰기 맥락으로 준다.
+ARTWORK_PROMPT = "미술관에서 찾고 싶은 작품의 제목, 작가 이름 또는 명패 번호를 말합니다."
+MAX_HINT_CHARS = 400
+
+
+def artwork_prompt(catalog) -> str:
+    """등록 작품의 한국어 제목·작가로 받아쓰기 힌트를 만든다(괄호 속 별칭 포함, 길이 제한)."""
+    if catalog is None:
+        return ARTWORK_PROMPT
+    try:
+        records, _ = catalog.list(200, 0)
+    except Exception:  # 힌트는 정확도 보조일 뿐이라 실패해도 기본 문장으로 받는다.
+        return ARTWORK_PROMPT
+    words = []
+    for record in records:
+        for value in (record.get("title"), record.get("artist")):
+            value = (value or "").strip()
+            if value and value not in words:
+                words.append(value)
+    hint = ""
+    for word in words:
+        if len(hint) + len(word) + 2 > MAX_HINT_CHARS:
+            break
+        hint = f"{hint}, {word}" if hint else word
+    return f"{ARTWORK_PROMPT} 예: {hint}" if hint else ARTWORK_PROMPT
 
 
 class Transcript(BaseModel):
@@ -70,13 +97,13 @@ class OpenAITranscriptionService:
             max_input_tokens=2000, max_output_tokens=100,
         )
 
-    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> str:
+    async def transcribe(self, audio: bytes, filename: str, content_type: str, prompt: str = PROMPT) -> str:
         if not self.key:
             raise HTTPException(503, "음성 인식이 아직 연결되지 않았어요. 버튼으로 골라 주세요.")
         if not re.fullmatch(r"[a-zA-Z0-9.\-]+", self.model):
             raise HTTPException(503, "음성 인식 모델 설정을 확인해 주세요.")
         body, boundary_type = _multipart(
-            {"model": self.model, "language": "ko", "prompt": PROMPT, "response_format": "json"},
+            {"model": self.model, "language": "ko", "prompt": prompt, "response_format": "json"},
             "file", filename, content_type, audio,
         )
         self.budget.reserve()
@@ -102,13 +129,15 @@ class OpenAITranscriptionService:
         return text[:200]
 
 
-def create_transcription_router(service):
+def create_transcription_router(service, catalog=None):
     router = APIRouter()
     limiter = RateLimiter(attempts=30, window=60)
 
     @router.post("/transcribe", response_model=Transcript, tags=["작품 해설"],
-                 summary="짧은 음성 답을 글자로 바꾸기 (화면 맞추기 숫자 답 등)")
-    async def transcribe(request: Request, audio: UploadFile):
+                 summary="짧은 음성을 글자로 바꾸기 (화면 맞추기 숫자 답, 작품 음성 검색)",
+                 description="purpose=answer(기본): 화면 맞추기 숫자 답. purpose=artwork: 작품 음성 검색(등록 작품 제목·작가를 받아쓰기 힌트로 사용).")
+    async def transcribe(request: Request, audio: UploadFile,
+                         purpose: Annotated[Literal["answer", "artwork"], Form()] = "answer"):
         limiter.check(request.client.host if request.client else "unknown")
         content_type = (audio.content_type or "").split(";")[0].strip().lower()
         if content_type in {"", "application/octet-stream"}:
@@ -122,6 +151,7 @@ def create_transcription_router(service):
         if len(content) > MAX_AUDIO_BYTES:
             raise HTTPException(413, "녹음이 너무 길어요. 짧게 말해 주세요.")
         filename = re.sub(r"[^a-zA-Z0-9._-]", "_", audio.filename or "answer.m4a")[:60] or "answer.m4a"
-        return {"text": await service.transcribe(content, filename, content_type)}
+        prompt = await run_in_threadpool(artwork_prompt, catalog) if purpose == "artwork" else PROMPT
+        return {"text": await service.transcribe(content, filename, content_type, prompt)}
 
     return router

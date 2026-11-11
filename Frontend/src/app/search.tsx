@@ -3,6 +3,7 @@
  * 탭 바 없는 전체 화면. 위에서부터 길고 둥근 입력창(← · 번호 · ✕ · 🔍) → 현재 미술관 · 변경 →
  * 번호를 쳤으면 맞는 작품, 안 쳤으면 최근 본 작품(✕로 하나씩, 전체삭제) → 키보드 바로 위 도구 줄
  * (취소 · 음성 · QR · 카메라). 번호가 정확히 맞거나 하나만 남으면 🔍·키보드 "검색"으로 바로 간다.
+ * 음성: 🎤를 누르고 작품 제목·작가·번호를 말하면(6초 뒤 자동 멈춤) /transcribe로 글자를 받아 지금 미술관 작품에서 찾는다.
  */
 
 import { Image } from 'expo-image';
@@ -29,7 +30,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRecent } from '@/hooks/use-recent';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
+import { useVoiceAnswer } from '@/hooks/use-voice-answer';
 import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { findArtworksBySpeech } from '@/lib/voice-search';
 import type { Artwork } from '@/types/artwork';
 
 const BarHeight = 64;
@@ -54,6 +57,9 @@ export default function SearchScreen() {
   const { data: artworks } = useResource(museumId, () => getMuseumArtworks(museumId!));
   const recent = useRecent();
   const [num, setNum] = useState('');
+  // 음성으로 찾은 작품이 여러 개일 때 보여 줄 목록
+  const [voiceFound, setVoiceFound] = useState<{ text: string; items: Artwork[] } | null>(null);
+  const voice = useVoiceAnswer('artwork');
 
   const museum = museums?.find((m) => m.id === museumId);
   const results = num ? (artworks ?? []).filter((a) => matchesNumber(a, num)) : [];
@@ -63,18 +69,58 @@ export default function SearchScreen() {
     router.push({ pathname: '/capture', params: { mode } });
   const pickMuseum = () => router.push({ pathname: '/museum', params: { next: 'number' } });
 
+  const submitNumber = (value: string) => {
+    const matches = value ? (artworks ?? []).filter((a) => matchesNumber(a, value)) : [];
+    const exact = matches.find((a) => Number(a.number) === Number(value));
+    const target = exact ?? (matches.length === 1 ? matches[0] : undefined);
+    if (target) openArtwork(target.id);
+    else if (matches.length === 0)
+      showToast(`${value}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
+    else
+      showToast(`${value}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
+  };
+
   const submit = () => {
     if (!num) {
       showToast('작품 옆 명패의 번호를 먼저 입력해 주세요', 'warning');
       return;
     }
-    const exact = results.find((a) => Number(a.number) === Number(num));
-    const target = exact ?? (results.length === 1 ? results[0] : undefined);
-    if (target) openArtwork(target.id);
-    else if (results.length === 0)
-      showToast(`${num}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
-    else
-      showToast(`${num}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
+    submitNumber(num);
+  };
+
+  const searchByVoice = () => {
+    if (!museumId) {
+      showToast('미술관을 먼저 골라 주세요', 'warning');
+      return;
+    }
+    if (!artworks) {
+      showToast('작품을 불러오는 중이에요. 잠시 후 다시 눌러 주세요', 'warning');
+      return;
+    }
+    if (voice.state === 'thinking') return;
+    if (voice.state === 'idle')
+      showToast(`작품 제목, 작가 이름이나 번호를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`);
+    voice.toggle({
+      onText: (text) => {
+        const found = findArtworksBySpeech(text, artworks);
+        if (found.kind === 'number') {
+          setVoiceFound(null);
+          setNum(found.number.slice(0, 3));
+          submitNumber(found.number);
+        } else if (found.kind === 'artworks' && found.items.length === 1) {
+          setVoiceFound(null);
+          showToast(`'${found.items[0].title}' 작품을 찾았어요`, 'success');
+          openArtwork(found.items[0].id);
+        } else if (found.kind === 'artworks') {
+          setNum('');
+          setVoiceFound({ text, items: found.items });
+        } else {
+          setVoiceFound(null);
+          showToast(text ? `"${text}"에 맞는 작품을 찾지 못했어요. 다시 말하거나 번호로 찾아 주세요` : '잘 들리지 않았어요. 다시 말해 주세요', 'warning');
+        }
+      },
+      onError: (message) => showToast(message, 'warning'),
+    });
   };
 
   return (
@@ -104,7 +150,10 @@ export default function SearchScreen() {
               returnKeyType="search"
               maxLength={3}
               value={num}
-              onChangeText={(v) => setNum(v.replace(/\D/g, ''))}
+              onChangeText={(v) => {
+                setVoiceFound(null);
+                setNum(v.replace(/\D/g, ''));
+              }}
               onSubmitEditing={submit}
               style={[styles.input, { color: palette.text }]}
             />
@@ -195,6 +244,18 @@ export default function SearchScreen() {
                 ))}
               </>
             )
+          ) : voiceFound ? (
+            <>
+              <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
+                {`"${voiceFound.text}"(으)로 ${voiceFound.items.length}점 찾았어요`}
+              </Text>
+              {voiceFound.items.map((a, i) => (
+                <View key={a.id}>
+                  {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
+                  <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
+                </View>
+              ))}
+            </>
           ) : (
             <>
               <View style={styles.recentHeader}>
@@ -307,11 +368,11 @@ export default function SearchScreen() {
           </PressableScale>
           <View style={[styles.tools, toolbarSurface(palette)]}>
             <IconButton
-              ios="mic.fill"
-              android="mic"
-              label="음성으로 찾기"
+              ios={voice.state === 'recording' ? 'stop.fill' : 'mic.fill'}
+              android={voice.state === 'recording' ? 'stop' : 'mic'}
+              label={voice.state === 'recording' ? '말하기 끝내기' : voice.state === 'thinking' ? '알아듣는 중' : '음성으로 찾기'}
               palette={palette}
-              onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
+              onPress={searchByVoice}
             />
             <IconButton
               ios="qrcode.viewfinder"
