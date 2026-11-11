@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DEFAULT_PROFILE, type CorrectionValues, type VisualProfile } from '@/types/profile';
+import { DEFAULT_PROFILE, type CorrectionValues, type ViewingSettings, type VisualProfile } from '@/types/profile';
 import type { NarrationMode } from '@/types/narration';
+import { isCalibrationSettings, type CalibrationResult } from '@/types/calibration';
 
 const KEY = 'swaithon:profile:v1';
 type Snapshot = { profile: VisualProfile; loaded: boolean; saved: boolean; error: boolean };
@@ -35,6 +36,7 @@ function load() {
     }
     const profile = { ...DEFAULT_PROFILE, ...stored };
     if (!['facts', 'interpretations', 'both'].includes(profile.narration_mode)) profile.narration_mode = 'both';
+    if (!isCalibrationSettings(profile.calibration)) delete profile.calibration;
     emit({ profile: { ...profile, ...normalizeCorrection(profile) }, loaded: true, saved: !!stored, error: false });
   }).catch(() => {
     emit({ profile: DEFAULT_PROFILE, loaded: true, saved: false, error: true });
@@ -58,6 +60,29 @@ export async function saveCorrection(values: Pick<CorrectionValues, keyof typeof
 export async function saveNarrationMode(narration_mode: NarrationMode) {
   if (!['facts', 'interpretations', 'both'].includes(narration_mode)) throw new Error('잘못된 해설 방식');
   return updateProfile({ narration_mode });
+}
+
+/** 테스트 결과와 Skia 대비를 한 번에 저장한다. 기존 밝기·선명도·접근성 설정은 유지한다. */
+export async function saveCalibration(result: CalibrationResult) {
+  if (!isCalibrationSettings(result) || ![1, 1.2, 1.4, 1.6, 1.8, 2].includes(result.contrast)) {
+    throw new Error('잘못된 보기 설정');
+  }
+  const { color_type, severity, edge, contrast } = result;
+  return updateProfile({
+    ...calibrationPatch({ color_type, severity, edge }), contrast,
+  });
+}
+
+function calibrationPatch(settings: VisualProfile['calibration']) {
+  if (!isCalibrationSettings(settings)) throw new Error('잘못된 보기 설정');
+  const { color_type, severity, edge } = settings;
+  const colorVision = { normal: 'normal', protan: 'protanopia', deutan: 'deuteranopia', tritan: 'tritanopia' } as const;
+  return { calibration: { color_type, severity, edge }, color_vision: colorVision[color_type], color_severity: severity };
+}
+
+/** 색 보정·윤곽선과 기존 세부 조정을 하나의 쓰기로 저장하여 부분 저장을 막는다. */
+export async function saveViewingSettings(values: ViewingSettings) {
+  return updateProfile({ ...calibrationPatch(values), ...normalizeCorrection(values) });
 }
 
 function updateProfile(patch: Partial<VisualProfile>) {
