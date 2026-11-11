@@ -8,10 +8,14 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function setup(source = async (text) => `file://${text}.wav`) {
   const players = [], requests = [], device = [], errors = [];
+  let announcementStops = 0;
   const state = {};
   const mocks = {
     'expo-speech': { stop: async () => {} },
-    '@/lib/speech': { speakKorean: async (text, options) => { device.push({ text, options }); } },
+    '@/lib/speech': {
+      speakKorean: async (text, options) => { device.push({ text, options }); },
+      stopSpeaking: () => { announcementStops++; },
+    },
     '@/lib/speech-audio': { getSpeechAudio: (text) => { requests.push(text); return source(text); } },
     'expo-audio': {
       setAudioModeAsync: async () => {},
@@ -41,9 +45,9 @@ function setup(source = async (text) => `file://${text}.wav`) {
     (index) => { state.index = index; }, (playing) => { state.playing = playing; },
     (preparing) => { state.preparing = preparing; }, (error) => { errors.push(error); },
   );
-  const configure = (values = {}) => engine.configure({ sentences: ['첫 문장', '둘째 문장'], rate: 1, repeat: false, voice: 'openai', ...values });
+  const configure = (values = {}) => engine.configure({ sentences: ['첫 문장', '둘째 문장'], rate: 1, repeat: false, ...values });
   configure();
-  return { engine, configure, players, requests, device, state, errors };
+  return { engine, configure, players, requests, device, state, errors, stops: () => announcementStops };
 }
 
 test('OpenAI audio plays sentence by sentence and releases the previous player', async () => {
@@ -105,12 +109,12 @@ test('an OpenAI failure is visible and never silently falls back to the old voic
   assert.equal(device.length, 0);
 });
 
-test('explicit device voice selection uses the existing Korean speech engine', async () => {
-  const { engine, configure, requests, device } = setup();
-  configure({ voice: 'device', rate: 0.9 });
+test('narration always uses GPT audio and first stops any screen announcement', async () => {
+  const { engine, requests, device, players, stops } = setup();
   engine.play(); await tick();
-  assert.equal(requests.length, 0);
-  assert.equal(device[0].text, '첫 문장');
-  assert.equal(device[0].options.rate, 0.9);
+  assert.equal(stops(), 1);
+  assert.deepEqual(requests, ['첫 문장']);
+  assert.equal(device.length, 0);
+  assert.equal(players[0].plays, 1);
   engine.stop();
 });

@@ -1,12 +1,12 @@
 /**
  * 짧은 음성 답 받기: 누르면 녹음 → 다시 누르거나 6초가 지나면 멈추고 서버(`/transcribe`)로 글자를 받는다.
- * expo-audio 녹음이라 Expo Go에서도 된다. 녹음 전에 안내 음성(expo-speech)을 멈춰 질문이 같이 녹음되지 않게 한다.
+ * expo-audio 녹음이라 Expo Go에서도 된다. 녹음 전에 안내 음성(GPT)을 멈춰 질문이 같이 녹음되지 않게 한다.
  * 화면을 떠나면 녹음을 버린다.
  */
 
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
-import * as Speech from 'expo-speech';
+import { stopSpeaking } from '@/lib/speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, transcribeAnswer } from '@/lib/api';
@@ -57,7 +57,7 @@ export function useVoiceAnswer() {
         next.onError('마이크 권한을 허용하면 말로 답할 수 있어요.');
         return;
       }
-      await Speech.stop();
+      stopSpeaking();
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();

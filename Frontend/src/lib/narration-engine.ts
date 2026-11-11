@@ -1,15 +1,13 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
-import * as Speech from 'expo-speech';
 import { getSpeechAudio } from '@/lib/speech-audio';
-import { speakKorean } from '@/lib/speech';
+import { stopSpeaking } from '@/lib/speech';
 
-export type NarrationVoice = 'openai' | 'device';
-type Config = { sentences: string[]; rate: number; repeat: boolean; voice: NarrationVoice };
+type Config = { sentences: string[]; rate: number; repeat: boolean };
 
 /** A late request or native callback must never play after stop, skip or unmount. */
 export class NarrationEngine {
   private token = 0;
-  private config: Config = { sentences: [], rate: 1, repeat: false, voice: 'openai' };
+  private config: Config = { sentences: [], rate: 1, repeat: false };
   private current = 0;
   private speaking = false;
   private audio: AudioPlayer | null = null;
@@ -23,7 +21,6 @@ export class NarrationEngine {
   ) {}
 
   configure(config: Config) {
-    if (config.voice !== this.config.voice) { this.stop(); this.onError(null); }
     this.config = config;
   }
 
@@ -49,16 +46,7 @@ export class NarrationEngine {
       else { this.stop(); this.current = 0; this.onIndex(0); }
     };
     try {
-      await Speech.stop();
-      if (mine !== this.token) return;
-      if (this.config.voice === 'device') {
-        this.onPreparing(false);
-        await speakKorean(text, {
-          rate: this.config.rate, onDone: done,
-          onError: () => { if (mine === this.token) { this.stop(); this.onError('기기 음성을 재생하지 못했어요.'); } },
-        });
-        return;
-      }
+      stopSpeaking();
       await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false, interruptionMode: 'duckOthers' });
       if (mine !== this.token) return;
       const uri = await getSpeechAudio(text);
@@ -69,7 +57,7 @@ export class NarrationEngine {
       const statusChanged = (status: AudioStatus) => {
         if (mine !== this.token) return;
         if (status.error) {
-          this.stop(); this.onError('음성을 재생하지 못했어요. 다시 시도하거나 기기 음성을 선택해 주세요.');
+          this.stop(); this.onError('음성을 재생하지 못했어요. 다시 시도해 주세요.');
         } else if (status.didJustFinish) done();
         else if (status.isLoaded && !started) {
           started = true; this.onPreparing(false);
@@ -91,13 +79,12 @@ export class NarrationEngine {
 
   stop() {
     this.token++; this.speaking = false; this.dispose();
-    this.onPlaying(false); this.onPreparing(false); void Speech.stop();
+    this.onPlaying(false); this.onPreparing(false);
   }
   reset() { this.stop(); this.current = 0; this.onIndex(0); }
   changeRate(rate: number) {
     this.config = { ...this.config, rate };
     if (this.audio) this.audio.setPlaybackRate(rate, 'high');
-    else if (this.speaking && this.config.voice === 'device') this.speakAt(this.current);
   }
   goTo(i: number) {
     const next = Math.max(0, Math.min(this.config.sentences.length - 1, i));

@@ -11,7 +11,6 @@
 
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Linking, Pressable, StyleSheet, View } from 'react-native';
@@ -26,7 +25,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
 import { parseArtworkQr } from '@/lib/artwork-qr';
 import { resizeLongSide } from '@/lib/resize';
-import { speakKorean } from '@/lib/speech';
+import { speakKorean, stopSpeaking } from '@/lib/speech';
 import type { CaptureMode } from '@/types/capture';
 
 /** The same QR stays in view for a while; ignore repeats for this long. */
@@ -81,7 +80,7 @@ export default function CaptureScreen() {
   useEffect(
     () => () => {
       clearTimeout(errorTimer.current);
-      Speech.stop();
+      stopSpeaking();
     },
     [],
   );
@@ -96,7 +95,6 @@ export default function CaptureScreen() {
     if (await AccessibilityInfo.isScreenReaderEnabled()) {
       AccessibilityInfo.announceForAccessibility(message);
     } else {
-      Speech.stop();
       void speakKorean(message);
     }
   };

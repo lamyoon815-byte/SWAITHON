@@ -11,7 +11,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -36,7 +36,6 @@ import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
-import type { NarrationVoice } from '@/lib/narration-engine';
 import type { GeneratedNarration, NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
@@ -46,11 +45,6 @@ const MODES: { mode: NarrationMode; label: string }[] = [
   { mode: 'both', label: '전체' },
   { mode: 'facts', label: '사실' },
   { mode: 'interpretations', label: '해석' },
-];
-
-const VOICES: { value: NarrationVoice; label: string }[] = [
-  { value: 'openai', label: 'OpenAI 음성' },
-  { value: 'device', label: '기기 음성' },
 ];
 
 export default function NarrationScreen() {
@@ -67,7 +61,6 @@ export default function NarrationScreen() {
   const [generated, setGenerated] = useState<GeneratedNarration | null>(null);
   const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
   const generationLock = useRef(false);
-  const [voice, setVoice] = useState<NarrationVoice>('openai');
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
@@ -83,7 +76,6 @@ export default function NarrationScreen() {
     segments.map((s) => s.text),
     rate,
     repeat,
-    voice,
   );
 
   const err = narrationRes.error;
@@ -259,22 +251,6 @@ export default function NarrationScreen() {
       )}
 
       <BottomSheet visible={listOpen} title="문장 목록" palette={palette} onClose={() => setListOpen(false)}>
-        <Text style={[styles.sheetLabel, { color: palette.textSecondary }]}>목소리</Text>
-        <View accessibilityRole="radiogroup" accessibilityLabel="해설 목소리" style={styles.modes}>
-          {VOICES.map((option) => {
-            const on = voice === option.value;
-            return (
-              <Pressable key={option.value} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{ checked: on }}
-                onPress={() => { if (!on) { player.reset(); setVoice(option.value); } }}
-                style={({ pressed }) => [styles.mode, on ? { backgroundColor: palette.highlight, borderColor: palette.highlight } : { backgroundColor: palette.surface, borderColor: palette.outline }, pressed && !on && { backgroundColor: palette.fill }]}>
-                <Text style={[styles.modeText, { color: on ? palette.highlightText : palette.text }]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text lineBreakStrategyIOS="hangul-word" style={[styles.sheetHint, { color: palette.textSecondary }]}>
-          {voice === 'openai' ? 'OpenAI가 생성한 AI 음성이에요. 처음 재생할 때 잠시 준비가 필요해요.' : Platform.OS === 'ios' ? '휴대폰에 설치된 음성을 사용해요. 안 들리면 무음 모드를 해제하고 음량을 올려 주세요.' : '휴대폰에 설치된 음성을 사용해요.'}
-        </Text>
         <Text style={[styles.sheetLabel, { color: palette.textSecondary }]}>듣는 범위</Text>
         <View accessibilityRole="radiogroup" accessibilityLabel="듣는 범위" style={styles.modes}>
           {MODES.map((m) => {
