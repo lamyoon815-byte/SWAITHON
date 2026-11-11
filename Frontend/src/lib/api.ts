@@ -7,7 +7,7 @@ import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
 import type { Narration, NarrationMode, GeneratedNarration } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
-import { clearSession, getAccessToken } from '@/store/auth';
+import { clearSession, getAccessToken, updateSessionUser } from '@/store/auth';
 import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -48,6 +48,15 @@ export function register(email: string, password: string, nickname: string) {
 }
 
 export const getCurrentUser = () => request<User>('/me');
+
+/** 내 이름(닉네임) 바꾸기 (`PATCH /me`). 성공하면 기기에 저장된 세션의 이름도 바꾼다. */
+export async function updateNickname(nickname: string): Promise<User> {
+  const user = await request<User>('/me', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname }),
+  });
+  await updateSessionUser(user);
+  return user;
+}
 
 export async function logout() {
   await request<void>('/auth/logout', { method: 'POST' });

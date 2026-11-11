@@ -49,9 +49,9 @@ const CARD_GAP = 14;
 const SIDE_SCALE = 0.88;
 const SIDE_OPACITY = 0.45;
 
-/** 넘겨보기 카드 밑에 두 줄로 보여 줄 소개. 검수된 해설이 없으면 안내 문구. */
+/** 넘겨보기 카드 밑에 두 줄로 보여 줄 소개. 없으면 아무것도 보이지 않는다(작품에 들어가면 AI 해설이 나온다). */
 function summary(artwork: Artwork) {
-  return artwork.description?.facts[0] ?? artwork.background ?? '아직 해설이 준비되지 않았어요';
+  return artwork.description?.facts[0] ?? artwork.background ?? null;
 }
 
 export default function BrowseScreen() {
@@ -196,9 +196,11 @@ export default function BrowseScreen() {
             <Text style={[styles.artist, { color: palette.textSecondary }]}>
               {[current.artist, current.year].filter(Boolean).join(' · ')}
             </Text>
-            <Text numberOfLines={2} style={[styles.summary, { color: palette.textSecondary }]}>
-              {summary(current)}
-            </Text>
+            {!!summary(current) && (
+              <Text numberOfLines={2} style={[styles.summary, { color: palette.textSecondary }]}>
+                {summary(current)}
+              </Text>
+            )}
           </Animated.View>
         )}
 
@@ -244,6 +246,14 @@ function Card({
   palette,
   onPress,
 }: CardProps) {
+  // 그림의 원래 비율. 받기 전에는 틀(width × height) 전체를 쓴다.
+  const [ratio, setRatio] = useState<number | null>(null);
+  const slotRatio = width / height;
+  // 그림이 잘리지 않게 틀 안에 비율대로 맞춘 테두리 상자 크기.
+  const frame = ratio === null ? { width, height }
+    : ratio > slotRatio ? { width, height: Math.round(width / ratio) }
+      : { width: Math.round(height * ratio), height };
+
   // 0 when this card is centered, 1 when it is one card away. Follows the finger while swiping.
   const motion = useAnimatedStyle(() => {
     const away = Math.abs(scrollX.get() / interval - index);
@@ -259,22 +269,19 @@ function Card({
       accessibilityLabel={`${artwork.number}번, ${artwork.title}, ${artwork.artist}`}
       accessibilityHint={current ? '작품 상세로 이동해요' : '이 작품으로 넘겨요'}
       onPress={onPress}
-      style={[
-        styles.card,
-        {
-          width,
-          height,
-          backgroundColor: palette.fill,
-          borderColor: current ? palette.highlight : 'transparent',
-        },
-        motion,
-      ]}>
+      style={[styles.slot, { width, height }, motion]}>
+      {/* 테두리 상자는 그림 비율에 맞춰 줄어든다(가로로 긴 작품도 잘리지 않음). 넘기기 간격은 바깥 틀이 지킨다. */}
+      <View style={[styles.card, frame, { backgroundColor: palette.fill, borderColor: current ? palette.highlight : 'transparent' }]}>
       {artwork.image_url ? (
         <Image
           source={{ uri: artwork.image_url }}
           style={StyleSheet.absoluteFill}
-          contentFit="cover"
+          contentFit="contain"
           transition={150}
+          onLoad={(event) => {
+            const { width: w, height: h } = event.source;
+            if (w > 0 && h > 0) setRatio(w / h);
+          }}
         />
       ) : (
         <View style={styles.cardEmpty}>
@@ -288,6 +295,7 @@ function Card({
           <Text style={styles.badgeText}>No. {artwork.number}</Text>
         </View>
       )}
+      </View>
     </AnimatedPressable>
   );
 }
@@ -349,8 +357,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   headerMuseum: {
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 24,
+    fontWeight: 800,
   },
   headerTitle: {
     fontSize: FontSize.body,
@@ -363,11 +371,15 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
+  slot: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   card: {
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 3,
     overflow: 'hidden',
-    alignSelf: 'center',
     justifyContent: 'flex-end',
   },
   cardEmpty: {

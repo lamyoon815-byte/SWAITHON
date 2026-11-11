@@ -13,6 +13,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useSettings } from '@/hooks/use-settings';
 import { FirstLaunch } from '@/components/onboarding/first-launch';
 import { getCurrentUser } from '@/lib/api';
+import { updateSessionUser } from '@/store/auth';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,7 +24,7 @@ export default function RootLayout() {
   const { loaded: settingsLoaded } = useSettings();
   const pathname = usePathname();
   useEffect(() => {
-    if (session) void getCurrentUser().catch(() => {});
+    if (session) void getCurrentUser().then(updateSessionUser).catch(() => {});
   }, [session]);
   return (
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
@@ -47,6 +48,7 @@ export default function RootLayout() {
               <Stack.Screen name="history" />
               <Stack.Screen name="correction" />
               <Stack.Screen name="not-found" />
+              <Stack.Screen name="analysis" />
               <Stack.Screen name="onboarding" />
             </Stack.Protected>
           </Stack>

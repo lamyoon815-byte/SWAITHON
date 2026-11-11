@@ -40,7 +40,7 @@ const ICONS = {
   my: { ios: 'person.fill', material: 'person' },
 } satisfies Record<string, TabIcon>;
 
-const LabelSize = 16;
+const LabelSize = 18;
 /**
  * Tab labels follow the system text size up to 1.4×. The bar floats over every screen and each
  * screen reserves a fixed `TabBarHeight` for it, so unlimited growth would cover content.

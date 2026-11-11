@@ -14,6 +14,7 @@ import { Text, TextInput } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtworkCard } from '@/components/common/artwork-card';
+import { BigButton } from '@/components/common/big-button';
 import { showToast } from '@/components/common/toast';
 import { PressableScale } from '@/components/common/pressable-scale';
 import {
@@ -42,7 +43,13 @@ function matchesNumber(artwork: Artwork, query: string) {
 /** "2026-11-07T…" → "11.07." (네이버 최근 검색어 날짜 형식) */
 function shortDate(iso: string) {
   const d = new Date(iso);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}.`;
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 스크린리더용: "11월 11일" */
+function spokenDate(iso: string) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
 export default function SearchScreen() {
@@ -100,12 +107,14 @@ export default function SearchScreen() {
               editable={!!museumId}
               placeholder="작품 옆 명패 번호"
               placeholderTextColor={palette.textSecondary}
+              // 찾기는 키보드 위 큰 '찾기' 버튼 하나로만 한다. iOS 숫자 키패드엔 원래 오른쪽 아래 키가 없고,
+              // 안드로이드는 키 자체를 숨길 수 없어 이름 없는 키(none)로 두고 눌러도 아무 일도 하지 않게 한다.
               keyboardType="number-pad"
-              returnKeyType="search"
+              returnKeyType={Platform.OS === 'android' ? 'none' : 'default'}
+              submitBehavior="submit"
               maxLength={3}
               value={num}
               onChangeText={(v) => setNum(v.replace(/\D/g, ''))}
-              onSubmitEditing={submit}
               style={[styles.input, { color: palette.text }]}
             />
             {!!num && (
@@ -118,13 +127,6 @@ export default function SearchScreen() {
                 onPress={() => setNum('')}
               />
             )}
-            <IconButton
-              ios="magnifyingglass"
-              android="search"
-              label="이 번호로 찾기"
-              palette={palette}
-              onPress={submit}
-            />
           </View>
 
           {/* Current museum as its own small card, so it reads as a section and not a caption. */}
@@ -236,10 +238,10 @@ export default function SearchScreen() {
                   <View style={styles.recentRow}>
                     <PressableScale
                       accessibilityRole="button"
-                      accessibilityLabel={`${a.number}번, ${a.title}, ${a.artist}, ${shortDate(a.viewed_at)}에 봄`}
+                      accessibilityLabel={`${a.number}번, ${a.title}, ${a.artist}, ${spokenDate(a.viewed_at)}에 봄`}
                       onPress={() => openArtwork(a.id)}
                       pressedScale={0.98}
-                      background={palette.surface}
+                      background={`${palette.background}00`}
                       pressedBackground={palette.fill}
                       style={styles.recentMain}>
                       <View style={[styles.thumb, { backgroundColor: palette.fill }]}>
@@ -284,42 +286,9 @@ export default function SearchScreen() {
           )}
         </ScrollView>
 
-        {/* Toolbar right above the keyboard (Naver): cancel on the left, other ways to find on the right. */}
+        {/* 키보드 바로 위 (토스식): 카메라로 찾기 + 큰 '이 번호로 찾기'. iOS 숫자 키패드에는 검색 키가 없어 이 버튼이 꼭 필요하다. */}
         <View style={styles.toolbar}>
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="취소"
-            onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.cancel,
-              toolbarSurface(palette),
-              pressed && pressedSurface(palette),
-            ]}>
-            {({ pressed }) => (
-              <Text
-                style={[
-                  styles.cancelText,
-                  { color: pressed ? palette.highlightText : palette.text },
-                ]}>
-                취소
-              </Text>
-            )}
-          </PressableScale>
           <View style={[styles.tools, toolbarSurface(palette)]}>
-            <IconButton
-              ios="mic.fill"
-              android="mic"
-              label="음성으로 찾기"
-              palette={palette}
-              onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
-            />
-            <IconButton
-              ios="qrcode.viewfinder"
-              android="qr_code_scanner"
-              label="QR로 찾기"
-              palette={palette}
-              onPress={() => openCapture('qr')}
-            />
             <IconButton
               ios="camera.fill"
               android="photo_camera"
@@ -327,6 +296,10 @@ export default function SearchScreen() {
               palette={palette}
               onPress={() => openCapture('artwork')}
             />
+          </View>
+          <View style={styles.findButton}>
+            <BigButton label={num ? `${num}번 찾기` : '이 번호로 찾기'} accessibilityLabel={num ? `${num}번 작품 찾기` : '이 번호로 찾기'}
+              accessibilityHint="입력한 번호의 작품을 열어요" palette={palette} disabled={!num || !museumId} onPress={submit} />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -533,9 +506,9 @@ const styles = StyleSheet.create({
     fontWeight: 600,
     textAlign: 'center',
   },
+  findButton: { flex: 1, flexDirection: 'row' },
   toolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: ScreenPadding,

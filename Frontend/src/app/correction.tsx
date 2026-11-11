@@ -3,13 +3,14 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomActionBar } from '@/components/common/bottom-action-bar';
+import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { showToast } from '@/components/common/toast';
@@ -17,7 +18,7 @@ import { PressableScale } from '@/components/common/pressable-scale';
 import { CORRECTION_CONTROLS, CorrectionSlider } from '@/components/mypage/correction-slider';
 import { CalibrationSlider } from '@/components/mypage/calibration-slider';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
-import { MaxContentWidth, ScreenPadding, Scrim, Spacing } from '@/constants/theme';
+import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
 import { correctionPreview, correctionSettings, correctionSettingsChanged, type CorrectionPreview } from '@/lib/correction-settings';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
@@ -184,22 +185,16 @@ export default function CorrectionScreen() {
         </View>
       </BottomActionBar>
 
-      <Modal visible={confirmDiscard} transparent animationType="fade" onRequestClose={() => setConfirmDiscard(false)}>
-        <View style={[styles.scrim, { backgroundColor: Scrim }]}>
-          <SafeAreaView style={styles.screen}>
-            <ScrollView contentContainerStyle={styles.modalContent}>
-              <View accessibilityViewIsModal style={[styles.dialog, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
-                <Text accessibilityRole="header" style={[styles.dialogTitle, { color: palette.text }]}>변경사항을 폐기할까요?</Text>
-                <Text style={[styles.note, { color: palette.textSecondary }]}>저장하지 않으면 변경 사항이 사라져요.</Text>
-                <View style={styles.dialogActions}>
-                  <View style={styles.buttonRow}><BigButton label="계속 조절하기" palette={palette} onPress={() => setConfirmDiscard(false)} /></View>
-                  <View style={styles.buttonRow}><BigButton label="나가기" selected={false} palette={palette} onPress={discard} /></View>
-                </View>
-              </View>
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="변경사항을 폐기할까요?"
+        message="저장하지 않으면 변경 사항이 사라져요."
+        cancelLabel="계속 조절하기"
+        confirmLabel="나가기"
+        palette={palette}
+        onConfirm={discard}
+        onCancel={() => setConfirmDiscard(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -30,6 +30,17 @@ class AccountTests(unittest.TestCase):
         data = response.json()
         return data, {"Authorization": "Bearer " + data["access_token"]}
 
+    def test_update_nickname(self):
+        _, headers = self.register()
+        response = self.client.patch("/me", json={"nickname": "  새 이름  "}, headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["nickname"], "새 이름")
+        self.assertEqual(self.client.get("/me", headers=headers).json()["nickname"], "새 이름")
+        self.assertEqual(self.client.patch("/me", json={"nickname": "   "}, headers=headers).status_code, 422)
+        self.assertEqual(self.client.patch("/me", json={"nickname": "가" * 41}, headers=headers).status_code, 422)
+        self.assertEqual(self.client.patch("/me", json={"nickname": "x", "email": "a@b.c"}, headers=headers).status_code, 422)
+        self.assertEqual(self.client.patch("/me", json={"nickname": "x"}).status_code, 401)
+
     def test_register_login_logout_and_password_storage(self):
         data, headers = self.register()
         self.assertEqual(data["token_type"], "bearer")
