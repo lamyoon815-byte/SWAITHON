@@ -126,6 +126,31 @@ def spoken_seconds(text: str) -> int:
     return round(len(re.sub(r"\s", "", text)) / 5.5)
 
 
+def narration_key(length: str, model: str, record: dict, content: bytes) -> str:
+    """API와 일괄 생성 스크립트가 같은 저장소 키를 쓴다. 프롬프트·형식을 바꾸면 버전을 올린다."""
+    return sha256(json.dumps(["narration-v2", length, model, record, sha256(content).hexdigest()],
+                             sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length: str) -> dict:
+    """작품 원본으로 간결(약 1분)·상세(약 3분) 해설을 만든다. 저장은 호출한 쪽이 한다."""
+    normalized = normalize_image(content)
+    if length == "detailed":
+        long = gemini.long_commentary(normalized.content, record)
+        segments = long_segments(long["sections"])
+        return {"artwork_id": artwork_id, "mode": "both", "description": EMPTY_DESCRIPTION, "segments": segments,
+                "text": "\n".join(segment["text"] for segment in segments), "review_status": "unreviewed",
+                "fallback": not segments, "warning": AI_WARNING, "length": "detailed",
+                "estimated_seconds": long["estimated_seconds"], "sources": long["sources"]}
+    description = gemini.describe(normalized.content, record, True)
+    fallback = getattr(description, "fallback", False)
+    segments = [] if fallback else narration_segments(description.model_dump())
+    text = "\n".join(segment["text"] for segment in segments)
+    return {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
+            "segments": segments, "text": text, "review_status": "unreviewed", "fallback": fallback,
+            "warning": AI_WARNING, "length": "brief", "estimated_seconds": spoken_seconds(text), "sources": []}
+
+
 def narration_segments(description: dict, mode: str = "both") -> list[dict]:
     segments = []
     if mode in {"facts", "both"}:
@@ -362,9 +387,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                     "length": "detailed", "estimated_seconds": data.get("estimated_seconds") or spoken_seconds(text),
                     "sources": [{"no": s["no"], "title": s.get("title", ""), "url": s["url"]} for s in data.get("sources", [])]}
         content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
-        # Bump the version when the narration prompt/schema changes.
-        key = sha256(json.dumps(["narration-v2", length, getattr(gemini, "model", ""), record,
-                                 sha256(content).hexdigest()], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        key = narration_key(length, getattr(gemini, "model", ""), record, content)
         stored = await run_in_threadpool(narration_cache.get, "narration", key)
         if stored is not None:
             # Older saved results carry an older notice; always show the current one.
@@ -372,23 +395,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
 
         async def generate_and_store():
             ai_limiter.check(client_key(request))
-            normalized = await run_in_threadpool(normalize_image, content)
-            if length == "detailed":
-                long = await run_in_threadpool(gemini.long_commentary, normalized.content, record)
-                segments = long_segments(long["sections"])
-                fallback = not segments
-                result = {"artwork_id": artwork_id, "mode": "both", "description": EMPTY_DESCRIPTION, "segments": segments,
-                          "text": "\n".join(segment["text"] for segment in segments), "review_status": "unreviewed",
-                          "fallback": fallback, "warning": AI_WARNING, "length": "detailed",
-                          "estimated_seconds": long["estimated_seconds"], "sources": long["sources"]}
-            else:
-                description = await run_in_threadpool(gemini.describe, normalized.content, record, True)
-                fallback = getattr(description, "fallback", False)
-                segments = [] if fallback else narration_segments(description.model_dump())
-                text = "\n".join(segment["text"] for segment in segments)
-                result = {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
-                          "segments": segments, "text": text, "review_status": "unreviewed", "fallback": fallback,
-                          "warning": AI_WARNING, "length": "brief", "estimated_seconds": spoken_seconds(text), "sources": []}
+            result = await run_in_threadpool(make_narration, gemini, artwork_id, record, content, length)
+            fallback, segments = result["fallback"], result["segments"]
             if not fallback and segments:
                 await run_in_threadpool(narration_cache.put, "narration", key,
                                         json.dumps(result, ensure_ascii=False).encode())
