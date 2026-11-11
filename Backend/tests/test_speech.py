@@ -11,7 +11,7 @@ import wave
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from Backend.speech import OpenAISpeechService, create_speech_router
+from Backend.speech import OpenAISpeechService, create_speech_router, pcm_wav, RealtimeRateLimited
 
 
 class FakeSocket:
@@ -64,6 +64,25 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.sent[1]["response"]["input"][0]["content"][0]["text"], "붉은 꽃이 보여요.")
         self.assertEqual(service.budget.summary()["calls"], 1)
         self.assertEqual(service.budget.pending_krw, 0)
+
+    async def test_realtime_rate_limit_falls_back_to_speech_endpoint_and_pauses_realtime(self):
+        service = self.service(FakeSocket())
+        fallback_audio = pcm_wav(b"\x00\x00" * 240)
+        with patch.object(service, "_generate", side_effect=RealtimeRateLimited()) as realtime, \
+                patch.object(service, "_fallback", return_value=fallback_audio) as fallback:
+            _, audio = await service.synthesize("붉은 꽃이 보여요.")
+            self.assertEqual(audio, fallback_audio)
+            await service.synthesize("파란 하늘이 보여요.")
+        self.assertEqual(realtime.call_count, 1)  # Second sentence skips Realtime while it is paused.
+        self.assertEqual(fallback.call_count, 2)
+
+    async def test_other_realtime_errors_do_not_fall_back(self):
+        service = self.service(FakeSocket())
+        with patch.object(service, "_generate", side_effect=HTTPException(502, "broken")), \
+                patch.object(service, "_fallback") as fallback:
+            with self.assertRaises(HTTPException):
+                await service.synthesize("붉은 꽃이 보여요.")
+        fallback.assert_not_called()
 
     async def test_saved_audio_survives_restart_without_api_key_or_budget(self):
         service = self.service(FakeSocket())
