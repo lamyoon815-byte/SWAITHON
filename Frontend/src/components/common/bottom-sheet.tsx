@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { ReduceMotion, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,7 +31,7 @@ export function BottomSheet({ visible, title, palette, onClose, dismissible = tr
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <View style={styles.root}>
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${title} 닫기`}
@@ -43,12 +43,12 @@ export function BottomSheet({ visible, title, palette, onClose, dismissible = tr
           entering={SlideInDown.duration(240).reduceMotion(ReduceMotion.System)}
           style={[styles.sheet, { maxHeight: height * 0.85, backgroundColor: palette.surface, borderColor: palette.outline }]}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.handle, { backgroundColor: palette.outline }]} />
-          <ScrollView bounces={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.three }]}>
+          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.three }]}>
             <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>{title}</Text>
             {children}
           </ScrollView>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
