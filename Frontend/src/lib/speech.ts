@@ -5,6 +5,7 @@
  */
 
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import * as Speech from 'expo-speech';
 
 import { getSpeechAudio } from '@/lib/speech-audio';
 
@@ -28,6 +29,7 @@ function release() {
 export function stopSpeaking() {
   token++;
   release();
+  void Speech.stop();
 }
 
 export async function speakKorean(text: string, { rate = 1, onDone, onError }: Options = {}) {
@@ -58,6 +60,12 @@ export async function speakKorean(text: string, { rate = 1, onDone, onError }: O
     subscription = audio.addListener('playbackStatusUpdate', changed);
     changed(audio.currentStatus);
   } catch {
-    if (mine === token) onError?.();
+    if (mine !== token) return;
+    // The AI voice failed (daily limits, network): read it with the phone's Korean voice instead of staying silent.
+    Speech.speak(text, {
+      language: 'ko-KR', rate,
+      onDone: () => { if (mine === token) onDone?.(); },
+      onError: () => { if (mine === token) onError?.(); },
+    });
   }
 }

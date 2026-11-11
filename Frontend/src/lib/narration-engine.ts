@@ -1,4 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import * as Speech from 'expo-speech';
 import { getSpeechAudio } from '@/lib/speech-audio';
 import { stopSpeaking } from '@/lib/speech';
 
@@ -16,6 +17,8 @@ export class NarrationEngine {
   private audio: AudioPlayer | null = null;
   private subscription: { remove(): void } | null = null;
   private audioModeReady = false;
+  /** True while a sentence is read by the phone voice (fallback when the AI voice fails). */
+  private deviceSpeaking = false;
   private nextPlayer: { index: number; text: string; audio: AudioPlayer } | null = null;
 
   constructor(
@@ -133,19 +136,38 @@ export class NarrationEngine {
       };
       this.subscription = audio.addListener('playbackStatusUpdate', statusChanged);
       statusChanged(audio.currentStatus);
-    } catch (error) {
+    } catch {
       if (mine !== this.token) return;
-      this.stop(); this.onError(error instanceof Error ? error.message : '음성을 만들지 못했어요. 다시 시도해 주세요.');
+      // The AI voice failed (daily limits, network): read this sentence with the phone's own Korean voice
+      // so the narration never goes silent. The next sentence tries the AI voice again.
+      this.speakWithDevice(text, mine, done);
     }
+  }
+
+  private speakWithDevice(text: string, mine: number, done: () => void) {
+    this.pendingStart = false; this.deviceSpeaking = true;
+    this.onPreparing(false); this.onPlaying(true); this.speaking = true;
+    Speech.speak(text, {
+      language: 'ko-KR', rate: this.config.rate,
+      onDone: () => { if (mine === this.token) { this.deviceSpeaking = false; done(); } },
+      onError: () => {
+        if (mine !== this.token) return;
+        this.deviceSpeaking = false;
+        this.stop(); this.onError('음성을 재생하지 못했어요. 다시 시도해 주세요.');
+      },
+    });
   }
 
   pause() {
     this.paused = true; this.speaking = false; this.onPaused(true);
     this.audio?.pause();
+    // The phone voice cannot resume mid-sentence: stop it, and play() reads the sentence again.
+    if (this.deviceSpeaking) { this.token++; this.deviceSpeaking = false; void Speech.stop(); }
     this.onPlaying(false); this.onPreparing(false);
   }
 
   stop() {
+    if (this.deviceSpeaking) { this.deviceSpeaking = false; void Speech.stop(); }
     this.paused = false; this.pendingStart = false; this.endedWhilePaused = false; this.onPaused(false);
     this.token++; this.speaking = false; this.dispose(); this.disposeNext();
     this.onPlaying(false); this.onPreparing(false);

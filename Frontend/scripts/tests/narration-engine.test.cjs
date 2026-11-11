@@ -7,12 +7,13 @@ const ts = require('typescript');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function setup(source = async (text) => `file://${text}.wav`) {
-  const players = [], requests = [], device = [], errors = [];
+  const players = [], requests = [], device = [], errors = [], phone = [];
   let announcementStops = 0;
   const state = {};
   const cache = new Map();
   const mocks = {
-    'expo-speech': { stop: async () => {} },
+    // Phone-voice fallback: records what was spoken and finishes when the test calls the saved onDone.
+    'expo-speech': { stop: async () => {}, speak: (text, options) => { phone.push({ text, options }); } },
     '@/lib/speech': {
       speakKorean: async (text, options) => { device.push({ text, options }); },
       stopSpeaking: () => { announcementStops++; },
@@ -57,7 +58,7 @@ function setup(source = async (text) => `file://${text}.wav`) {
   );
   const configure = (values = {}) => engine.configure({ sentences: ['첫 문장', '둘째 문장'], rate: 1, repeat: false, ...values });
   configure();
-  return { engine, configure, players, requests, device, state, errors, stops: () => announcementStops };
+  return { engine, configure, players, requests, device, state, errors, phone, stops: () => announcementStops };
 }
 
 test('OpenAI audio plays sentence by sentence and releases the previous player', async () => {
@@ -118,12 +119,18 @@ test('repeat stays on the current sentence and native failures stop playback', a
   assert.ok(errors.at(-1));
 });
 
-test('an OpenAI failure is visible and never silently falls back to the old voice', async () => {
-  const { engine, errors, device, state } = setup(async () => { throw new Error('OpenAI key missing'); });
+test('when the AI voice fails, the sentence is read by the phone voice and narration continues', async () => {
+  const { engine, phone, state, errors } = setup(async () => { throw new Error('daily limit'); });
   engine.play(); await tick();
-  assert.equal(errors.at(-1), 'OpenAI key missing');
-  assert.equal(state.playing, false);
-  assert.equal(device.length, 0);
+  assert.equal(phone.length, 1);
+  assert.equal(phone[0].text, '첫 문장');
+  assert.equal(phone[0].options.language, 'ko-KR');
+  assert.equal(state.playing, true);
+  assert.equal(errors.filter(Boolean).length, 0);
+  phone[0].options.onDone(); await tick();
+  assert.equal(state.index, 1);  // moves on and tries the next sentence (AI first, then phone)
+  assert.equal(phone.at(-1).text, '둘째 문장');
+  engine.stop();
 });
 
 test('narration prefetches the next sentence so it plays without a gap', async () => {
