@@ -1,10 +1,10 @@
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
@@ -62,10 +62,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
       <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.scroll}>
-          <View style={styles.artworkBand} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Image source={require('@/assets/images/auth/water-lilies.jpg')} style={StyleSheet.absoluteFill} contentFit="cover" />
-          </View>
           <View style={styles.content}>
+            <View style={styles.navigation}>
+              <BackButton label="시작 화면으로" palette={palette} onPress={() => router.canGoBack() ? router.back() : router.replace('/auth')} />
+            </View>
             <View style={styles.heading}>
               <Text style={[styles.brand, { color: palette.highlight }]}>MoMi</Text>
               <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
@@ -132,7 +132,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                   onPress={() => signup ? router.replace('/auth/login') : router.push('/auth/register')} />
               </View>
             </View>
-            <Text style={[styles.credit, { color: palette.textSecondary }]}>Claude Monet · Water Lilies · 1906</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -142,20 +141,19 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 }, scroll: { flexGrow: 1, paddingBottom: Spacing.four },
-  artworkBand: { height: 112, width: '100%', overflow: 'hidden' },
+  navigation: { alignItems: 'flex-start' },
   content: { width: '100%', maxWidth: 540, alignSelf: 'center', padding: ScreenPadding, gap: Spacing.four },
   heading: { alignItems: 'center', gap: 12, paddingVertical: Spacing.two },
   brand: { fontSize: 17, fontWeight: '800', letterSpacing: 1 },
   title: { fontSize: 30, lineHeight: 40, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },
   copy: { fontSize: 18, lineHeight: 28, textAlign: 'center' },
-  fields: { gap: 14 }, field: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, borderWidth: 2, borderRadius: 24 },
+  fields: { gap: 14 }, field: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 0, borderWidth: 2, borderRadius: 16 },
   label: { fontSize: 17, fontWeight: '700' }, inputRow: { flexDirection: 'row', alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, paddingVertical: 10, paddingHorizontal: 0, fontSize: 21 },
+  input: { flex: 1, minHeight: 56, paddingVertical: 8, paddingHorizontal: 0, fontSize: 18 },
   eyeButton: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   fieldIcon: { width: 40, alignItems: 'center' },
   actions: { gap: 12 }, row: { flexDirection: 'row' },
   footerLabel: { fontSize: 17, textAlign: 'center', paddingTop: 6 },
   error: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 2 },
   errorText: { flex: 1, fontSize: FontSize.body, lineHeight: 28 },
-  credit: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
 });
