@@ -13,7 +13,7 @@
 4. 서버와 같은 경로(사진 정규화 → CLIP → 판별 → 검색)로 1장당 처리 시간을 잰다.
 결과: Backend/data/eval/report.md, report.json, 추천 .env 값
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\evaluation.py
 """
 import argparse

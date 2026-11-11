@@ -24,11 +24,11 @@ import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type 
 import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
 import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
+import { parseArtworkQr } from '@/lib/artwork-qr';
 import { resizeLongSide } from '@/lib/resize';
 import { speakKorean } from '@/lib/speech';
 import type { CaptureMode } from '@/types/capture';
 
-const QR_PREFIX = 'swaithon://artwork/';
 /** The same QR stays in view for a while; ignore repeats for this long. */
 const RESCAN_MS = 3000;
 
@@ -61,12 +61,6 @@ const COPY: Record<CaptureMode, { title: string; guide: string; tips: Tip[] }> =
   },
 };
 
-/** QR 내용 형식은 BE와 합의 전이라 딥링크와 id 문자열을 둘 다 받는다 (README 9장 BE 요청 1번). */
-function parseArtworkQr(data: string) {
-  const text = data.trim();
-  const id = text.startsWith(QR_PREFIX) ? text.slice(QR_PREFIX.length) : text;
-  return id.length > 0 && id.length <= 64 ? id : null;
-}
 
 export default function CaptureScreen() {
   // Camera screens stay dark in every theme; only high contrast would change this.

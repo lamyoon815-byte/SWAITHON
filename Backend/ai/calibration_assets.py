@@ -11,7 +11,7 @@
 - calibration.json : 단계·질문·정답·파일·작품 출처
 - index.ts         : 앱에서 바로 쓰는 require() 목록 (calibration.json과 같은 내용)
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\calibration_assets.py
 """
 from io import BytesIO

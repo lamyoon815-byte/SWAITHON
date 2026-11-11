@@ -1,6 +1,6 @@
 """평가용 폴더를 만들고, 촬영에 쓸 '미등록 작품' 원본 10점을 내려받는다.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\finetune\\prepare_eval.py
 
 결과
@@ -20,7 +20,7 @@ from eval_set import UNREGISTERED  # noqa: E402
 
 BACKEND = Path(__file__).resolve().parents[2]
 EVAL_DIR = BACKEND / "data" / "eval"
-USER_AGENT = "SWAITHON-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
+USER_AGENT = "MoMi-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
 
 
 def registered_folders():

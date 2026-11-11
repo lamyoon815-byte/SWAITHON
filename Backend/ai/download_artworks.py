@@ -1,6 +1,6 @@
 """미술관 3곳(Met·AIC·NGA)의 퍼블릭 도메인 작품 21점을 내려받아 Backend/data/artworks에 저장한다.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\download_artworks.py
 
 - import만으로는 아무것도 내려받지 않는다. (main에서만 실행)
@@ -19,7 +19,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 MAX_SIDE = 2000
-USER_AGENT = "SWAITHON-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
+USER_AGENT = "MoMi-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
 
 MUSEUMS = {
     "met": "메트로폴리탄 미술관",

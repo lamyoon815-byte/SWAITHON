@@ -1,4 +1,4 @@
-# SWAITHON Backend
+# MoMi Backend
 
 Python 3.12, FastAPI, SQLite 기반 서버. 아래 명령은 `Backend` 폴더에서 실행한다.
 
@@ -79,7 +79,7 @@ Gemini를 사용할 때는 `Backend/.env.example`을 `Backend/.env`로 복사해
 이 폴더에는 `catalog.sqlite3`(작품), `users.sqlite3`(회원·세션·프로필·관람 기록),
 `images/`(등록 작품 원본), `artwork-index.npz`(검색 인덱스), `model-cache/`(CLIP 가중치)가 저장된다.
 이 폴더는 Git에서 제외한다. 운영에서는 이 폴더를 영속 저장·백업해야 한다.
-저장 위치를 바꾸려면 서버와 가져오기 명령에 같은 `SWAITHON_DATA_DIR` 환경변수를 설정한다.
+저장 위치를 바꾸려면 서버와 가져오기 명령에 같은 `MOMI_DATA_DIR` 환경변수를 설정한다.
 이미지 파일 경로는 JSON에서 관리하고 등록은 CLI로만 수행한다.
 
 ## API
@@ -186,8 +186,8 @@ Gemini에는 사진의 축소본이 전송되며, 서버는 사용자 촬영본�
 프로젝트 최상위에서 Docker 이미지를 빌드한다. Docker 실행 환경이 필요하다.
 
 ```bash
-docker build --build-arg WITH_CLIP=true -t swaithon-be Backend
-docker run --rm -p 8000:8000 --env-file Backend/.env -v swaithon-data:/app/data swaithon-be
+docker build --build-arg WITH_CLIP=true -t momi-be Backend
+docker run --rm -p 8000:8000 --env-file Backend/.env -v momi-data:/app/data momi-be
 ```
 
 새 볼륨에는 작품·검색 인덱스가 없으므로 원본과 JSON을 컨테이너에 마운트하고
@@ -218,7 +218,7 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 - `GET /museums?limit=20&offset=0`: `{items:[{id,name,area,artwork_count}],total,limit,offset}`. 등록 작품이 있는 미술관만 반환하며 지역 미수집 시 area는 빈 문자열.
 - 작품의 `museum_id`로 `GET /artworks?museum_id=...`, `GET /artworks/by-number?museum_id=...&number=007` 조회. `number`는 앞자리 0을 보존하는 문자열. 기존 `museum` 이름 필터도 지원.
 - 카탈로그에는 `museum_id`와 `museum`을 함께 등록. 기존 이름만 있는 데이터는 시작 시 결정적인 ID로 자동 보완. 같은 ID는 같은 이름, 번호는 ID 내 고유. 이름 변경 시 기존 ID를 명시하여 유지.
-- QR 페이로드는 `swaithon://artwork/<id>`로 확정. FE에서 ID 검증 후 작품 상세 조회.
+- QR 페이로드는 `momi://artwork/<id>`로 확정. FE에서 ID 검증 후 작품 상세 조회.
 - `/recognize`의 `confidence`: high는 바로 이동, medium은 확인, low는 후보 없음. 실제 촬영본으로 평가한 `CLIP_MATCH_THRESHOLD`, `CLIP_HIGH_CONFIDENCE_THRESHOLD`가 없으면 후보는 medium. 후보가 없으면 low.
 - 사진 자동 촬영은 사용자당 60회/60초. 처리 중 추가 요청은 503 + Retry-After: 2로 거부하여 CPU 대기열을 만들지 않음. FE는 진행 중 요청을 겹치지 않고 1~2초 간격으로 예약. 명패 자동 반복은 지원하지 않음(기존 Gemini 공유 5회/분).
 - `quality.artwork_bbox`는 회전 보정된 촬영본 대비 정규화 xywh. 최고 후보 원본과 ORB/RANSAC 위치 검증에 성공할 때 `framing_hint`도 제공. 실패·명패·후보 없음은 둘 다 null.

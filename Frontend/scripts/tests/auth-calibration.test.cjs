@@ -24,6 +24,14 @@ function load(file, mocks = {}, globals = {}) {
 
 const calibration = load('lib/calibration.ts');
 
+test('MoMi and previously printed QR codes resolve to the same artwork', () => {
+  const { parseArtworkQr } = load('lib/artwork-qr.ts');
+  assert.equal(parseArtworkQr('momi://artwork/aic-05'), 'aic-05');
+  assert.equal(parseArtworkQr('swaithon://artwork/aic-05'), 'aic-05');
+  assert.equal(parseArtworkQr('aic-05'), 'aic-05');
+  assert.equal(parseArtworkQr('momi://artwork/'), null);
+});
+
 test('all eight screening patterns follow the agreed color-selection rules', () => {
   const cases = [
     [[], 'normal'], [['protan'], 'protan'], [['deutan'], 'deutan'], [['tritan'], 'tritan'],

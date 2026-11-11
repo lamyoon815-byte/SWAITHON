@@ -9,7 +9,7 @@
 (CIELAB ΔE > 15)인데 색각이상 시뮬레이션에서는 색 차이가 절반 미만으로 줄어드는 쌍을 '구분이 사라진 쌍'으로 본다.
 보정 후 시뮬레이션에서 그 쌍의 색 차이가 다시 정상 시각의 절반 이상이 되면 '복원'으로 센다.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\correction_demo.py
 """
 import json

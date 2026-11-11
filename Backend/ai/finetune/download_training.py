@@ -4,7 +4,7 @@
   등록 작품 21점과 평가용 미등록 작품 10점(+같은 작품의 다른 인쇄본)은 제외했다. → 시험 문제가 학습에 섞이지 않는다.
 - CLIP 입력이 224px이므로 긴 변 512px로 받는다. 이미 받은 파일은 건너뛴다.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\finetune\\download_training.py
 """
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 OUT_DIR = HERE.parents[1] / "data" / "finetune" / "train_images"
-USER_AGENT = "SWAITHON-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
+USER_AGENT = "MoMi-student-project/1.0 (+https://github.com/lamyoon815-byte/SWAITHON)"
 
 
 def fetch(item):

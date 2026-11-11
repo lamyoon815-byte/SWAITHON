@@ -1,4 +1,4 @@
-# SWAITHON Frontend
+# MoMi Frontend
 
 저시력·색각이상 관람객을 위한 미술 감상 앱의 모바일 클라이언트입니다. FE 담당 2명이 같이 보는 작업 기준 문서입니다.
 규칙을 바꾸고 싶으면 이 파일을 고치는 PR을 올리고 서로 확인한 뒤 머지합니다.
@@ -14,7 +14,7 @@
 |---|---|
 | 앱 | Expo **SDK 58** (React Native 0.88, React 19.3), Expo Router, TypeScript strict |
 | 실행 환경 | Expo Go (dev build 불필요, [4.1 검증 결과](../docs/tech-review.md#41-fe-담당자-확인-요청)). 단, 음성 검색 기능은 예외 (3장) |
-| 와이어프레임 | [docs/wireframe/](docs/wireframe/) — 화면별 PNG 16장. `SWAITHON 와이어프레임.html`을 브라우저로 열면 한 번에 볼 수 있습니다. **화면 구성과 흐름**의 기준 |
+| 와이어프레임 | [docs/wireframe/](docs/wireframe/) — 화면별 PNG 16장. `MoMi 와이어프레임.html`을 브라우저로 열면 한 번에 볼 수 있습니다. **화면 구성과 흐름**의 기준 |
 | 디자인 | [docs/design/저시력 미술관 앱.html](docs/design/저시력%20미술관%20앱.html) — 홈 · 1-0 미술관 선택 · 카메라 · 작품 감상 · 마이페이지 · 하단 탭의 **최종 모양**. 브라우저로 열면 눌러 볼 수 있습니다. 와이어프레임과 다르면 디자인을 따릅니다 (9.1) |
 | 메인 색상 | **차콜 `#33353B`** (라이트 모드 주 버튼) · **머스터드 `#E1AD21`** (선택·강조, 다크 모드 주 버튼) · **오프화이트 `#FAFAF7`** (라이트 배경) · **`#1C1D21`** (다크 배경) · 고대비 모드만 **노랑 `#FFD60A`**. 전체 토큰과 규칙은 [7장](#7-공통-ui-규칙) |
 | BE API | [Backend/README.md](../Backend/README.md), 서버 실행 후 `http://<PC IP>:8000/docs` |
@@ -35,8 +35,8 @@
 ## 2. 실행 방법
 
 ```bash
-git clone https://github.com/lamyoon815-byte/SWAITHON.git
-cd SWAITHON/Frontend
+git clone https://github.com/lamyoon815-byte/SWAITHON.git MoMi
+cd MoMi/Frontend
 npm install          # package-lock.json이 있으므로 npm 사용
 npx expo start
 ```
@@ -417,7 +417,7 @@ export type DeviceSettings = {
 
 **로그인 토큰**
 
-- `POST /auth/login`, `/auth/register` 응답의 `access_token`을 **`expo-secure-store`** 에 저장합니다 (AsyncStorage 금지, BE README 권장). 키: `swaithon.token`.
+- `POST /auth/login`, `/auth/register` 응답의 `access_token`을 **`expo-secure-store`** 에 저장합니다 (AsyncStorage 금지, BE README 권장). 키: `swaithon.session.v1`.
 - 요청 헤더: `Authorization: Bearer <token>`. 붙이는 것은 `api.ts`가 합니다.
 - 세션은 **7일**이면 만료됩니다. 401이 오면 토큰을 지우고 로그인 화면으로 보냅니다.
 - 비밀번호는 8~128자, 닉네임은 1~40자 (BE 검증과 같게 화면에서도 미리 알려 줍니다).
@@ -442,7 +442,7 @@ export type DeviceSettings = {
 | GET / POST / DELETE | `/me/history` | 필요 | 2(기록 저장), 7 |
 | POST | `/auth/register`, `/auth/login` | | 로그인, 회원가입 |
 | POST | `/auth/logout` · GET `/me` | 필요 | 8 마이페이지 |
-| GET | `/museums`, `/artworks?museum_id=...`, `/artworks/by-number?museum_id=...&number=...` | | 1-0, 1-1. QR은 `swaithon://artwork/<id>`에서 ID 추출 후 상세 조회. FE 연결은 별도 |
+| GET | `/museums`, `/artworks?museum_id=...`, `/artworks/by-number?museum_id=...&number=...` | | 1-0, 1-1. QR은 `momi://artwork/<id>`에서 ID 추출 후 상세 조회. FE 연결은 별도 |
 
 ---
 
@@ -564,7 +564,7 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 
 | # | 요청 | 쓰는 화면 | 상태 |
 |---|---|---|---|
-| 1 | 미술관 목록 API, 작품에 `museum_id`와 미술관별 작품 번호 필드, **미술관 + 번호로 작품 조회** API, QR 내용 형식 합의 (`swaithon://artwork/<id>` 딥링크 vs 작품 id 문자열. 앱 scheme은 `swaithon`) | 1, 1-0, 1-1, 1-2 | BE 구현: `/museums`, `museum_id`, `number`, ID+번호 조회. QR은 `swaithon://artwork/<id>`로 확정. FE 연결 별도 |
+| 1 | 미술관 목록 API, 작품에 `museum_id`와 미술관별 작품 번호 필드, **미술관 + 번호로 작품 조회** API, QR 내용 형식 합의 (`momi://artwork/<id>` 딥링크 vs 작품 id 문자열. 앱 scheme은 `momi`) | 1, 1-0, 1-1, 1-2 | BE 구현: `/museums`, `museum_id`, `number`, ID+번호 조회. QR은 `momi://artwork/<id>`로 확정. FE 연결 별도 |
 | 2 | (P1) 자동 촬영 위치 안내용: 사진 안에서 작품이 차지하는 영역(bbox)이나 "왼쪽/오른쪽/가까이" 같은 방향 힌트를 `/recognize`의 `quality`에 추가 | 4 | BE 구현: `quality.artwork_bbox`, `framing_hint`. 원본과 특징점 대응 검증 성공 시만 제공, 그 외 null |
 | 3 | `/recognize` 응답에 `confidence: "high" \| "medium" \| "low"` 추가. 기준은 실제 촬영본으로 BE·AI가 정함 (tech-review 6.3 신뢰도 보정). 기준이 없을 때는 `medium`으로 | 4, 4-1, 4-2 | BE 구현: 후보는 기본 medium, 후보 없음 low. 실제 촬영 평가 후 환경변수로 high 기준 설정 |
 | 4 | (P1) `/narration`의 `segments`마다 해당 `regions` 번호 (`region_index`) — 해설 중 "지금 설명하는 영역" 표시용 | 3 | BE·AI 생성 스키마 반영: segment마다 `region_index`(0 기반 또는 null). 기존 해설은 연결 검수 후 재등록 필요 |
@@ -600,3 +600,5 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 - 촬영은 후보가 있으면 첫 후보로 바로 이동하며, 후보가 없으면 작품 찾기 실패 화면으로 이동합니다. 별도 후보 확인·즉시 미등록 AI 분석 모달은 제공하지 않습니다.
 - 저장된 해설 방식을 조회 API에 전달합니다. 실제 작품 데이터, 등록 작품 AI 음성 해설, 서버 보정 연결은 유지합니다.
 - 전체 차이는 [구현 비교 기록](../docs/fe-implementation-comparison.md)에 있습니다.
+
+앱·프로젝트 표기는 **MoMi**입니다. 기존 기기 저장 키와 실제 GitHub 저장소 URL은 호환성을 위해 유지합니다. 신규 작품 QR은 `momi://artwork/<id>`를 사용하며 기존 QR도 읽을 수 있습니다.

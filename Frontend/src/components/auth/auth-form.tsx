@@ -69,7 +69,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           </View>
           <View style={styles.content}>
             <View style={styles.heading}>
-              <Text style={[styles.brand, { color: dark ? palette.highlight : palette.text }]}>SWAITHON · {signup ? '회원가입' : '로그인'}</Text>
+              <Text style={[styles.brand, { color: dark ? palette.highlight : palette.text }]}>MoMi · {signup ? '회원가입' : '로그인'}</Text>
               <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
                 {signup ? '나에게 맞춘,\n새로운 감상' : '나의 속도로,\n작품을 만나다'}
               </Text>

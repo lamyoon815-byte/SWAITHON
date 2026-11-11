@@ -9,7 +9,7 @@
 
 손실 함수: 대조 학습(InfoNCE, CLIP과 같은 방식). 한 배치에서 촬영본 i는 원본 i와 가깝게, 다른 원본과는 멀게.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\finetune\\train_adapter.py
 결과: Backend/data/clip-adapter.npz (서버가 자동으로 사용), Backend/data/finetune/train_report.json
 """

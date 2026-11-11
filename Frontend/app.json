@@ -1,11 +1,14 @@
 {
   "expo": {
-    "name": "SWAITHON",
-    "slug": "SWAITHON",
+    "name": "MoMi",
+    "slug": "momi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "swaithon",
+    "scheme": [
+      "momi",
+      "swaithon"
+    ],
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

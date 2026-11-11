@@ -3,7 +3,7 @@
 그림마다 원본 1장 + 휴대폰 촬영처럼 바꾼 사진 16장(augment.py)을 만들고, 서버와 똑같은 CLIP 모델·전처리로
 임베딩을 계산한다. 학습(train_adapter.py)은 이 숫자만 쓰므로 CLIP을 다시 돌릴 필요가 없어 몇 초~몇 분이면 끝난다.
 
-실행 (SWAITHON 폴더에서):
+실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\finetune\\extract_features.py
 결과: Backend/data/finetune/features.npz
 """

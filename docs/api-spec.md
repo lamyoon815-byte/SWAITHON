@@ -1,4 +1,4 @@
-# SWAITHON FE API 명세서
+# MoMi FE API 명세서
 
 기준일: 2026-11-04. **이 문서와 함께 커밋한 백엔드 코드 기준**입니다. 배포 서버의 반영 상태는 별도로 확인합니다.
 미술관·번호·QR, confidence, 자동 촬영 호출 제한, 위치 힌트·해설 영역 연결과 기존 AI 계약을 포함합니다.
@@ -249,9 +249,9 @@ Path: `artwork_id` string. 성공 **200**: `ArtworkDetail`. 오류 **404** 작�
 
 ### QR 내용 계약
 
-QR 내용은 **`swaithon://artwork/<artwork_id>`**로 확정합니다. 예: `swaithon://artwork/mona-lisa`.
+QR 내용은 **`momi://artwork/<artwork_id>`**로 확정합니다. 예: `momi://artwork/mona-lisa`.
 `artwork_id`는 작품 번호가 아니라 카탈로그 ID(`[a-z0-9][a-z0-9_-]{0,79}`)입니다.
-FE는 scheme=`swaithon`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
+FE는 scheme=`momi`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
 `GET /artworks/{artwork_id}`를 호출합니다. query·fragment·추가 경로와 단순 ID 문자열은 지원하지 않습니다.
 다른 URL을 열거나 그대로 API 주소로 사용하지 않습니다. 미등록 ID는 404 안내로 연결합니다.
 이 계약은 QR 페이로드이며 OS 딥링크 라우팅·카메라 스캔은 FE에서 연결합니다.

@@ -53,7 +53,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
         yield
 
     application = FastAPI(
-        title="SWAITHON API",
+        title="MoMi API",
         description=(
             "작품 사진 업로드와 등록 작품 조회를 제공하는 백엔드 API입니다.\n\n"
             "작품 조회 결과의 `image_url`을 열면 등록된 원본 이미지를 볼 수 있습니다. "

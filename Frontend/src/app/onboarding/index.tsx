@@ -59,7 +59,7 @@ export default function OnboardingScreen() {
       <StatusBar style="light" />
       <View style={styles.header}>
         <View style={styles.headerSide}>{page > 0 && <BackButton label="이전 소개" palette={palette} onPress={() => goTo(page - 1)} />}</View>
-        <Text style={[styles.brand, { color: palette.text }]}>SWAITHON</Text>
+        <Text style={[styles.brand, { color: palette.text }]}>MoMi</Text>
         <View style={styles.headerSide}>
           {!last && <Pressable accessibilityRole="button" accessibilityLabel="소개 건너뛰기" disabled={busy || !loaded} onPress={() => { void finish('home'); }} style={({ pressed }) => [styles.skip, { opacity: busy ? 0.4 : pressed ? 0.7 : 1 }]}>
             <View style={[styles.skipPill, { borderColor: palette.outline }]}>
