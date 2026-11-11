@@ -5,16 +5,16 @@
  * 두 모드 모두 QR이 보이면 바로 인식한다. 인식된 작품의 미술관이 현재 미술관이 된다.
  * 미등록 작품은 탭 바 없는 실패 화면으로, 일시적인 QR 읽기 오류는 미리보기 안의 안내로 표시한다.
  * 빨강은 아이콘과 테두리에만 쓴다 (적색약에게 빨간 글씨는 어둡게 보이고, 카메라 화면 위에서는 대비가 들쭉날쭉하다).
- * 작품 촬영은 `/recognize/artwork`의 next_action으로 이동·후보 확인·미등록 분석·재촬영을 나눈다.
+ * 작품 촬영은 `/recognize`로 보내 첫 후보 작품으로 간다 (로그인 없이 호출).
+ * TODO(B): confidence가 medium이면 4-1 후보 확인 시트, low면 4-2 미등록 안내 (README 6.3).
  */
 
-import { Image } from 'expo-image';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,7 +23,7 @@ import { showToast } from '@/components/common/toast';
 import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
-import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork, analyzeArtwork, type RecognitionResult, type AnalysisResult } from '@/lib/api';
+import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
 import { resizeLongSide } from '@/lib/resize';
 import { speakKorean } from '@/lib/speech';
 import type { CaptureMode } from '@/types/capture';
@@ -78,9 +78,6 @@ export default function CaptureScreen() {
   const { updateSettings } = useSettings();
   const cameraRef = useRef<CameraView>(null);
   const scanLock = useRef(false);
-  const [recognition, setRecognition] = useState<RecognitionResult | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
@@ -111,7 +108,7 @@ export default function CaptureScreen() {
   };
 
   const onBarcode = async ({ data }: BarcodeScanningResult) => {
-    if (scanLock.current || busy || recognition || analysis) return;
+    if (scanLock.current) return;
     const id = parseArtworkQr(data);
     if (!id) return;
     scanLock.current = true;
@@ -137,7 +134,6 @@ export default function CaptureScreen() {
   const openRecognized = async (id: string) => {
     const artwork = await getArtwork(id);
     const museum = (await getMuseums()).find((m) => m.id === artwork.museum_id);
-    setRecognition(null);
     if (artwork.museum_id) await updateSettings({ recent_museum_id: artwork.museum_id });
     router.dismissAll();
     router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
@@ -145,7 +141,7 @@ export default function CaptureScreen() {
   };
 
   /**
-   * 촬영 → 긴 변 1024px로 줄여 `/recognize/artwork` → 서버의 next_action 처리.
+   * 촬영 → 긴 변 1024px로 줄여 `/recognize` → 첫 후보 작품으로 이동.
    * 셔터 실패와 인식 실패를 나눠 안내한다. 촬영이 끝났으면 "사진을 찍지 못했어요"는 쓰지 않는다.
    */
   const capture = async () => {
@@ -170,16 +166,13 @@ export default function CaptureScreen() {
         const resized = await resizeLongSide(photo.uri, photo.width, photo.height);
         stage = '서버 전송';
         const result = await recognizeArtwork(resized.uri);
-        setPhotoUri(resized.uri);
-        void speakKorean(result.message);
-        if (result.next_action === 'show_artwork' && result.candidates[0]) {
-          stage = '작품 열기';
-          await openRecognized(result.candidates[0].artwork_id);
-        } else if (result.next_action === 'retake') {
-          await showScanError({ title: '다시 촬영해 주세요', detail: result.message });
-        } else {
-          setRecognition(result);
+        const best = result.candidates[0];
+        if (!best) {
+          router.replace({ pathname: '/not-found', params: { mode } });
+          return;
         }
+        stage = '작품 열기';
+        await openRecognized(best.artwork_id);
       } catch (e) {
         const detail = e instanceof Error ? e.message : String(e);
         console.warn(`[capture] 작품 인식 실패 (${stage})`, API_URL, e);
@@ -195,37 +188,6 @@ export default function CaptureScreen() {
     }
   };
 
-  const closeResult = () => {
-    if (busy) return;
-    setRecognition(null);
-    setAnalysis(null);
-    setPhotoUri(null);
-    Speech.stop();
-  };
-
-  const analyzePhoto = async () => {
-    if (!photoUri || busy) return;
-    setBusy(true);
-    try {
-      const result = await analyzeArtwork(photoUri);
-      setAnalysis(result);
-      setRecognition(null);
-      if (!result.fallback) {
-        void speakKorean([result.warning, ...result.description.facts,
-          ...result.description.interpretations.map((text) => `가능한 감정적 해석입니다. ${text}`)].join(' '));
-      }
-    } catch (error) {
-      const message = error instanceof ApiError
-        ? error.message
-        : 'AI 해설을 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.';
-      // Keep the photo and result so the user can retry without taking another photo.
-      await showScanError({ title: 'AI 해설을 불러오지 못했어요', detail: message });
-      showToast(message, 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   // Swap the camera for the search screen, so back from search does not reopen the camera.
   const goToNumber = () => router.replace('/search');
 
@@ -234,54 +196,6 @@ export default function CaptureScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
-      <Modal visible={!!recognition || !!analysis} animationType="slide" onRequestClose={closeResult}>
-        <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
-          <ScrollView contentContainerStyle={styles.resultContent}>
-            <Text accessibilityRole="header" style={[styles.headerTitle, { color: palette.text }]}>
-              {analysis ? 'AI 작품 해설' : recognition?.next_action === 'analyze' ? '미등록 작품' : '찍은 작품이 맞나요?'}
-            </Text>
-            <Text accessibilityLiveRegion="polite" style={[styles.resultText, { color: palette.text }]}>
-              {analysis ? analysis.warning : recognition?.message}
-            </Text>
-            {recognition?.candidates.map((candidate) => (
-              <Pressable key={candidate.artwork_id} accessibilityRole="button"
-                accessibilityLabel={`${candidate.title}, ${candidate.artist}, 이 작품 선택`}
-                disabled={busy}
-                onPress={async () => {
-                  setBusy(true);
-                  try { await openRecognized(candidate.artwork_id); }
-                  catch { showToast('작품 정보를 불러오지 못했어요. 다시 선택해 주세요', 'error'); }
-                  finally { setBusy(false); }
-                }}
-                style={[styles.candidate, { borderColor: palette.textSecondary }]}>
-                <Image source={{ uri: candidate.image_url }} style={styles.candidateImage} contentFit="contain" />
-                <Text style={[styles.resultText, { color: palette.text }]}>{candidate.title}</Text>
-                <Text style={[styles.errorDetail, { color: palette.textSecondary }]}>{candidate.artist}</Text>
-              </Pressable>
-            ))}
-            {recognition && photoUri ? (
-              <BottomButton label={busy ? '분석 중…' : '이 사진으로 AI 해설 듣기'} palette={palette}
-                disabled={busy} onPress={analyzePhoto} />
-            ) : null}
-            {analysis ? (
-              <>
-                <Text style={[styles.resultText, { color: palette.textSecondary }]}>
-                  {analysis.fallback ? '해설 생성에 실패했어요. 다시 촬영해 주세요.' : 'AI가 생성한 미검수 해설이에요.'}
-                </Text>
-                {analysis.description.facts.map((text, i) => (
-                  <Text key={`fact-${i}`} style={[styles.resultText, { color: palette.text }]}>{text}</Text>
-                ))}
-                {!analysis.fallback && analysis.description.interpretations.map((text, i) => (
-                  <Text key={`interpretation-${i}`} style={[styles.resultText, { color: palette.text }]}>
-                    가능한 감정적 해석입니다. {text}
-                  </Text>
-                ))}
-              </>
-            ) : null}
-            <BottomButton label="다시 촬영하기" palette={palette} secondary disabled={busy} onPress={closeResult} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
       <View style={styles.header}>
         <BackButton label="닫기" palette={palette} />
         <Text accessibilityRole="header" style={[styles.headerTitle, { color: palette.text }]}>
@@ -432,10 +346,6 @@ function BottomButton({ label, a11yLabel, palette, secondary, disabled, onPress 
 }
 
 const styles = StyleSheet.create({
-  resultContent: { padding: ScreenPadding, gap: Spacing.three },
-  resultText: { fontSize: FontSize.label, lineHeight: 30 },
-  candidate: { borderWidth: 2, borderRadius: 20, padding: Spacing.three, gap: Spacing.two },
-  candidateImage: { width: '100%', height: 180 },
   screen: {
     flex: 1,
   },

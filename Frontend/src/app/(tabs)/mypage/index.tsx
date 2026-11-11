@@ -16,7 +16,6 @@ import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getMuseums, logout } from '@/lib/api';
-import { useAuth } from '@/hooks/use-auth';
 import type { DeviceSettings } from '@/store/settings';
 import type { NarrationMode } from '@/types/narration';
 
@@ -27,7 +26,6 @@ const FONT_OPTIONS = [
 ] as const;
 
 export default function MyPageScreen() {
-  const { session } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const signOut = async () => {
     if (signingOut) return;
@@ -75,11 +73,6 @@ export default function MyPageScreen() {
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + Spacing.four }]}>
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>마이페이지</Text>
-        <View style={[styles.card, card, { padding: 20, gap: 8 }]}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>{session?.user.nickname}님</Text>
-          <Text style={[styles.body, { color: palette.textSecondary }]}>{session?.user.email}</Text>
-          <View style={styles.buttonRow}><BigButton label={signingOut ? '로그아웃 중…' : '로그아웃'} selected={false} palette={palette} disabled={signingOut} onPress={signOut} /></View>
-        </View>
         <View style={styles.section}>
           <Text accessibilityRole="header" style={[styles.sectionTitle, styles.settingsHeading, { color: palette.text }]}>내 화면 설정</Text>
           <View style={[styles.card, card]}>
@@ -101,6 +94,9 @@ export default function MyPageScreen() {
           <View style={[styles.card, card]}>
             <SettingRow label="방문한 미술관" icon={{ ios: 'building.columns', android: 'account_balance' }} palette={palette} onPress={() => setSheet('museum')} />
           </View>
+        </View>
+        <View style={styles.buttonRow}>
+          <BigButton label={signingOut ? '로그아웃 중…' : '로그아웃'} selected={false} palette={palette} disabled={signingOut} onPress={signOut} />
         </View>
       </ScrollView>
       <Modal visible={sheet !== null} transparent animationType="fade" onRequestClose={() => { if (!savingMode) setSheet(null); }}>

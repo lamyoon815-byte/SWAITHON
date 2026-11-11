@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -10,6 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { useSettings } from '@/hooks/use-settings';
+import { FirstLaunch } from '@/components/onboarding/first-launch';
 import { getCurrentUser } from '@/lib/api';
 
 SplashScreen.preventAutoHideAsync();
@@ -19,7 +20,8 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { session, loaded } = useAuth();
   const profile = useProfile();
-  const { settings, loaded: settingsLoaded } = useSettings();
+  const { loaded: settingsLoaded } = useSettings();
+  const pathname = usePathname();
   useEffect(() => {
     if (session) void getCurrentUser().catch(() => {});
   }, [session]);
@@ -35,22 +37,21 @@ export default function RootLayout() {
               <Stack.Screen name="auth" />
             </Stack.Protected>
             <Stack.Protected guard={!!session}>
-              <Stack.Protected guard={settings.onboarding_completed}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="museum" />
-                <Stack.Screen name="zoom/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
-                <Stack.Screen name="capture" />
-                <Stack.Screen name="search" options={{ animation: 'fade', animationDuration: 180 }} />
-                <Stack.Screen name="spike" />
-                <Stack.Screen name="history" />
-                <Stack.Screen name="correction" />
-                <Stack.Screen name="not-found" />
-              </Stack.Protected>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="museum" />
+              <Stack.Screen name="zoom/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+              <Stack.Screen name="capture" />
+              <Stack.Screen name="search" options={{ animation: 'fade', animationDuration: 180 }} />
+              <Stack.Screen name="spike" />
+              <Stack.Screen name="history" />
+              <Stack.Screen name="correction" />
+              <Stack.Screen name="not-found" />
               <Stack.Screen name="onboarding" />
             </Stack.Protected>
           </Stack>
         )}
         <ToastHost />
+        {loaded && profile.loaded && settingsLoaded && session && !pathname.startsWith('/auth') ? <FirstLaunch /> : null}
       </ThemeProvider>
     </GestureHandlerRootView>
   );

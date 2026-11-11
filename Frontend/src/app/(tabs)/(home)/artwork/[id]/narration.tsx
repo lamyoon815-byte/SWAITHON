@@ -55,7 +55,7 @@ export default function NarrationScreen() {
   const reduceMotion = useReducedMotion();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
-  const narrationRes = useResource(id && profileLoaded ? `narration:${id}` : null, () => getNarration(id!));
+  const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
   const [generated, setGenerated] = useState<GeneratedNarration | null>(null);
   const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
   const generationLock = useRef(false);
