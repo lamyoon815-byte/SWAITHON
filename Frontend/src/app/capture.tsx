@@ -1,4 +1,5 @@
-// 와이어프레임 1-2 QR 스캔 (`?mode=qr`) · 4 촬영 인식 (`?mode=artwork`). 탭 바 없는 전체 화면
+// 와이어프레임 1-2 QR 스캔 · 4 촬영 인식을 한 카메라로. 탭 바 없는 전체 화면
+// QR이 보이면 바로 찾고, QR이 없으면 촬영 버튼으로 작품을 찍는다. 예전 `?mode=` 링크도 같은 화면을 연다.
 /**
  * 위에서부터 안내 문구 → 점선 가이드가 있는 카메라(남는 높이를 전부 씀) → 팁 세 칸 → 큰 버튼.
  * 카메라 화면은 테마와 상관없이 항상 어둡게 둔다 (미리보기에 눈이 가도록).
@@ -10,7 +11,7 @@
  */
 
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
@@ -19,6 +20,7 @@ import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
+import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
@@ -40,34 +42,21 @@ const LOAD_FAILED: ScanError = {
   detail: '잠시 후 다시 비춰 주세요',
 };
 
-const COPY: Record<CaptureMode, { title: string; guide: string; tips: Tip[] }> = {
-  qr: {
-    title: 'QR 코드 스캔',
-    guide: 'QR 코드를 사각형 안에\n맞춰 주세요',
-    tips: [
-      { text: '사각형에\n맞춰 주세요', ios: 'qrcode.viewfinder', material: 'center_focus_strong' },
-      { text: '조금 떨어져\n비춰 주세요', ios: 'arrow.up.left.and.arrow.down.right', material: 'open_in_full' },
-      { text: '밝은 곳에서\n비춰 주세요', ios: 'sun.max.fill', material: 'wb_sunny' },
-    ],
-  },
-  artwork: {
-    title: '작품 촬영',
-    guide: '작품 전체가 사각형 안에\n들어오게 찍어 주세요',
-    tips: [
-      { text: '작품 전체를\n담아 주세요', ios: 'photo.artframe', material: 'image' },
-      { text: '흔들림과\n빛 반사 주의', ios: 'sun.max.fill', material: 'wb_sunny' },
-      { text: 'QR이 보이면\n바로 찾아요', ios: 'qrcode', material: 'qr_code' },
-    ],
-  },
+const COPY: { title: string; guide: string; tips: Tip[] } = {
+  title: '작품 찾기',
+  guide: 'QR 코드를 비추거나\n작품 전체를 담아 찍어 주세요',
+  tips: [
+    { text: 'QR이 보이면\n바로 찾아요', ios: 'qrcode.viewfinder', material: 'qr_code_scanner' },
+    { text: 'QR이 없으면\n작품을 찍어요', ios: 'photo.artframe', material: 'image' },
+    { text: '흔들림과\n빛 반사 주의', ios: 'sun.max.fill', material: 'wb_sunny' },
+  ],
 };
 
 
 export default function CaptureScreen() {
   // Camera screens stay dark in every theme; only high contrast would change this.
   const palette = getPalette('dark', false);
-  const { mode: rawMode } = useLocalSearchParams<{ mode?: string }>();
-  const mode: CaptureMode = rawMode === 'qr' ? 'qr' : 'artwork';
-  const copy = COPY[mode];
+  const copy = COPY;
   const [permission, requestPermission] = useCameraPermissions();
   const { updateSettings } = useSettings();
   const cameraRef = useRef<CameraView>(null);
@@ -117,7 +106,7 @@ export default function CaptureScreen() {
       showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
-        router.replace({ pathname: '/not-found', params: { mode } });
+        router.replace({ pathname: '/not-found', params: { mode: 'qr' satisfies CaptureMode } });
         return;
       }
       showScanError(LOAD_FAILED);
@@ -162,7 +151,7 @@ export default function CaptureScreen() {
         const result = await recognizeArtwork(resized.uri);
         const best = result.candidates[0];
         if (!best) {
-          router.replace({ pathname: '/not-found', params: { mode } });
+          router.replace({ pathname: '/not-found', params: { mode: 'artwork' satisfies CaptureMode } });
           return;
         }
         stage = '작품 열기';
@@ -219,7 +208,7 @@ export default function CaptureScreen() {
               importantForAccessibility="no-hide-descendants"
               style={[
                 styles.frame,
-                mode === 'qr' ? styles.frameQr : styles.frameArtwork,
+                styles.frameArtwork,
                 { borderColor: palette.text },
               ]}
             />
@@ -282,7 +271,7 @@ export default function CaptureScreen() {
             <View style={[styles.tipIcon, { backgroundColor: palette.fill }]}>
               <SymbolView
                 name={{ ios: tip.ios, android: tip.material, web: tip.material }}
-                size={26}
+                size={22}
                 tintColor={palette.text}
               />
             </View>
@@ -292,17 +281,14 @@ export default function CaptureScreen() {
       </View>
 
       <View style={styles.footer}>
-        {mode === 'artwork' ? (
-          <BottomButton
-            label={busy ? '찍는 중…' : '촬영'}
-            a11yLabel="촬영해서 작품 찾기"
-            palette={palette}
-            disabled={!granted || !ready || busy}
-            onPress={capture}
-          />
-        ) : (
-          <BottomButton label="번호로 찾기" palette={palette} secondary onPress={goToNumber} />
-        )}
+        <BottomButton
+          label={busy ? '찍는 중…' : '촬영'}
+          a11yLabel="촬영해서 작품 찾기. QR 코드는 비추기만 해도 찾아요"
+          palette={palette}
+          disabled={!granted || !ready || busy}
+          onPress={capture}
+        />
+        <TextButton label="번호로 찾기" accessibilityHint="작품 옆 명패 번호를 입력해 찾아요" palette={palette} onPress={goToNumber} />
       </View>
     </SafeAreaView>
   );
@@ -351,12 +337,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   headerTitle: {
-    fontSize: FontSize.body,
+    fontSize: FontSize.heading,
     fontWeight: 800,
   },
+  // 헤더 바로 아래에 붙여 카메라에 높이를 더 준다.
   guide: {
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
+    paddingTop: 0,
+    paddingBottom: 12,
     fontSize: 22,
     fontWeight: 700,
     lineHeight: 32,
@@ -376,10 +364,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderStyle: 'dashed',
     borderRadius: 16,
-  },
-  frameQr: {
-    width: '62%',
-    aspectRatio: 1,
   },
   frameArtwork: {
     width: '84%',
@@ -442,8 +426,8 @@ const styles = StyleSheet.create({
   tips: {
     flexDirection: 'row',
     marginHorizontal: Spacing.three,
-    marginTop: Spacing.three,
-    paddingVertical: Spacing.three,
+    marginTop: 12,
+    paddingVertical: 12,
     borderWidth: 1,
     borderRadius: 20,
   },
@@ -453,9 +437,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   tipIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -466,8 +450,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
+    gap: Spacing.one,
     paddingHorizontal: ScreenPadding,
-    paddingVertical: Spacing.three,
+    paddingTop: 12,
+    paddingBottom: Spacing.one,
   },
   // Minimum, not fixed: a fixed height clips the label at the largest system text size.
   button: {

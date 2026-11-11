@@ -1,58 +1,55 @@
-// 카메라 탭: 작품 찾는 방법 고르기 → 1-2 QR 스캔 / 4 작품 촬영 (`/capture?mode=`)
+// 카메라 탭: 작품 찾는 두 방법(QR · 작품 사진)을 안내하고, 카메라 하나(`/capture`)로 둘 다 찾는다.
 /**
- * 촬영 전에 무엇을 어떻게 비추는지 먼저 알려 주고, 큰 버튼 두 개로 방법을 고른다.
- * 버튼은 한 벌만 둔다: 가로로 긴 카드(아이콘 · 이름 · 한 줄 설명 · ›)라서 눌러지는 것처럼 보인다.
+ * 방법 카드는 설명일 뿐 버튼이 아니다(테두리·› 없음). 누르는 건 아래 '카메라 켜기' 하나뿐이다.
+ * 카메라에서는 QR이 보이면 바로 찾고, QR이 없으면 촬영 버튼으로 작품을 찍는다.
  * 카메라 권한은 버튼을 누를 때 묻는다 (탭을 열자마자 팝업이 뜨지 않게).
  */
 
 import { useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BigButton } from '@/components/common/big-button';
 import { showToast } from '@/components/common/toast';
 import { FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import type { CaptureMode } from '@/types/capture';
 
 const METHODS: {
-  mode: CaptureMode;
+  key: string;
   label: string;
   desc: string;
   ios: SFSymbol;
   material: AndroidSymbol;
 }[] = [
   {
-    mode: 'qr',
-    label: 'QR 코드',
-    desc: '안내판의 QR을 비추면 바로 찾아요',
+    key: 'qr',
+    label: 'QR 코드가 있으면',
+    desc: '안내판의 QR을 비추기만 하면 바로 찾아요',
     ios: 'qrcode.viewfinder',
     material: 'qr_code_scanner',
   },
   {
-    mode: 'artwork',
-    label: '작품 사진',
-    desc: 'QR이 없으면 작품을 정면에서 찍어요',
+    key: 'artwork',
+    label: 'QR이 없으면',
+    desc: '작품 전체를 정면에서 담아 촬영 버튼을 눌러요',
     ios: 'photo.artframe',
     material: 'image',
   },
 ];
 
-const TIPS = [
-  'QR 코드가 있으면 QR로 찾는 게 가장 빨라요.',
-  '찾은 작품의 미술관이 현재 미술관으로 바뀌어요.',
-];
+const TIPS = ['찾은 작품의 미술관이 현재 미술관으로 바뀌어요.'];
 
 export default function CameraScreen() {
   const palette = getPalette(useColorScheme() === 'dark' ? 'dark' : 'light', false);
   const bottomInset = useTabBarInset();
   const [permission, requestPermission] = useCameraPermissions();
 
-  const open = async (mode: CaptureMode) => {
+  const open = async () => {
     if (!permission?.granted) {
       if (permission && !permission.canAskAgain) {
         showToast('설정에서 카메라를 허용해 주세요', 'warning');
@@ -65,38 +62,25 @@ export default function CameraScreen() {
         return;
       }
     }
-    router.push({ pathname: '/capture', params: { mode } });
+    router.push('/capture');
   };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
         <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
-          {'어떻게 작품을\n찾을까요?'}
+          {'카메라로\n작품을 찾아요'}
         </Text>
 
         <View style={styles.methods}>
           {METHODS.map((m) => (
-            <Pressable
-              key={m.mode}
-              accessibilityRole="button"
-              accessibilityLabel={m.mode === 'qr' ? 'QR 코드 스캔' : '작품 촬영'}
-              accessibilityHint={m.desc}
-              onPress={() => open(m.mode)}
-              style={({ pressed }) => [
-                styles.method,
-                // Both ways get the main color outline, so they read as the same kind of button.
-                {
-                  backgroundColor: pressed ? palette.fill : palette.surface,
-                  borderColor: palette.accent,
-                },
-              ]}>
-              <View style={[styles.methodIcon, { backgroundColor: palette.highlight }]}>
+            <View key={m.key} accessible accessibilityLabel={`${m.label}, ${m.desc}`} style={[styles.method, { backgroundColor: palette.surface }]}>
+              <View style={[styles.methodIcon, { backgroundColor: palette.fill }]}>
                 <SymbolView
                   name={{ ios: m.ios, android: m.material, web: m.material }}
                   size={30}
                   weight="medium"
-                  tintColor={palette.highlightText}
+                  tintColor={palette.text}
                 />
               </View>
               <View style={styles.methodTexts}>
@@ -107,13 +91,7 @@ export default function CameraScreen() {
                   {m.desc}
                 </Text>
               </View>
-              <SymbolView
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                size={20}
-                weight="semibold"
-                tintColor={palette.textSecondary}
-              />
-            </Pressable>
+            </View>
           ))}
         </View>
 
@@ -128,6 +106,10 @@ export default function CameraScreen() {
               </Text>
             </View>
           ))}
+        </View>
+
+        <View style={styles.buttonRow}>
+          <BigButton label="카메라 켜기" accessibilityHint="QR 코드를 비추거나 작품을 찍어 찾아요" palette={palette} onPress={() => { void open(); }} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -152,17 +134,17 @@ const styles = StyleSheet.create({
   methods: {
     gap: 12,
   },
-  // A minimum, not a fixed height: two lines of text grow with the system text size.
+  // 설명 카드: 테두리 없이 옅은 면만 둬서 버튼처럼 보이지 않게 한다.
   method: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    minHeight: 104,
     paddingVertical: Spacing.three,
-    paddingLeft: Spacing.three,
-    paddingRight: 18,
-    borderWidth: 2,
+    paddingHorizontal: Spacing.three,
     borderRadius: 24,
+  },
+  buttonRow: {
+    flexDirection: 'row',
   },
   methodIcon: {
     width: 60,
@@ -176,7 +158,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   methodLabel: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 800,
   },
   methodDesc: {
