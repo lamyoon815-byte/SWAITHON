@@ -108,8 +108,7 @@ export function StrengthControl({ value, disabled, palette, onChange, live }: Pr
         />
       </View>
       <View style={styles.ends}>
-        <Text style={[styles.end, { color: palette.textSecondary }]}>원본에 가깝게</Text>
-        <Text style={[styles.end, { color: palette.textSecondary }]}>저장한 강도 그대로</Text>
+        <Text style={[styles.end, { color: palette.textSecondary }]}>작아질수록 원본과 가까워져요</Text>
       </View>
     </View>
   );
@@ -199,12 +198,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ends: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: MinTouchTarget + Spacing.two,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.two,
   },
   end: {
     fontSize: 15,
     fontWeight: 600,
+    textAlign: 'center',
   },
 });

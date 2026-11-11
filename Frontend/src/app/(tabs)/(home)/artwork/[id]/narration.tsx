@@ -325,7 +325,7 @@ export default function NarrationScreen() {
                 style={styles.canvas}
               />
               {/* 작품 속 영역 상자: 누르면 그 부분을 설명하는 문장으로 재생 바가 옮겨 간다. */}
-              {regions.length > 0 && !!artwork.image_url && (
+              {followRegion && !!artwork.image_url && (
                 <RegionOverlay imageUri={artwork.image_url} regions={regions} usable={usableRegions}
                   active={current?.region_index ?? null} palette={palette} onPressRegion={jumpToRegion} />
               )}
