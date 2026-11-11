@@ -23,6 +23,8 @@ export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
   const handlers = useRef<Handlers | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cancelled = useRef(false);
+  const starting = useRef(false);
+  const held = useRef(false);
 
   const set = (next: VoiceAnswerState) => { stateRef.current = next; setState(next); };
 
@@ -47,12 +49,14 @@ export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
     }
   }, [purpose, recorder]);
 
-  const start = useCallback(async (next: Handlers) => {
-    if (stateRef.current !== 'idle') return;
+  const start = useCallback(async (next: Handlers, hold = false) => {
+    if (stateRef.current !== 'idle' || starting.current) return;
+    starting.current = true;
     handlers.current = next;
     cancelled.current = false;
     try {
       const permission = await requestRecordingPermissionsAsync();
+      if (cancelled.current || (hold && !held.current)) return;
       if (!permission.granted) {
         next.onError('마이크 권한을 허용하면 말로 답할 수 있어요.');
         return;
@@ -60,13 +64,19 @@ export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
       stopSpeaking();
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
+      if (cancelled.current || (hold && !held.current)) {
+        await setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+        return;
+      }
       recorder.record();
       set('recording');
-      timer.current = setTimeout(() => { void finish(); }, MAX_SECONDS * 1000);
+      if (!hold) timer.current = setTimeout(() => { void finish(); }, MAX_SECONDS * 1000);
     } catch {
       await setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
       set('idle');
-      next.onError('녹음을 시작하지 못했어요. 버튼을 눌러 골라 주세요.');
+      if (!cancelled.current) next.onError('녹음을 시작하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      starting.current = false;
     }
   }, [finish, recorder]);
 
@@ -76,9 +86,20 @@ export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
     else void start(next);
   }, [finish, start]);
 
+  const startHolding = useCallback((next: Handlers) => {
+    if (stateRef.current !== 'idle' || starting.current) return;
+    held.current = true;
+    void start(next, true);
+  }, [start]);
+  const stopHolding = useCallback(() => {
+    held.current = false;
+    void finish();
+  }, [finish]);
+
   // 화면을 떠나면 녹음과 결과를 버린다.
   useFocusEffect(useCallback(() => () => {
     cancelled.current = true;
+    held.current = false;
     clearTimeout(timer.current);
     if (stateRef.current === 'recording') {
       void recorder.stop().catch(() => undefined);
@@ -88,5 +109,5 @@ export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
   }, [recorder]));
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  return { state, toggle, maxSeconds: MAX_SECONDS };
+  return { state, toggle, startHolding, stopHolding, maxSeconds: MAX_SECONDS };
 }
