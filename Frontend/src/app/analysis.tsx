@@ -30,10 +30,9 @@ export default function AnalysisScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const entry = getAnalysis(id);
   const [barHeight, setBarHeight] = useState(0);
-  const sentences = entry ? [
-    ...entry.result.description.facts.map((text) => ({ kind: '사실' as const, text })),
-    ...entry.result.description.interpretations.map((text) => ({ kind: '해석' as const, text })),
-  ] : [];
+  const sentences = entry?.result.segments.map((segment) => ({
+    kind: segment.type === 'fact' ? '사실' : '해석', text: segment.text,
+  })) ?? [];
   const player = useNarrationPlayer(sentences.map((s) => s.text), profile.speech_rate, false);
   const retake = () => router.replace('/capture');
 

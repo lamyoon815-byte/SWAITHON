@@ -73,7 +73,7 @@ class CatalogTests(unittest.TestCase):
         self.import_records([self.record(description=description, review_status="reviewed")])
         self.assertEqual(
             self.client.get("/artworks/sample-artwork").json()["description"],
-            {**description, "fact_region_indices": None, "interpretation_region_indices": None}
+            {**description, "fact_region_indices": None, "interpretation_region_indices": None, "narration_order": None}
         )
 
     def test_reimport_updates_without_duplicates_and_persists(self):

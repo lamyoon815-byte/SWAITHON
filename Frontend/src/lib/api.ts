@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, NarrationMode, GeneratedNarration, NarrationLength } from '@/types/narration';
+import type { Narration, NarrationMode, NarrationSegment, GeneratedNarration, NarrationLength } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
 import { clearSession, getAccessToken, updateSessionUser } from '@/store/auth';
 import { correctionStrength, serverCorrection, type ViewingProfile } from '@/lib/calibration';
@@ -199,6 +199,8 @@ export type RecognitionResult = {
 
 export type AnalysisResult = {
   description: Description;
+  /** 사실·감상이 자연스럽게 이어지는 서버의 낭독 순서 */
+  segments: NarrationSegment[];
   review_status: 'unreviewed';
   warning: string;
   fallback: boolean;

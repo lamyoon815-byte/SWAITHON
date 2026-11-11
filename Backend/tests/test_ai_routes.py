@@ -19,7 +19,8 @@ from Backend.ai.profile import AIProfile
 from Backend.main import create_app
 
 
-DESCRIPTION = {"facts": ["붉은 형태가 있습니다."], "interpretations": ["따뜻하게 느껴질 수 있습니다."], "regions": [], "mood_keywords": ["따뜻함"]}
+DESCRIPTION = {"facts": ["붉은 형태가 있습니다."], "interpretations": ["붉은빛이 화면에 따뜻한 분위기를 더합니다."], "regions": [], "mood_keywords": ["따뜻함"],
+               "narration_order": [{"type": "fact", "index": 0}, {"type": "interpretation", "index": 0}]}
 
 
 class FixtureGemini:
@@ -106,7 +107,8 @@ class AIRouteTests(unittest.TestCase):
         self.assertEqual(data["review_status"], "unreviewed")
         self.assertFalse(data["fallback"])
         self.assertEqual(data["segments"][0]["text"], DESCRIPTION["facts"][0])
-        self.assertTrue(data["segments"][1]["text"].startswith("가능한 감정적 해석입니다."))
+        self.assertEqual(data["segments"][1], {"type": "interpretation", "text": DESCRIPTION["interpretations"][0], "region_index": None})
+        self.assertEqual(data["text"], "\n".join(DESCRIPTION["facts"] + DESCRIPTION["interpretations"]))
         self.assertEqual(describe.call_args.args[1]["title"], "작품")
         self.assertEqual(response.headers["cache-control"], "no-store")
         # Generated text must never silently become a reviewed catalog description.
@@ -164,6 +166,24 @@ class AIRouteTests(unittest.TestCase):
             self.assertTrue(all(result.status_code == 200 for result in results))
             self.assertTrue(all(result.json() == results[0].json() for result in results))
             self.assertEqual(describe.call_count, 1)
+
+    def test_narration_prompt_revision_regenerates_old_saved_script(self):
+        legacy = {**DESCRIPTION, "interpretations": ["가능한 감정적 해석입니다. " + DESCRIPTION["interpretations"][0]]}
+        with patch("Backend.ai_routes.NARRATION_CACHE_VERSION", "narration-v2"), \
+                patch.object(FixtureGemini, "describe", return_value=Description.model_validate(legacy)):
+            old = self.client.post("/artworks/sample/narration")
+        self.assertEqual(old.status_code, 200)
+        self.assertIn("가능한 감정적 해석입니다.", old.json()["text"])
+
+        restarted = create_app(self.root / "data", recognition=FixtureRecognition(), gemini=FixtureGemini())
+        with TestClient(restarted) as client, \
+                patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            fresh = client.post("/artworks/sample/narration")
+            cached = client.post("/artworks/sample/narration")
+        self.assertEqual(fresh.status_code, 200)
+        self.assertEqual(describe.call_count, 1)
+        self.assertEqual(fresh.json(), cached.json())
+        self.assertEqual(fresh.json()["text"], "\n".join(DESCRIPTION["facts"] + DESCRIPTION["interpretations"]))
 
     def test_narration_metadata_change_invalidates_saved_description(self):
         self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
@@ -228,6 +248,7 @@ class AIRouteTests(unittest.TestCase):
             response = self.client.post("/analyze", headers=self.headers, files={"image": ("x.png", self.image)})
         self.assertTrue(response.json()["fallback"])
         self.assertNotIn("fallback", response.json()["description"])
+        self.assertEqual(response.json()["segments"], [])
 
     def test_correction_validation_and_default_implementation(self):
         self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 401)
@@ -299,10 +320,10 @@ class AIRouteTests(unittest.TestCase):
         self.assertEqual(response.json()["text"], DESCRIPTION["facts"][0])
         self.assertNotIn(DESCRIPTION["interpretations"][0], response.json()["text"])
         response = self.client.get("/artworks/sample/narration?mode=interpretations")
-        self.assertIn("가능한 감정적 해석", response.json()["text"])
+        self.assertEqual(response.json()["text"], DESCRIPTION["interpretations"][0])
         response = self.client.get("/artworks/sample/narration")
         self.assertEqual(response.json()["mode"], "both")
-        self.assertIn(DESCRIPTION["facts"][0], response.json()["text"])
+        self.assertEqual(response.json()["text"], "\n".join(DESCRIPTION["facts"] + DESCRIPTION["interpretations"]))
         self.seed("pending")
         self.assertEqual(self.client.get("/artworks/sample/narration").status_code, 409)
         self.assertEqual(self.client.get("/artworks/missing/narration").status_code, 404)
@@ -349,11 +370,20 @@ class GeminiTests(unittest.TestCase):
             self.service.describe(self.content)
         self.assertEqual(error.exception.status_code, 503)
         self.service.key = "test-key"
-        with patch("Backend.gemini.urlopen", side_effect=[self.response({}), self.response({})]) as transport:
+        with patch("Backend.gemini.urlopen", side_effect=[self.response({}) for _ in range(4)]) as transport:
             result = self.service.describe(self.content)
         self.assertTrue(result.fallback)
-        self.assertEqual(transport.call_count, 2)
+        self.assertEqual(transport.call_count, 4)
         self.assertEqual(result.regions, [])
+
+    def test_region_schema_failure_recovers_without_losing_narrative_order(self):
+        invalid = {**DESCRIPTION, "regions": [{"label": "영역", "bbox": [0.9, 0, 0.5, 1], "color": "빨강"}]}
+        with patch("Backend.gemini.urlopen", side_effect=[self.response(invalid), self.response(invalid), self.response(DESCRIPTION)]) as transport:
+            result = self.service.describe(self.content)
+        self.assertEqual(transport.call_count, 3)
+        self.assertFalse(getattr(result, "fallback", False))
+        self.assertEqual(result.regions, [])
+        self.assertEqual([item.model_dump() for item in result.narration_order], DESCRIPTION["narration_order"])
 
     def test_schema_retry_can_recover(self):
         with patch("Backend.gemini.urlopen", side_effect=[self.response({}), self.response(DESCRIPTION)]) as transport:

@@ -216,7 +216,8 @@ class GeminiBudgetSettlementTests(unittest.TestCase):
         self.content = png("red")
 
     def reply(self):
-        data = {"facts": ["사실"], "interpretations": [], "regions": [], "mood_keywords": []}
+        data = {"facts": ["사실"], "interpretations": [], "regions": [], "mood_keywords": [],
+                "narration_order": [{"type": "fact", "index": 0}]}
         return BytesIO(json.dumps({"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(data)}]}}],
                                    "usageMetadata": {"promptTokenCount": 1000, "candidatesTokenCount": 100}}).encode())
 

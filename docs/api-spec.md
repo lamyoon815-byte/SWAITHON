@@ -351,13 +351,14 @@ FE는 scheme=`momi`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
 ```json
 {
   "facts": ["붉은 형태가 있습니다."],
-  "interpretations": ["따뜻하게 느껴질 수 있습니다."],
+  "interpretations": ["붉은빛이 화면에 따뜻한 분위기를 더합니다."],
   "regions": [
     {"label": "붉은 형태", "bbox": [0.1, 0.2, 0.3, 0.4], "color": "붉은색"}
   ],
   "mood_keywords": ["따뜻함"],
   "fact_region_indices": [0],
-  "interpretation_region_indices": [null]
+  "interpretation_region_indices": [null],
+  "narration_order": [{"type": "fact", "index": 0}, {"type": "interpretation", "index": 0}]
 }
 ```
 
@@ -369,6 +370,8 @@ FE는 scheme=`momi`, host=`artwork`, 경로의 단일 ID를 검증한 뒤
 항목은 `regions`의 0부터 시작하는 인덱스 또는 null(전체 설명·연결 불명)입니다.
 배열 자체도 null일 수 있습니다(기존 데이터). 길이·인덱스 범위는 AI 응답과 카탈로그 등록 시 검증합니다.
 AI가 생성한 영역 연결도 사람이 검수한 뒤 등록합니다.
+`narration_order`는 하나의 완성된 대본에서 사실·해석 문장이 등장하는 순서입니다. `type: fact | interpretation`, `index: 해당 배열의 0부터 시작하는 문장 번호`로 모든 문장을 중복·누락 없이 한 번씩 참조합니다. AI 생성에는 필수이고 기존 검수 데이터에는 null을 허용합니다.
+AI는 사실 관찰과 감상을 주제별로 연결한 대본을 먼저 구성한 뒤 문장을 분류합니다. 예를 들어 `fact[0] → fact[1] → interpretation[0] → fact[2] → interpretation[1]` 순서를 유지하며, 사실 전체 뒤에 해석 전체를 붙이지 않습니다.
 
 ### GET /artworks/{artwork_id}/narration
 
@@ -382,17 +385,19 @@ Query `mode`: `facts | interpretations | both`, 선택. 기기에 저장한 감�
   "mode": "both",
   "segments": [
     {"type": "fact", "text": "붉은 형태가 있습니다.", "region_index": 0},
-    {"type": "interpretation", "text": "가능한 감정적 해석입니다. 따뜻하게 느껴질 수 있습니다.", "region_index": null}
+    {"type": "interpretation", "text": "붉은빛이 화면에 따뜻한 분위기를 더합니다.", "region_index": null}
   ],
-  "text": "붉은 형태가 있습니다.\n가능한 감정적 해석입니다. 따뜻하게 느껴질 수 있습니다.",
+  "text": "붉은 형태가 있습니다.\n붉은빛이 화면에 따뜻한 분위기를 더합니다.",
   "review_status": "reviewed"
 }
 ```
 
 DB의 검수 해설만 읽으며 Gemini를 호출하지 않습니다. 음성 파일은 반환하지 않습니다.
+해석 문장에는 별도 안내 문구를 붙이지 않으며 사실·해석 구분은 `segments[].type`으로 전달합니다.
 `text` 또는 `segments`를 FE의 expo-speech로 재생합니다.
 각 segment의 `region_index`는 작품 상세 `description.regions`의 인덱스입니다.
 null이면 영역을 강조하지 않습니다. 모드를 필터해도 인덱스는 바뀌지 않습니다.
+`both`는 `narration_order`를 그대로 사용합니다. 사실만·해석만 듣기도 이 순서를 유지하며 유형을 필터합니다. 순서 정보가 없는 기존 검수 해설은 원문을 유지하면서 같은 영역의 관찰과 감상을 먼저 연결합니다.
 기존 해설에 연결 데이터가 없으면 null이며 문장 순서로 위치를 추측하지 않습니다.
 오류: **404** 작품 없음 / **409** 검수 해설 없음 / **422** 잘못된 mode.
 
@@ -405,11 +410,12 @@ Query `length`로 길이를 고릅니다(앱의 "간결하게 / 상세하게").
 
 | 값 | 길이 | 만드는 방법 |
 |---|---|---|
-| `brief` (기본) | 약 1분, 공백 제외 300~350자 | 그림 사실·해석 위주 짧은 해설 |
-| `detailed` | 약 3분, 공백 제외 950~1,100자 | 1) Gemini 구글 검색 근거로 미술사 사실 조사 → 2) 그 노트만 근거로 들어가며·화가·시대 배경·제작 뒷이야기·의도(사실/해석 구분)·작품 설명·평가·마무리 순서로 작성. 길이·필수 섹션이 맞지 않으면 최대 2번 고쳐 씀 |
+| `brief` (기본) | 약 1분, 공백 제외 300~350자 | 그림 관찰과 감상이 이어지는 하나의 대본. 글자 수가 범위를 벗어나면 초안과 길이 피드백으로 한 번 고쳐 씀 |
+| `detailed` | 약 3분, 공백 제외 950~1,100자 | 1) Gemini 구글 검색 근거로 미술사 사실 조사 → 2) 그 노트만 근거로 들어가며·화가·시대 배경·제작 뒷이야기·의도·작품 설명·평가·마무리 순서로 작성. 같은 주제의 사실·해석 섹션은 인접하게 배치하며 key가 반복될 수 있음. 길이·필수 섹션이 맞지 않으면 최대 2번 고쳐 쓰고 필수 내용 완성도를 우선해 초안을 고름 |
 
 `content/long-commentary/<artwork_id>.json`(사람이 조사·검수한 상세 해설)이 있으면 `detailed`는 생성하지 않고 그 파일을 씁니다.
 두 길이는 따로 저장·재사용합니다. 응답에 `length`, `estimated_seconds`(공백 제외 글자 수 ÷ 5.5), `sources`(상세 해설 근거 출처)가 추가됩니다.
+길이는 전체 대본 기준입니다. 단독 감상 모드는 통합 대본에서 해당 유형만 필터하므로 재생 시간이 더 짧아질 수 있습니다. 고쳐 쓰기를 마쳐도 길이 범위를 충족하지 못하면 가장 가까운 유효 초안을 사용합니다.
 
 성공 **200**은 위 GET의 `artwork_id`, `mode: "both"`, `segments`, `text`에 다음 필드가 추가됩니다.
 
@@ -419,7 +425,8 @@ Query `length`로 길이를 고릅니다(앱의 "간결하게 / 상세하게").
 - `fallback`: 생성 실패 안내인지 여부. true이면 `segments: []`, `text: ""`이며 재생하지 않습니다.
 
 DB의 기존 작품·검수 상태는 변경하지 않습니다. 생성 해설 JSON은 `data/generated-media.sqlite3`에 별도 저장하며, 음성은 FE의 `/speech` 요청으로 생성·저장합니다.
-응답은 `Cache-Control: no-store`이지만 서버는 성공한 해설을 SQLite에서 재사용하므로 재시작 후에도 재생성하지 않습니다. 작품 원본·메타데이터·모델·캐시 규격이 바뀌면 새로 생성합니다. fallback·빈 해설·실패는 저장하지 않습니다. 동일 작품의 동시 요청은 서버 프로세스 안에서 생성 작업을 공유합니다.
+감정 해설은 색·빛·구도 등 시각적 단서와 분위기를 연결한 자연스러운 도슨트 문체로 생성하며, 반복 안내 문구나 불필요한 추측 표현을 줄입니다.
+응답은 `Cache-Control: no-store`이지만 서버는 성공한 해설을 SQLite에서 재사용하므로 재시작 후에도 재생성하지 않습니다. 작품 원본·메타데이터·모델·프롬프트 버전에 따른 캐시 규격이 바뀌면 새로 생성합니다. fallback·빈 해설·실패는 저장하지 않습니다. 동일 작품의 동시 요청은 서버 프로세스 안에서 생성 작업을 공유합니다.
 새로 생성할 때만 기존 AI 공통 분당 5회 제한과 Gemini 예산·하루 호출 상한을 사용하며, DB 캐시 조회는 이를 소모하지 않습니다.
 오류: **404** 작품 없음 / **429** 사용 한도 / **502** 외부 연결·응답 오류 / **503** 키·모델 미설정 또는 사용 불가 / **504** 시간 초과.
 
@@ -435,18 +442,23 @@ iPhone의 기기 TTS는 무음 모드에서 소리가 나지 않을 수 있어 �
 {
   "description": {
     "facts": ["붉은 형태가 있습니다."],
-    "interpretations": ["따뜻하게 느껴질 수 있습니다."],
+    "interpretations": ["붉은빛이 화면에 따뜻한 분위기를 더합니다."],
     "regions": [],
-    "mood_keywords": ["따뜻함"]
+    "mood_keywords": ["따뜻함"],
+    "narration_order": [{"type": "fact", "index": 0}, {"type": "interpretation", "index": 0}]
   },
   "review_status": "unreviewed",
   "warning": "AI 생성 해설입니다.",
-  "fallback": false
+  "fallback": false,
+  "segments": [
+    {"type": "fact", "text": "붉은 형태가 있습니다.", "region_index": null},
+    {"type": "interpretation", "text": "붉은빛이 화면에 따뜻한 분위기를 더합니다.", "region_index": null}
+  ]
 }
 ```
 
 작가·제목·연대 등을 추측하지 않는 시각 해설입니다. DB에 저장하지 않습니다.
-사실·해석 모드 전환은 반환된 배열 중 표시·재생할 항목을 FE에서 선택합니다.
+FE는 `segments` 순서대로 표시·재생합니다. 사실·해석 모드 전환도 이 순서를 유지하며 `type`으로 필터합니다. `description.facts` 뒤에 `description.interpretations`를 다시 붙이지 않습니다.
 JSON 스키마 검증이 실패하면 1회 재시도하고, 다시 실패하면 **200**과 아래 객체를 반환합니다.
 
 ```json
@@ -459,7 +471,8 @@ JSON 스키마 검증이 실패하면 1회 재시도하고, 다시 실패하면 
   },
   "review_status": "unreviewed",
   "warning": "AI 생성 해설입니다.",
-  "fallback": true
+  "fallback": true,
+  "segments": []
 }
 ```
 

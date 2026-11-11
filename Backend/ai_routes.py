@@ -67,17 +67,18 @@ class RecognitionResult(BaseModel):
         description="작품을 찍은 사진일 확률(CLIP 제로샷). 판별을 끈 경우 null")
 
 
+class NarrationSegment(BaseModel):
+    region_index: int | None = Field(default=None, ge=0)
+    type: Literal["fact", "interpretation"]
+    text: str
+
+
 class AnalysisResult(BaseModel):
     description: Description
     review_status: Literal["unreviewed"]
     warning: str
     fallback: bool = False
-
-
-class NarrationSegment(BaseModel):
-    region_index: int | None = Field(default=None, ge=0)
-    type: Literal["fact", "interpretation"]
-    text: str
+    segments: list[NarrationSegment] = Field(default_factory=list)
 
 
 class NarrationResult(BaseModel):
@@ -106,6 +107,7 @@ class GeneratedNarrationResult(AnalysisResult):
 
 
 AI_WARNING = "AI 생성 해설입니다."
+NARRATION_CACHE_VERSION = "narration-v4"
 
 # 지침대로 사람이 조사·검수한 상세 해설. 있으면 생성보다 우선한다.
 LONG_COMMENTARY_DIR = Path(__file__).resolve().parent.parent / "content" / "long-commentary"
@@ -128,7 +130,7 @@ def spoken_seconds(text: str) -> int:
 
 def narration_key(length: str, model: str, record: dict, content: bytes) -> str:
     """API와 일괄 생성 스크립트가 같은 저장소 키를 쓴다. 프롬프트·형식을 바꾸면 버전을 올린다."""
-    return sha256(json.dumps(["narration-v2", length, model, record, sha256(content).hexdigest()],
+    return sha256(json.dumps([NARRATION_CACHE_VERSION, length, model, record, sha256(content).hexdigest()],
                              sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -152,15 +154,31 @@ def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length
 
 
 def narration_segments(description: dict, mode: str = "both") -> list[dict]:
-    segments = []
-    if mode in {"facts", "both"}:
-        indices = description.get("fact_region_indices") or [None] * len(description["facts"])
-        segments.extend({"type": "fact", "text": text, "region_index": index}
-                        for text, index in zip(description["facts"], indices))
-    if mode in {"interpretations", "both"}:
-        indices = description.get("interpretation_region_indices") or [None] * len(description["interpretations"])
-        segments.extend({"type": "interpretation", "text": "가능한 감정적 해석입니다. " + text, "region_index": index}
-                        for text, index in zip(description["interpretations"], indices))
+    grouped = {}
+    for kind, field, links in (("fact", "facts", "fact_region_indices"),
+                               ("interpretation", "interpretations", "interpretation_region_indices")):
+        indices = description.get(links) or [None] * len(description[field])
+        grouped[kind] = [{"type": kind, "text": text, "region_index": index}
+                         for text, index in zip(description[field], indices)]
+    order = description.get("narration_order")
+    if order is not None:
+        segments = [grouped[item["type"]][item["index"]] for item in order]
+    else:
+        # 기존 검수 대본은 원문을 유지하며 같은 영역의 관찰과 감상을 연결한다.
+        segments, pending = [], list(grouped["interpretation"])
+        for fact in grouped["fact"]:
+            segments.append(fact)
+            linked = [item for item in pending if fact["region_index"] is not None
+                      and item["region_index"] == fact["region_index"]]
+            if not linked:
+                linked = [item for item in pending if item["region_index"] is None][:1]
+            segments.extend(linked)
+            for item in linked:
+                pending.remove(item)
+        segments.extend(pending)
+    if mode != "both":
+        kind = "fact" if mode == "facts" else "interpretation"
+        return [item for item in segments if item["type"] == kind]
     return segments
 
 
@@ -362,8 +380,9 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
         ai_limiter.check(client_key(request))
         normalized = await read_upload(image)
         description = await run_in_threadpool(gemini.describe, normalized.content)
+        fallback = getattr(description, "fallback", False)
         return {"description": description.model_dump(), "review_status": "unreviewed",
-                "fallback": getattr(description, "fallback", False),
+                "fallback": fallback, "segments": [] if fallback else narration_segments(description.model_dump()),
                 "warning": AI_WARNING}
 
     @router.post("/artworks/{artwork_id}/narration", response_model=GeneratedNarrationResult,

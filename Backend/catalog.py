@@ -30,6 +30,11 @@ class Region(BaseModel):
         return self
 
 
+class NarrationReference(BaseModel):
+    type: Literal["fact", "interpretation"]
+    index: int = Field(ge=0)
+
+
 class Description(BaseModel):
     facts: list[str]
     interpretations: list[str]
@@ -38,6 +43,8 @@ class Description(BaseModel):
     # facts/interpretations와 같은 길이. null은 특정 영역과 연결되지 않은 문장.
     fact_region_indices: list[int | None] | None = None
     interpretation_region_indices: list[int | None] | None = None
+    # 한 편으로 쓴 대본의 낭독 순서. 기존 검수 데이터는 없어도 된다.
+    narration_order: list[NarrationReference] | None = None
 
     @model_validator(mode="after")
     def validate_region_links(self):
@@ -49,6 +56,16 @@ class Description(BaseModel):
                 raise ValueError("해설 영역 인덱스는 해당 문장 배열과 길이가 같아야 합니다.")
             if any(index is not None and not 0 <= index < len(self.regions) for index in indices):
                 raise ValueError("해설 영역 인덱스가 regions 범위를 벗어났습니다.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_narration_order(self):
+        if self.narration_order is not None:
+            expected = {("fact", i) for i in range(len(self.facts))} | {
+                ("interpretation", i) for i in range(len(self.interpretations))}
+            actual = [(item.type, item.index) for item in self.narration_order]
+            if len(actual) != len(expected) or set(actual) != expected:
+                raise ValueError("낭독 순서는 모든 사실·해석 문장을 중복·누락 없이 한 번씩 참조해야 합니다.")
         return self
 
 

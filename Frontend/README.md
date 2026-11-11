@@ -288,11 +288,12 @@ export type Region = {
 
 export type Description = {
   facts: string[];            // 객관적 시각 정보 (인물, 사물, 색채, 구도)
-  interpretations: string[];  // 분위기와 가능한 감정적 해석
+  interpretations: string[];  // 시각적 단서에 근거한 분위기와 감정 해설
   regions: Region[];          // 영역 터치, 위치 안내
   mood_keywords: string[];    // 배경음악 추천 (P2)
   fact_region_indices: (number | null)[] | null;
   interpretation_region_indices: (number | null)[] | null;
+  narration_order?: { type: 'fact' | 'interpretation'; index: number }[] | null;
 };
 
 export type Artwork = {
@@ -313,7 +314,7 @@ export type Artwork = {
 ```
 
 - `description`이 `null`이면 "아직 해설이 준비되지 않았어요"를 보여주고 해설 버튼을 비활성화합니다 (데모용 모나리자도 현재 `null`).
-- 사실(`facts`)과 해석(`interpretations`)은 화면과 음성 모두에서 **섞지 않고 따로** 보여줍니다.
+- 사실(`facts`)과 해석(`interpretations`) 분류는 유지합니다. '둘 다 듣기'는 서버의 `segments` 순서대로 관찰과 감상이 자연스럽게 이어지며, 유형별로 다시 묶지 않습니다.
 - **썸네일은 따로 없습니다.** 목록에서도 `image_url`을 `expo-image`로 작게 띄웁니다. 느리면 BE에 썸네일을 요청합니다.
 - 작품 번호·미술관 ID는 BE에 반영됐습니다. FE API 연결 시 `number`, `museum_id`, `museum`의 null을 처리합니다. 번호는 문자열로 유지하며 숫자로 바꾸지 않습니다.
 - 작품·미술관·이미지는 실제 BE 카탈로그에서 가져옵니다. 임시 데이터 대체는 사용하지 않습니다.
@@ -333,7 +334,10 @@ export type Narration = {
 ```
 
 - 해설 재생(3)은 `segments`를 **한 문장씩** `expo-speech`로 읽습니다. 그래야 반복, 진행 바, 지금 읽는 문장 표시를 할 수 있습니다.
-- 해석 문장은 BE가 앞에 "가능한 감정적 해석입니다."를 붙여서 줍니다. FE에서 다시 붙이지 않습니다.
+- 해석 문장도 별도 안내 문구 없이 `text`를 그대로 표시·재생합니다. 사실·해석 구분에는 `type`을 사용합니다.
+- AI는 하나의 완성된 대본을 쓴 뒤 `facts`·`interpretations`로 분류하고 `narration_order`에 낭독 순서를 기록합니다. 서버가 이 순서를 `segments`로 변환하므로 FE에서 배열을 다시 합치지 않습니다. 사실만·해석만 듣기는 이 순서를 유지하며 `type`으로 필터합니다.
+- 1분용은 전체 대본 300~350자를 점검해 필요하면 한 번 고쳐 쓰고, 3분용은 주제 안에서 사실·감상이 이어지는 섹션 순서와 필수 내용을 유지합니다. 단독 모드의 재생 시간은 남은 문장 수에 따라 짧아질 수 있습니다.
+- 미등록 작품 `/analyze` 응답도 `segments`를 제공하므로 동일한 낭독 순서를 사용합니다.
 - "지금 설명하는 영역"은 `region_index`로 작품 상세 `description.regions`를 참조합니다(0부터). null은 강조하지 않습니다. 기존 해설은 연결 검수 전까지 null입니다.
 - 해설이 없으면 409가 옵니다.
 

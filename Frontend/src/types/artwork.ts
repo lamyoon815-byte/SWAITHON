@@ -12,6 +12,10 @@ export type Description = {
   interpretations: string[];
   regions: Region[];
   mood_keywords: string[];
+  fact_region_indices?: (number | null)[] | null;
+  interpretation_region_indices?: (number | null)[] | null;
+  /** 하나의 대본으로 구성한 사실·감상의 낭독 순서 */
+  narration_order?: { type: 'fact' | 'interpretation'; index: number }[] | null;
 };
 
 export type Artwork = {

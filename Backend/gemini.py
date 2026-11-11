@@ -17,9 +17,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 if __package__:
-    from .catalog import Description
+    from .catalog import Description, NarrationReference
 else:
-    from catalog import Description
+    from catalog import Description, NarrationReference
 
 
 class PlacardText(BaseModel):
@@ -58,6 +58,25 @@ def spoken_chars(text: str) -> int:
     return len(re.sub(r"\s", "", text))
 
 
+NARRATION_STYLE_GUIDE = (
+    "문체와 감정 해설 지침:\n"
+    "- 전시실의 도슨트처럼 쉽고 자연스러운 존댓말로 쓰세요. 한 문장에는 하나의 감상 포인트만 담으세요.\n"
+    "- 감정 해설은 색·빛·구도·붓자국·표정·자세 등 실제 보이는 단서와 그 단서가 전하는 분위기를 연결하세요. "
+    "예: '넓은 빈 공간과 옅은 빛이 고요한 분위기를 만듭니다.'\n"
+    "- '가능한 감정적 해석입니다', '감정적으로 해석하면' 같은 안내 문구를 붙이지 마세요. "
+    "'아마', '어쩌면', '~일 수 있습니다', '~느껴질 수 있습니다' 같은 불필요한 추측 표현도 반복하지 마세요.\n"
+    "- 관람객의 감정을 정해 주거나, 근거 없는 작가의 의도·인물의 속마음을 지어내지 마세요. "
+    "시각적 근거가 부족한 감정 해석은 생략하세요.\n"
+    "- 주어와 서술어가 자연스럽게 이어지는 완결된 문장으로 쓰세요. "
+    "답을 내기 전에 번역투, 추상적인 감정 나열, 같은 내용의 반복, 어색한 연결을 고쳐 다듬으세요.\n"
+    "- 사실과 감정을 모두 듣는 한 편의 대본입니다. 사실 설명을 모두 끝낸 뒤 감정 해설을 몰아서 붙이지 마세요. "
+    "같은 대상의 관찰과 그에 따른 감상을 가까이 두고, 다음 대상이나 주제로 자연스럽게 이동하세요. "
+    "기계적으로 한 문장씩 번갈아 쓰지 말고 이야기 흐름에 맞게 구성하세요.\n"
+    "- 사실만 또는 해석만 들어도 이해되도록 문장 속 대상을 분명히 밝히세요. "
+    "'이것', '앞서 말했듯이'처럼 다른 유형의 문장을 들어야만 알 수 있는 표현은 피하세요.\n"
+)
+
+
 LONG_GUIDE = (
     "저시력·색각이상 관람객을 위한 미술관 앱의 '상세 음성 해설'(낭독 약 3분)을 쓰세요.\n"
     "순서와 비중: intro 들어가며(제목·화가·제작 연도·소장처와 관심을 끄는 한 줄, 10%) → artist 화가(이 작품을 그릴 무렵의 상황, 15%) → "
@@ -75,8 +94,15 @@ LONG_GUIDE = (
     "- 단순한 그림 묘사나 분위기 형용사 나열은 줄이고 미술사 정보에 집중하세요.\n"
     "- TTS로 읽기 좋게: 괄호·각주 번호·영어 약어·특수기호(※, /, ~)를 본문에 넣지 마세요. 연도는 '1889년'처럼 쓰세요.\n"
     "- 제목과 화가 이름은 주어진 한국어 표기를 그대로 쓰세요.\n"
-    "- 사실과 해석이 섞이면 섹션을 나누세요. type은 사실 fact, 해석·평가·감상 유도 interpretation."
+    "- 사실과 해석이 섞이면 섹션을 나누세요. type은 사실 fact, 해석·평가·감상 유도 interpretation.\n"
+    "- 위 순서는 주제의 흐름입니다. 같은 주제의 사실과 감상이 이어질 때는 key를 반복해 "
+    "fact 섹션과 interpretation 섹션을 이웃하게 배치하세요. 해석을 뒤쪽 섹션으로 모두 미루지 마세요.\n"
+    + NARRATION_STYLE_GUIDE
 )
+
+
+class NarratedDescription(Description):
+    narration_order: list[NarrationReference] = Field(min_length=1)
 
 
 class FallbackDescription(Description):
@@ -191,8 +217,12 @@ class GeminiService:
         prompt = (
             "저시력·색각이상 사용자를 위한 한국어 작품 해설을 작성하세요. "
             + ("facts와 interpretations를 모두 합쳐 공백 제외 300~350자(낭독 약 1분)로 간결하게 쓰고, 한 문장은 50자 안팎으로 하세요. " if brief else "")
-            + 
-            "facts에는 실제 보이는 인물·사물·색채·구도를, interpretations에는 가능한 감정 해석을 분리하세요. "
+            + NARRATION_STYLE_GUIDE
+            + "facts에는 실제 보이는 인물·사물·색채·구도를, interpretations에는 시각적 단서에 근거한 분위기와 감정 해설을 분리하세요. "
+            "먼저 사실 관찰과 감상이 주제별로 이어지는 하나의 완성된 대본을 구성한 다음, "
+            "각 문장을 facts 또는 interpretations에 분류하고 narration_order에 실제 낭독 순서를 기록하세요. "
+            "narration_order의 각 항목은 type=fact 또는 interpretation, index=해당 문장 배열의 0부터 시작하는 번호입니다. "
+            "모든 문장을 중복이나 누락 없이 한 번씩 넣으세요. 사실 배열 뒤에 해석 배열을 단순히 이어 붙인 순서는 피하세요. "
             "regions에는 명확히 식별되는 영역의 label, color와 bbox=[왼쪽 x,위쪽 y,너비,높이]를 넣으세요. "
             "bbox는 회전 보정된 전체 이미지 기준 0~1 비율이며 경계를 벗어나지 않아야 합니다. "
             "정확한 위치를 알 수 없으면 regions는 빈 배열로 두세요. mood_keywords는 분위기 키워드 배열입니다. "
@@ -204,14 +234,28 @@ class GeminiService:
             prompt += "다음 작품 메타데이터만 배경 정보의 근거로 사용하세요: " + json.dumps(known, ensure_ascii=False)
         else:
             prompt += "미등록 작품입니다. 작가, 제목, 제작 연도나 역사적 배경을 추측하지 마세요."
+        result = None
         try:
-            return self.generate(content, prompt, Description)
+            for _ in range(2 if brief else 1):
+                try:
+                    draft = self.generate(content, prompt, NarratedDescription)
+                except GeminiSchemaError:
+                    if result is not None:
+                        break
+                    # 영역 좌표 오류로 대본까지 잃지 않도록 상자 없이 다시 생성한다.
+                    draft = self.generate(content, prompt + " 이번에는 regions를 빈 배열로, 영역 인덱스는 모두 null로 두세요.", NarratedDescription)
+                count = spoken_chars(" ".join(draft.facts + draft.interpretations))
+                if result is None or abs(count - 325) < abs(spoken_chars(" ".join(result.facts + result.interpretations)) - 325):
+                    result = draft
+                if not brief or 300 <= count <= 350:
+                    break
+                prompt += (f"\n[대본 점검] 아래 초안은 공백 제외 {count}자입니다. "
+                           "사실과 감정이 이어지는 흐름을 유지하며 합계 300~350자로 고쳐 쓰세요. "
+                           "같은 설명을 반복해 길이를 채우지 마세요.\n초안: " + draft.model_dump_json())
+            return result
         except GeminiSchemaError:
-            pass
-        try:
-            # 대부분 영역 상자 좌표가 그림 밖으로 벗어난 경우다. 상자 없이 해설 문장만 다시 받는다.
-            return self.generate(content, prompt + " 이번에는 regions를 빈 배열로, 영역 인덱스는 모두 null로 두세요.", Description)
-        except GeminiSchemaError:
+            if result is not None:
+                return result
             return FallbackDescription(
                 facts=["해설을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."],
                 interpretations=[], regions=[], mood_keywords=[],
@@ -254,16 +298,19 @@ class GeminiService:
         for _ in range(3):
             draft = self.generate(content, write_prompt, LongCommentary)
             draft_text = " ".join(section.text for section in draft.sections)
-            if result is None or abs(spoken_chars(draft_text) - 1020) < abs(spoken_chars(text) - 1020):
-                result, text = draft, draft_text
             missing = required - {section.key for section in draft.sections}
+            score = (len(missing), abs(spoken_chars(draft_text) - 1020))
+            if result is None or score < (len(required - {section.key for section in result.sections}), abs(spoken_chars(text) - 1020)):
+                result, text = draft, draft_text
             count = spoken_chars(draft_text)
             if 900 <= count <= 1200 and not missing:
                 break
             # 3분(약 1,000자)에 못 미치거나 넘치면, 빠진 섹션과 함께 고쳐 쓰게 한다.
             write_prompt += (f"\n\n[고쳐 쓰기] 방금 글은 공백 제외 {count}자였습니다. 반드시 950~1,100자로 맞추세요. "
                              + (f"빠진 섹션: {', '.join(sorted(missing))}. " if missing else "")
-                             + "조사 노트의 사실을 더 활용해 각 섹션을 두세 문장 이상으로 채우되, 노트에 없는 내용은 지어내지 마세요.")
+                             + "조사 노트의 사실을 활용하되 노트에 없는 내용은 지어내지 마세요. "
+                             "관련 사실과 감상이 주제별로 이어지도록 하고 같은 내용을 반복하지 마세요.\n초안: "
+                             + draft.model_dump_json())
         return {"sections": [section.model_dump() for section in result.sections],
                 "quotes": [quote.model_dump() for quote in result.quotes], "notes": result.notes,
                 "sources": sources, "char_count": spoken_chars(text), "estimated_seconds": round(spoken_chars(text) / 5.5)}

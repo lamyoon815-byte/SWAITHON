@@ -8,7 +8,7 @@ export type NarrationLength = 'brief' | 'detailed';
 
 export type NarrationSegment = {
   type: 'fact' | 'interpretation';
-  /** 해석 문장은 BE가 앞에 "가능한 감정적 해석입니다."를 붙여 준다. FE에서 다시 붙이지 않는다. */
+  /** 화면과 음성에 그대로 쓰는 완결된 문장. 사실·해석 구분은 type을 사용한다. */
   text: string;
   /** 작품 상세 `description.regions`의 번호(0부터). null이면 영역을 강조하지 않는다. */
   region_index: number | null;
