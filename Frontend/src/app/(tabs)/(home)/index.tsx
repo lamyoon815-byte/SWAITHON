@@ -100,7 +100,7 @@ export default function HomeScreen() {
   };
 
   // 음성으로 찾기: 번호("12번", "십이")나 제목·작가 이름을 말하면 현재 미술관에서 찾아 연다.
-  const voice = useVoiceAnswer();
+  const voice = useVoiceAnswer('artwork');
   const findByVoice = () => {
     // 미술관을 고른 적이 없을 때만 고르라고 한다. 고른 미술관의 목록을 받는 중이면 그렇게 알려 준다.
     if (!museumId) {
@@ -112,7 +112,7 @@ export default function HomeScreen() {
       if (artworksRes.error) artworksRes.reload();
       return;
     }
-    voice.toggle({
+    voice.startHolding({
       onText: async (text) => {
         const numbers = spokenNumbers(text);
         const squash = (value: string) => value.replace(/[\s.,·:;'"!?()-]/g, '').toLowerCase();
@@ -192,9 +192,10 @@ export default function HomeScreen() {
             ios={voice.state === 'recording' ? 'stop.fill' : 'mic'}
             android={voice.state === 'recording' ? 'stop' : 'mic'}
             label={voice.state === 'recording' ? '듣고 있어요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 찾기'}
-            hint={voice.state === 'recording' ? '다 말했으면 누르세요' : '작품 번호나 제목을 말해 주세요'}
+            hint="누른 채로 작품 번호나 제목을 말하고, 다 말하면 손을 떼 주세요"
             palette={palette}
-            onPress={findByVoice}
+            onPressIn={findByVoice}
+            onPressOut={voice.stopHolding}
           />
         </View>
 
@@ -301,17 +302,21 @@ type WayButtonProps = {
   label: string;
   hint?: string;
   palette: Palette;
-  onPress: () => void;
+  onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
 };
 
 /** 검색창 아래 반반 칸. 아이콘은 가는 선 모양으로 작게, 옅은 원 안에 여유 있게 둔다. */
-function WayButton({ ios, android, label, hint, palette, onPress }: WayButtonProps) {
+function WayButton({ ios, android, label, hint, palette, onPress, onPressIn, onPressOut }: WayButtonProps) {
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       style={({ pressed }) => [
         styles.way,
         sectionSurface(palette),
