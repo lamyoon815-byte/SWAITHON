@@ -39,9 +39,16 @@ INSTRUCTIONS = (
 
 
 class RealtimeRateLimited(HTTPException):
-    """One model's request/rate limit only (not exhausted credit): the next candidate may still work."""
-    def __init__(self, detail: str = "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요."):
+    """One model's request/rate limit only (not exhausted credit): the next candidate may still work.
+    daily=True for a requests-per-day limit (rest the model longer); otherwise a short per-minute limit."""
+    def __init__(self, detail: str = "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.", daily: bool = False):
         super().__init__(429, detail)
+        self.daily = daily
+
+
+def is_daily_limit(message) -> bool:
+    text = str(message or "").lower()
+    return "per day" in text or "(rpd)" in text
 
 
 def speech_api_error(status, error):
@@ -139,15 +146,19 @@ class OpenAISpeechService:
 
     async def _generate_and_store(self, key, text):
         candidates = [(self._generate, m) for m in self.realtime_models] + [(self._fallback, m) for m in self.speech_models]
+        now = time.monotonic()
+        ready = [c for c in candidates if now >= self.blocked_until.get(c[1], 0)]
+        # Daily limits free up gradually over 24 hours, so when every model is resting, try them all
+        # again (soonest first) instead of failing at once.
+        order = ready or sorted(candidates, key=lambda c: self.blocked_until.get(c[1], 0))
         last_error = None
-        for make, model in candidates:
-            if time.monotonic() < self.blocked_until.get(model, 0):
-                continue
+        for make, model in order:
             try:
                 audio = await make(text, model)
             except RealtimeRateLimited as exc:
-                # This model's own limit is used up: skip it for a while and try the next one.
-                self.blocked_until[model] = time.monotonic() + self.fallback_pause
+                # This model's own limit: rest it (long for a daily limit, briefly for a per-minute one).
+                pause = self.fallback_pause if exc.daily else 20
+                self.blocked_until[model] = time.monotonic() + pause
                 last_error = exc
                 continue
             except HTTPException as exc:
@@ -194,7 +205,7 @@ class OpenAISpeechService:
                                 if upstream.get("code") == "credit_balance_exhausted":
                                     raise HTTPException(429, "OpenAI API 크레딧이 부족해 음성을 만들 수 없어요. 관리자에게 충전을 요청해 주세요.")
                                 if upstream.get("code") == "rate_limit_exceeded":
-                                    raise RealtimeRateLimited()
+                                    raise RealtimeRateLimited(daily=is_daily_limit(upstream.get("message")))
                                 limited = upstream.get("code") == "insufficient_quota" or upstream.get("type") == "insufficient_quota"
                                 raise HTTPException(429 if limited else 502, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
                             if kind == "session.created":
@@ -275,7 +286,8 @@ class OpenAISpeechService:
                 error = {}
             if response.status_code == 429 and error.get("code") == "rate_limit_exceeded":
                 # This model only; the next candidate has its own limit. Keep the explained message.
-                raise RealtimeRateLimited(speech_api_error(response.status_code, error).detail)
+                raise RealtimeRateLimited(speech_api_error(response.status_code, error).detail,
+                                          daily=is_daily_limit(error.get("message")))
             raise speech_api_error(response.status_code, error)
         self.budget.record(None)  # No token usage in this response: charge the reserved maximum.
         return pcm_wav(response.content)

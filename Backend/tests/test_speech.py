@@ -2,6 +2,7 @@ import asyncio
 import base64
 from io import BytesIO
 import json
+import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -140,6 +141,16 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         # Limited models are skipped while paused: the second sentence goes straight to tts-1.
         self.assertEqual(realtime.call_count, 2)
         self.assertEqual([c.args[1] for c in fallback.call_args_list], ["tts-1-hd", "tts-1", "tts-1"])
+
+    async def test_when_every_model_is_resting_they_are_tried_again(self):
+        with patch.dict("os.environ", {"OPENAI_TTS_SPEECH_MODELS": "tts-1"}):
+            service = self.service(FakeSocket())
+        audio = pcm_wav(b"\x00\x00" * 240)
+        service.blocked_until = {"gpt-realtime-2.1-mini": time.monotonic() + 999, "tts-1": time.monotonic() + 999}
+        with patch.object(service, "_generate", side_effect=RealtimeRateLimited(daily=True)), \
+                patch.object(service, "_fallback", return_value=audio) as fallback:
+            self.assertEqual((await service.synthesize("붉은 꽃이 보여요."))[1], audio)  # not an instant 429
+        fallback.assert_called_once()
 
     async def test_classic_tts_models_use_a_supported_voice_without_instructions(self):
         service = self.service(FakeSocket())
