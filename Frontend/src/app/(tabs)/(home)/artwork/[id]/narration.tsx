@@ -510,9 +510,9 @@ export default function NarrationScreen() {
               accessibilityRole="button"
               accessibilityLabel={`재생 속도 ${formatRate(rate)}. 누르면 속도를 고를 수 있어요`}
               onPress={() => setSpeedOpen(true)}
-              style={({ pressed }) => [styles.round, { backgroundColor: pressed ? palette.highlight : palette.fill }]}>
+              style={({ pressed }) => [styles.speed, { backgroundColor: pressed ? palette.highlight : palette.fill }]}>
               {({ pressed }) => (
-                <Text style={[styles.speedText, { color: pressed ? palette.highlightText : palette.text }]}>
+                <Text numberOfLines={1} style={[styles.speedText, { color: pressed ? palette.highlightText : palette.text }]}>
                   {rate === 1 ? '1배' : `${rate}배`}
                 </Text>
               )}
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   hiddenNarration: { opacity: 0 },
   fullscreenArtwork: { ...StyleSheet.absoluteFill, zIndex: 100, backgroundColor: '#000000' },
   lengthWrap: { gap: 6, paddingHorizontal: ScreenPadding, paddingTop: Spacing.three },
-  lengthHint: { fontSize: 15, textAlign: 'center' },
+  lengthHint: { fontSize: 16, textAlign: 'center' },
   screen: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -679,11 +679,11 @@ const styles = StyleSheet.create({
   captionTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   captionCount: { marginLeft: 'auto', fontSize: 16, fontWeight: 700, fontVariant: ['tabular-nums'] },
   captionText: { fontSize: FontSize.body, fontWeight: 600, lineHeight: 32 },
-  status: { fontSize: 16, lineHeight: 24, fontWeight: 600 },
+  status: { fontSize: FontSize.label, lineHeight: 26, fontWeight: 600 },
   sheetLabel: { fontSize: 16, fontWeight: 700 },
   sheetHint: { fontSize: 16, lineHeight: 24, marginBottom: Spacing.two },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1.5, borderRadius: 10 },
-  tagText: { fontSize: 14, fontWeight: 800 },
+  tagText: { fontSize: 16, fontWeight: 800 },
   modes: { flexDirection: 'row', gap: ButtonGap, marginBottom: Spacing.one },
   mode: {
     flexGrow: 1,
@@ -726,6 +726,15 @@ const styles = StyleSheet.create({
   round: {
     width: MinTouchTarget,
     height: MinTouchTarget,
+    borderRadius: MinTouchTarget / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // 속도 글자("1.25배")가 글씨를 키워도 넘치지 않게 동그라미 대신 늘어나는 알약 모양.
+  speed: {
+    minWidth: MinTouchTarget,
+    height: MinTouchTarget,
+    paddingHorizontal: 10,
     borderRadius: MinTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
