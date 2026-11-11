@@ -19,6 +19,7 @@ if __package__:
     from .ai_routes import create_ai_router
     from .ai.budget import GeminiBudget
     from .speech import OpenAISpeechService, create_speech_router
+    from .transcription import OpenAITranscriptionService, create_transcription_router
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
@@ -28,6 +29,7 @@ else:
     from ai_routes import create_ai_router
     from ai.budget import GeminiBudget
     from speech import OpenAISpeechService, create_speech_router
+    from transcription import OpenAITranscriptionService, create_transcription_router
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -78,6 +80,8 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     application.state.recognition = recognition
     application.state.speech = OpenAISpeechService(store.data_dir)
     application.include_router(create_speech_router(application.state.speech))
+    application.state.transcription = OpenAITranscriptionService(store.data_dir)
+    application.include_router(create_transcription_router(application.state.transcription))
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,

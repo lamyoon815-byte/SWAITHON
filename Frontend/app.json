@@ -41,7 +41,7 @@
         "expo-camera",
         {
           "cameraPermission": "작품이나 명패를 촬영해 작품을 인식하려면 카메라 권한이 필요합니다.",
-          "microphonePermission": false,
+          "microphonePermission": "화면 맞추기에서 보이는 숫자를 말로 답하려면 마이크 권한이 필요합니다.",
           "recordAudioAndroid": false
         }
       ],
@@ -49,8 +49,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": false,
-          "recordAudioAndroid": false,
+          "microphonePermission": "화면 맞추기에서 보이는 숫자를 말로 답하려면 마이크 권한이 필요합니다.",
+          "recordAudioAndroid": true,
           "enableBackgroundPlayback": false
         }
       ],
@@ -59,7 +59,7 @@
         {
           "photosPermission": "프로필 사진으로 쓸 사진을 고르려면 사진 접근 권한이 필요합니다.",
           "cameraPermission": "작품을 촬영하거나 프로필 사진을 찍으려면 카메라 권한이 필요합니다.",
-          "microphonePermission": false
+          "microphonePermission": "화면 맞추기에서 보이는 숫자를 말로 답하려면 마이크 권한이 필요합니다."
         }
       ]
     ],

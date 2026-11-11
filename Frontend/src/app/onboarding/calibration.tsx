@@ -5,18 +5,22 @@ import { StatusBar } from 'expo-status-bar';
 import { useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SymbolView } from 'expo-symbols';
 
 import { CALIBRATION, type CalibrationPlate } from '@/assets/images/calibration';
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { Text } from '@/components/common/text';
+import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { ButtonRadius, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
 import { useSettings } from '@/hooks/use-settings';
 import { useSpeech } from '@/hooks/use-speech';
+import { useVoiceAnswer } from '@/hooks/use-voice-answer';
+import { matchSpokenChoice } from '@/lib/spoken-answer';
 import { advanceCalibration, initialCalibration, screeningSuggestion, type CalibrationAction, type CalibrationPhase } from '@/lib/calibration-flow';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
 
@@ -49,7 +53,7 @@ export default function CalibrationScreen() {
         : phase === 'contrast' ? `대비 · ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '화면 맞추기 완료';
   const question = plate ? '어떤 숫자가 보이나요?' : phase === 'manual' ? '색 보정을 선택해 주세요'
     : phase === 'edge' ? '윤곽선이 또렷하게 보이나요?' : phase === 'contrast' ? '밝은 부분이 구분되나요?' : '보기 설정을 찾았어요';
-  const description = plate ? '그림 속 숫자를 골라 주세요.' : phase === 'manual' ? '편하게 보는 데 필요한 색 보정을 골라 주세요.'
+  const description = plate ? '그림 속 숫자를 고르거나 말로 답해 주세요.' : phase === 'manual' ? '편하게 보는 데 필요한 색 보정을 골라 주세요.'
     : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast' ? CALIBRATION.contrast.question : '설정을 확인하고 감상을 시작해 보세요.';
   useSpeech(`${progress}. ${question} ${description}`);
 
@@ -89,6 +93,26 @@ export default function CalibrationScreen() {
       showToast('설정을 저장하지 못했어요. 선택한 값은 유지돼요. 다시 시도해 주세요.', 'error');
     }
   };
+  const voice = useVoiceAnswer();
+  // 들은 말은 그 문제(frame)에서만 보여 준다. 다음 문제로 넘어가면 사라진다.
+  const [heard, setHeard] = useState<{ frame: typeof state; message: string } | null>(null);
+  const answerByVoice = () => {
+    if (!plate || disabled || !imageReady) return;
+    const frame = state;
+    setHeard(null);
+    voice.toggle({
+      onText: (text) => {
+        const match = matchSpokenChoice(text, plate.choices);
+        if (match) {
+          showToast(`"${match}"(으)로 들었어요`, 'success');
+          act({ type: 'answer', value: match });
+        } else {
+          setHeard({ frame, message: text ? `"${text}"(으)로 들었어요. 다시 말하거나 버튼을 눌러 주세요.` : '잘 들리지 않았어요. 다시 말하거나 버튼을 눌러 주세요.' });
+        }
+      },
+      onError: (message) => setHeard({ frame, message }),
+    });
+  };
   const choice = (label: string, action: CalibrationAction) => {
     // 숫자 보기는 노란색으로 채우고, "숫자가 안 보여요"·색 보정 종류는 테두리 버튼으로 둔다.
     const filled = action.type === 'answer' && /^\d+$/.test(label);
@@ -106,9 +130,7 @@ export default function CalibrationScreen() {
       <View style={styles.header}>
         <View style={styles.headerSide}><BackButton label="이전 화면으로" palette={palette} onPress={moveBack} /></View>
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>화면 맞추기</Text>
-        <View style={styles.headerSide}>{phase !== 'complete' && <Pressable accessibilityRole="button" accessibilityLabel="이 항목 건너뛰기" accessibilityHint="현재 항목을 보정 없음으로 두고 다음 항목으로 이동해요" disabled={disabled} onPress={() => act({ type: 'skip' })} style={({ pressed }) => [styles.skipTarget, { opacity: disabled ? 0.4 : pressed ? 0.7 : 1 }]}>
-          <View style={[styles.skipPill, { borderColor: palette.outline }]}><Text style={[styles.skipText, { color: palette.textSecondary }]}>건너뛰기</Text></View>
-        </Pressable>}</View>
+        <View style={styles.headerSide} />
       </View>
       <View style={styles.progressBar}>
         <View style={styles.progressRow}>
@@ -136,6 +158,23 @@ export default function CalibrationScreen() {
         {phase === 'contrast' && <CorrectionCanvas source={CALIBRATION.contrast.image} accessibilityLabel="흰 옷을 입은 인물과 뒤의 흰 커튼, 대비 비교 그림" correction={{ contrast: CALIBRATION.contrast.levels[index], brightness: 0, sharpen: 0, strength: 1 }} palette={palette} style={styles.contrastPicture} />}
 
         {plate && <View style={styles.choices}>{plate.choices.map((label) => choice(label, { type: 'answer', value: label }))}</View>}
+        {plate && <Pressable accessibilityRole="button"
+          accessibilityLabel={voice.state === 'recording' ? '말하기 끝내기' : voice.state === 'thinking' ? '알아듣는 중' : '말로 답하기'}
+          accessibilityHint={voice.state === 'recording' ? '누르면 녹음을 멈추고 답을 확인해요' : `누른 뒤 보이는 숫자를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`}
+          accessibilityState={{ disabled: disabled || !imageReady || voice.state === 'thinking', busy: voice.state === 'thinking' }}
+          disabled={disabled || !imageReady || voice.state === 'thinking'} onPress={answerByVoice}
+          style={({ pressed }) => [styles.voice, voice.state === 'recording'
+            ? { backgroundColor: palette.highlight, borderColor: palette.highlight }
+            : { backgroundColor: 'transparent', borderColor: palette.border },
+          { opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}>
+          {voice.state === 'thinking' ? <ActivityIndicator color={palette.text} />
+            : <SymbolView name={voice.state === 'recording' ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
+              size={22} tintColor={voice.state === 'recording' ? palette.highlightText : palette.text} />}
+          <Text style={[styles.voiceText, { color: voice.state === 'recording' ? palette.highlightText : palette.text }]}>
+            {voice.state === 'recording' ? '듣고 있어요 · 다 말했으면 누르세요' : voice.state === 'thinking' ? '알아듣는 중…' : '말로 답하기'}
+          </Text>
+        </Pressable>}
+        {plate && heard?.frame === state && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.note, { color: palette.text }]}>{heard.message}</Text>}
         {plate && <Text style={[styles.note, { color: palette.textSecondary }]}>정답을 몰라도 괜찮아요.</Text>}
         {phase === 'manual' && <View style={styles.manual}>
           {!manual && suggestion !== null ? <>
@@ -147,12 +186,13 @@ export default function CalibrationScreen() {
         {(phase === 'edge' || phase === 'contrast') && <View style={styles.manual}>
           <View style={styles.buttonRow}><BigButton label="잘 보여요" palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'visible' })} /></View>
           <View style={styles.buttonRow}><BigButton label="아직 잘 안 보여요" selected={false} palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'not-visible' })} /></View>
-          {phase === 'contrast' && Platform.OS === 'web' && <Text style={[styles.note, { color: palette.textSecondary }]}>대비 맞추기는 휴대폰에서 진행해 주세요. 웹에서는 건너뛰기로 기본값을 사용할 수 있어요.</Text>}
+          {phase === 'contrast' && Platform.OS === 'web' && <Text style={[styles.note, { color: palette.textSecondary }]}>대비 맞추기는 휴대폰에서 진행해 주세요. 웹에서는 아래 「이 단계 건너뛰기」로 기본값을 사용할 수 있어요.</Text>}
         </View>}
         {phase === 'complete' && <View style={styles.manual}>
           <Text style={[styles.note, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>
           <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '보정값 확인하기'} palette={palette} disabled={disabled} onPress={() => { void finish(); }} /></View>
         </View>}
+        {phase !== 'complete' && <TextButton label="이 단계 건너뛰기" accessibilityHint="지금 단계는 보정 없음으로 두고 다음 단계로 이동해요" palette={palette} disabled={disabled} onPress={() => act({ type: 'skip' })} />}
         {error && <View style={styles.manual}><Text style={[styles.note, { color: palette.textSecondary }]}>기존 설정을 불러오지 못했어요.</Text><View style={styles.buttonRow}><BigButton label="설정 다시 불러오기" palette={palette} onPress={() => { void reloadProfile(); }} /></View></View>}
       </ScrollView>
     </SafeAreaView>
@@ -164,9 +204,6 @@ const styles = StyleSheet.create({
   header: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.two, gap: Spacing.two },
   headerSide: { width: 88, minHeight: MinTouchTarget, justifyContent: 'center' },
   title: { flex: 1, fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center' },
-  skipTarget: { minHeight: MinTouchTarget, minWidth: MinTouchTarget, justifyContent: 'center', alignItems: 'center' },
-  skipPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
-  skipText: { fontSize: FontSize.label, fontWeight: 600, textAlign: 'center' },
   content: { flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.four },
   progressBar: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.one, paddingBottom: Spacing.two },
   progressRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
@@ -181,6 +218,8 @@ const styles = StyleSheet.create({
   imageState: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', padding: Spacing.three, gap: Spacing.three },
   contrastPicture: { height: 300, borderRadius: 24, borderWidth: 1.5 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  voice: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two, borderWidth: 2, borderRadius: ButtonRadius, paddingHorizontal: Spacing.three, paddingVertical: 10 },
+  voiceText: { flexShrink: 1, fontSize: FontSize.label, fontWeight: 700, textAlign: 'center' },
   choice: { flexBasis: '45%', flexGrow: 1, minHeight: 76, borderWidth: 2, borderRadius: ButtonRadius, padding: 12, alignItems: 'center', justifyContent: 'center' },
   choiceText: { fontSize: FontSize.button, fontWeight: 700, textAlign: 'center', lineHeight: 32 },
   note: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
