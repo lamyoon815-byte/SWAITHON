@@ -82,6 +82,38 @@ Gemini를 사용할 때는 `Backend/.env.example`을 `Backend/.env`로 복사해
 저장 위치를 바꾸려면 서버와 가져오기 명령에 같은 `MOMI_DATA_DIR` 환경변수를 설정한다.
 이미지 파일 경로는 JSON에서 관리하고 등록은 CLI로만 수행한다.
 
+### 공개(CC0) 회화 대량 등록
+
+시카고 미술관·메트로폴리탄·클리블랜드 미술관의 공개 API에서 자유 이용(CC0) 회화만 모아
+`catalog.open-access.json`을 만든다. 이미지는 저장소에 넣지 않고 `data/open-access/`에 내려받는다.
+카탈로그(JSON)는 커밋돼 있으므로 다른 컴퓨터에서는 이미지만 받아 등록하면 된다.
+
+```bash
+./.venv/bin/python fetch_open_access.py --download-only   # 커밋된 카탈로그의 이미지만 받기
+./.venv/bin/python import_catalog.py catalog.open-access.json
+./.venv/bin/python build_index.py                          # 카메라 인식 색인 다시 만들기
+```
+
+새로 모으려면 `fetch_open_access.py --per-museum 100`을 실행한다(제목·작가 한국어 표기에 Gemini 사용).
+미술관 설명문은 `background`에 넣어 AI 해설 생성의 참고 자료로 쓴다.
+시카고 미술관 설명문은 CC BY 4.0이라 `license`에 출처를 함께 적는다.
+루브르·국립현대미술관 이미지는 이용 조건(비상업·변경 금지 등) 때문에 넣지 않았다.
+
+### 국내 작품 등록
+
+- `catalog.korea.json`: 국립현대미술관 저작권만료 소장품(공공누리 제1유형 설명문) 중 위키미디어 공용에
+  퍼블릭 도메인 사진이 있는 작품. 국립현대미술관 홈페이지 사진은 "무단 이용 금지" 표시가 있어 쓰지 않는다.
+- `catalog.korea-commons.json`: 위키미디어 공용 `Paintings from Korea` 분류의 자유 이용(PD·CC0·CC BY·CC BY-SA)
+  한국 회화. 소장처가 확인되지 않으면 "한국 명화 모음"으로 묶는다. 제목·작가 한국어 정리는 Gemini가 했으므로 검수가 필요하다.
+
+```bash
+./.venv/bin/python build_korea_catalog.py --download-only
+./.venv/bin/python fetch_korea_commons.py --download-only
+./.venv/bin/python import_catalog.py catalog.korea.json
+./.venv/bin/python import_catalog.py catalog.korea-commons.json
+./.venv/bin/python build_index.py   # 등록 후에는 반드시 색인을 다시 만들고 서버를 재시작한다(안 하면 사진 검색이 503)
+```
+
 ## API
 
 FE에 전달할 전체 요청·응답·인증·오류 규격은 [FE API 명세서](../docs/api-spec.md)에 있다.

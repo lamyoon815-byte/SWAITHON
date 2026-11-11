@@ -424,7 +424,7 @@ iPhone의 기기 TTS는 무음 모드에서 소리가 나지 않을 수 있어 �
     "mood_keywords": ["따뜻함"]
   },
   "review_status": "unreviewed",
-  "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다.",
+  "warning": "AI 생성 해설입니다.",
   "fallback": false
 }
 ```
@@ -442,7 +442,7 @@ JSON 스키마 검증이 실패하면 1회 재시도하고, 다시 실패하면 
     "mood_keywords": []
   },
   "review_status": "unreviewed",
-  "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다.",
+  "warning": "AI 생성 해설입니다.",
   "fallback": true
 }
 ```

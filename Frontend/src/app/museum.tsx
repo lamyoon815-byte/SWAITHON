@@ -21,7 +21,7 @@ import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
-import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { getMuseums } from '@/lib/api';
 import type { Museum, MuseumNext } from '@/types/museum';
 
 /** "✓ 선택됨"을 보여 주는 시간. 눌렀다는 느낌은 들고, 기다린다는 느낌은 들지 않을 만큼. */
@@ -40,12 +40,9 @@ export default function MuseumScreen() {
   const palette = getPalette(scheme, false);
   const { next } = useLocalSearchParams<{ next?: MuseumNext }>();
   const { settings, updateSettings } = useSettings();
-  const { data: museums } = useResource('museums-with-counts', async () => {
-    const list = await getMuseums();
-    return Promise.all(
-      list.map(async (m) => ({ ...m, count: (await getMuseumArtworks(m.id)).length })),
-    );
-  });
+  const { data: museums } = useResource('museums-with-counts', async () =>
+    (await getMuseums()).map((m) => ({ ...m, count: m.artwork_count })),
+  );
 
   const [picked, setPicked] = useState<string | null>(null);
 

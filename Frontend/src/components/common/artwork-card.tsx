@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   byline: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 500,
   },
   chevron: {

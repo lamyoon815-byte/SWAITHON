@@ -7,9 +7,11 @@
  * 미등록 작품은 탭 바 없는 실패 화면으로, 일시적인 QR 읽기 오류는 미리보기 안의 안내로 표시한다.
  * 빨강은 아이콘과 테두리에만 쓴다 (적색약에게 빨간 글씨는 어둡게 보이고, 카메라 화면 위에서는 대비가 들쭉날쭉하다).
  * 작품 촬영은 `/recognize`로 보내 첫 후보 작품으로 간다 (로그인 없이 호출).
- * TODO(B): confidence가 medium이면 4-1 후보 확인 시트, low면 4-2 미등록 안내 (README 6.3).
+ * 서버의 next_action대로 나눈다: show_artwork(바로 이동) · confirm_candidates(후보 고르기 시트) ·
+ * analyze(미등록 작품 → `/analyze`로 AI 해설 화면) · retake(이유를 카메라 위 안내 카드와 음성으로).
  */
 
+import { Image } from 'expo-image';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
@@ -19,13 +21,15 @@ import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
+import { BottomSheet } from '@/components/common/bottom-sheet';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { PressableScale } from '@/components/common/pressable-scale';
 import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
-import { API_URL, ApiError, getArtwork, getMuseums, recognizeArtwork } from '@/lib/api';
+import { API_URL, ApiError, analyzeArtwork, getArtwork, getMuseums, recognizeArtwork, type RecognitionCandidate } from '@/lib/api';
+import { putAnalysis } from '@/lib/analysis-store';
 import { parseArtworkQr } from '@/lib/artwork-qr';
 import { resizeLongSide } from '@/lib/resize';
 import { speakKorean, stopSpeaking } from '@/lib/speech';
@@ -65,6 +69,7 @@ export default function CaptureScreen() {
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
   const [scanError, setScanError] = useState<ScanError | null>(null);
+  const [candidates, setCandidates] = useState<{ list: RecognitionCandidate[]; photoUri: string } | null>(null);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(
@@ -122,6 +127,24 @@ export default function CaptureScreen() {
     showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
   };
 
+  /** 등록되지 않은 작품: 같은 사진으로 AI 해설을 만들어 해설 화면으로 간다. */
+  const startAnalysis = async (photoUri: string) => {
+    setCandidates(null);
+    setBusy(true);
+    showToast('등록되지 않은 작품이라 AI가 살펴보고 있어요');
+    try {
+      const result = await analyzeArtwork(photoUri);
+      if (result.fallback) throw new ApiError(502);
+      const id = putAnalysis({ photoUri, result });
+      router.replace({ pathname: '/analysis', params: { id } });
+    } catch (e) {
+      showToast(e instanceof ApiError && (e.status === 429 || e.status === 503)
+        ? 'AI 해설 사용량이 많아요. 잠시 후 다시 찍어 주세요' : 'AI 해설을 만들지 못했어요. 다시 찍어 주세요', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /**
    * 촬영 → 긴 변 1024px로 줄여 `/recognize` → 첫 후보 작품으로 이동.
    * 셔터 실패와 인식 실패를 나눠 안내한다. 촬영이 끝났으면 "사진을 찍지 못했어요"는 쓰지 않는다.
@@ -149,8 +172,18 @@ export default function CaptureScreen() {
         stage = '서버 전송';
         const result = await recognizeArtwork(resized.uri);
         const best = result.candidates[0];
-        if (!best) {
-          router.replace({ pathname: '/not-found', params: { mode: 'artwork' satisfies CaptureMode } });
+        if (result.next_action === 'confirm_candidates' && result.candidates.length > 0) {
+          setCandidates({ list: result.candidates, photoUri: resized.uri });
+          void speakKorean(result.message);
+          return;
+        }
+        if (result.next_action === 'analyze') {
+          stage = 'AI 해설';
+          await startAnalysis(resized.uri);
+          return;
+        }
+        if (result.next_action === 'retake' || !best) {
+          void showScanError({ title: result.reason === 'not_artwork' ? '작품이 잘 보이지 않아요' : '작품을 찾지 못했어요', detail: result.message || '작품 전체가 보이게 다시 찍어 주세요' });
           return;
         }
         stage = '작품 열기';
@@ -289,6 +322,21 @@ export default function CaptureScreen() {
         />
         <TextButton label="번호로 찾기" accessibilityHint="작품 옆 명패 번호를 입력해 찾아요" palette={palette} onPress={goToNumber} />
       </View>
+      <BottomSheet visible={candidates !== null} title="이 중에 찍은 작품이 있나요?" palette={palette} onClose={() => setCandidates(null)}>
+        {candidates?.list.map((c) => (
+          <PressableScale key={c.artwork_id} accessibilityRole="button" accessibilityLabel={`${c.title}, ${c.artist}`} accessibilityHint="이 작품을 열어요"
+            onPress={() => { setCandidates(null); void openRecognized(c.artwork_id).catch(() => showToast('작품 정보를 불러오지 못했어요', 'error')); }}
+            pressedScale={0.98} background={`${palette.surface}00`} pressedBackground={palette.fill} style={styles.candidate}>
+            <Image source={{ uri: c.image_url }} contentFit="cover" style={[styles.candidateThumb, { backgroundColor: palette.fill }]} />
+            <View style={styles.candidateTexts}>
+              <Text numberOfLines={2} style={[styles.candidateTitle, { color: palette.text }]}>{c.title}</Text>
+              <Text numberOfLines={1} style={[styles.candidateArtist, { color: palette.textSecondary }]}>{c.artist}</Text>
+            </View>
+          </PressableScale>
+        ))}
+        <TextButton label="여기에 없어요 · AI 해설 듣기" accessibilityHint="찍은 사진으로 AI가 작품을 설명해요" palette={palette}
+          onPress={() => { if (candidates) void startAnalysis(candidates.photoUri); }} />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -325,6 +373,11 @@ function BottomButton({ label, a11yLabel, palette, secondary, disabled, onPress 
 }
 
 const styles = StyleSheet.create({
+  candidate: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 16 },
+  candidateThumb: { width: 64, height: 64, borderRadius: 14 },
+  candidateTexts: { flex: 1, gap: 2 },
+  candidateTitle: { fontSize: FontSize.label, fontWeight: 700, lineHeight: 24 },
+  candidateArtist: { fontSize: 16, fontWeight: 500 },
   screen: {
     flex: 1,
   },

@@ -101,7 +101,7 @@ export default function ZoomScreen() {
           <View accessibilityLiveRegion="polite" style={[styles.caption, { backgroundColor: palette.surface }]}>
             <Text style={[styles.captionCount, { color: palette.textSecondary }]}
               accessibilityLabel={`${segments.length}문장 중 ${player.index + 1}번째`}>
-              {player.index + 1} / {segments.length}{aiNarration.data ? ' · AI 해설(미검수)' : ''}
+              {player.index + 1} / {segments.length}
             </Text>
             <Text numberOfLines={3} lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
           </View>

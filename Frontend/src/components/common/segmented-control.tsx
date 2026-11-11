@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text as NativeText, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Text } from '@/components/common/text';
-import { FontSize, type Palette } from '@/constants/a11y';
+import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 
-type Option<T extends string> = { value: T; label: string; accessibilityLabel?: string };
+type Option<T extends string> = { value: T; label: string; accessibilityLabel?: string; /** 글씨 크기 선택용. 현재 앱 배율 대신 이 배율로 보여준다. 시스템 배율은 유지한다. */ previewScale?: number };
 
 type Props<T extends string> = {
   options: readonly Option<T>[];
@@ -74,11 +74,13 @@ export function SegmentedControl<T extends string>({ options, value, onChange, p
             accessibilityState={{ checked: active, disabled }}
             disabled={disabled}
             onPress={() => { if (!active) onChange(option.value); }}
-            style={({ pressed }) => [styles.segment, { backgroundColor: pressed && !active ? palette.fill : 'transparent' }]}>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}
+            style={({ pressed }) => [styles.segment, option.previewScale !== undefined && styles.previewSegment, { backgroundColor: pressed && !active ? palette.fill : 'transparent' }]}>
+            {option.previewScale !== undefined ? <NativeText
+              lineBreakStrategyIOS="hangul-word"
+              style={[styles.label, { fontSize: FontSize.label * option.previewScale, lineHeight: Math.ceil(FontSize.label * option.previewScale * 1.5), color: active ? palette.highlightText : palette.textSecondary, fontWeight: active ? 800 : 600 }]}>{option.label}</NativeText> : <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}
               style={[styles.label, { color: active ? palette.highlightText : palette.textSecondary, fontWeight: active ? 800 : 600 }]}>
               {option.label}
-            </Text>
+            </Text>}
           </Pressable>
         );
       })}
@@ -90,5 +92,6 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', borderWidth: BORDER, borderRadius: 14, padding: PADDING, gap: GAP },
   indicator: { position: 'absolute', top: PADDING, bottom: PADDING, left: PADDING, borderRadius: 10 },
   segment: { flex: 1, minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  previewSegment: { minHeight: MinTouchTarget, paddingVertical: 8 },
   label: { fontSize: FontSize.label, textAlign: 'center' },
 });
