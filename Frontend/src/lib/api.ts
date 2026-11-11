@@ -1,7 +1,8 @@
 /**
  * BE 호출은 여기서만 한다 (README 6.5).
  * `EXPO_PUBLIC_API_URL`이 비어 있으면 `src/mocks/`를 돌려준다.
- * 로그인은 쓰지 않는다. 설정은 기기에만 저장하고(`store/settings.ts`), BE는 토큰 없이 부른다.
+ * 작품·해설·인식은 토큰 없이 부른다. 회원가입·로그인·로그아웃만 계정 API를 쓴다(아래 "회원 인증").
+ * 보정 설정은 아직 기기에만 저장한다(`store/profile.ts`, `store/settings.ts`).
  */
 
 import { File } from 'expo-file-system';
@@ -9,6 +10,7 @@ import { File } from 'expo-file-system';
 import artworksMock from '@/mocks/artworks.json';
 import museumsMock from '@/mocks/museums.json';
 import type { Artwork } from '@/types/artwork';
+import type { Session, User } from '@/types/auth';
 import type { Museum } from '@/types/museum';
 import type { Narration, NarrationMode, NarrationSegment } from '@/types/narration';
 
@@ -127,4 +129,59 @@ export async function recognizeArtwork(uri: string): Promise<RecognitionResult> 
   const res = await fetch(`${API_URL}/recognize`, { method: 'POST', body });
   if (!res.ok) throw new ApiError(res.status);
   return res.json() as Promise<RecognitionResult>;
+}
+
+// ── 회원 인증 (`/auth/*`, Backend/accounts.py) ──────────────────────────────
+
+type LoginResult = { access_token: string; token_type: string; expires_in: number; user: User };
+
+/** 화면에 그대로 보여 줄 수 있는 한국어 메시지를 담는다. */
+export class AuthError extends Error {}
+
+function authMessage(status: number, kind: 'login' | 'register') {
+  if (status === 401) return '이메일 또는 비밀번호가 맞지 않아요.';
+  if (status === 409) return '이미 가입된 이메일이에요. 로그인해 주세요.';
+  if (status === 422) return kind === 'register' ? '이메일 형식과 비밀번호(8자 이상)를 확인해 주세요.' : '이메일과 비밀번호를 확인해 주세요.';
+  if (status === 429) return '시도가 너무 많아요. 잠시 후 다시 해 주세요.';
+  return '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.';
+}
+
+function toSession(result: LoginResult): Session {
+  return { token: result.access_token, user: result.user, expires_at: Date.now() + result.expires_in * 1000 };
+}
+
+/** 서버가 없을 때(개발용 mock) 쓰는 기기 안 계정. 화면 흐름만 확인한다. */
+function mockSession(email: string, nickname?: string): Session {
+  return {
+    token: `mock-${Date.now()}`,
+    user: { id: `mock-${email}`, email, nickname: nickname || email.split('@')[0], created_at: new Date().toISOString() },
+    expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  };
+}
+
+async function postAuth(path: string, body: object, kind: 'login' | 'register'): Promise<Session> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch {
+    throw new AuthError(authMessage(0, kind));
+  }
+  if (!res.ok) throw new AuthError(authMessage(res.status, kind));
+  return toSession((await res.json()) as LoginResult);
+}
+
+export async function login(email: string, password: string): Promise<Session> {
+  if (!API_URL) return mockSession(email);
+  return postAuth('/auth/login', { email, password }, 'login');
+}
+
+export async function register(email: string, password: string, nickname: string): Promise<Session> {
+  if (!API_URL) return mockSession(email, nickname);
+  return postAuth('/auth/register', { email, password, nickname }, 'register');
+}
+
+/** 서버 세션을 지운다. 실패해도(오프라인·만료) 기기에서는 로그아웃하므로 에러를 던지지 않는다. */
+export async function logout(token: string): Promise<void> {
+  if (!API_URL || token.startsWith('mock-')) return;
+  await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
 }

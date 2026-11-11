@@ -41,6 +41,15 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "프로필 사진으로 쓸 사진을 고르려면 사진 접근 권한이 필요합니다.",
+          "cameraPermission": "작품을 촬영하거나 프로필 사진을 찍으려면 카메라 권한이 필요합니다.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
