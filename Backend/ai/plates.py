@@ -18,6 +18,7 @@ PLATE_COLORS = {"protan": ((0.20, 0.27, 0.05), 0.42),   # 올리브 바탕 + 주
                 "deutan": ((0.18, 0.28, 0.06), 0.40),   # 올리브 바탕 + 빨강 숫자
                 "tritan": ((0.36, 0.34, 0.08), 0.38)}   # 노랑 바탕 + 보라 숫자
 FONTS = ("arialbd.ttf", "C:/Windows/Fonts/arialbd.ttf", "DejaVuSans-Bold.ttf",
+         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf")
 
 

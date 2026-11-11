@@ -1,5 +1,6 @@
 # Python 3.12 (see .python-version)
 fastapi==0.162.0
+starlette==1.10.0
 uvicorn[standard]==0.54.0
 python-multipart==0.0.33
 Pillow==13.0.0

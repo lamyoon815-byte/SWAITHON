@@ -1,5 +1,8 @@
 from contextlib import asynccontextmanager
 import os
+import logging
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 
 if __package__:
     from .catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
@@ -86,6 +90,8 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     application.state.accounts = accounts
     application.state.catalog = store
     application.state.recognition = recognition
+    # 10MiB 사진 + multipart 여유. 파일 파싱 전부터 스트림 전체를 제한한다.
+    application.add_middleware(RequestBodyLimitMiddleware, max_body_size=12 * 1024 * 1024)
     application.state.speech = OpenAISpeechService(store.data_dir)
     application.include_router(create_speech_router(application.state.speech))
     application.state.transcription = OpenAITranscriptionService(store.data_dir)
@@ -113,6 +119,19 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
         summary="서버 상태 확인",
         description="서버가 정상적으로 실행 중이면 `status: ok`를 반환합니다.",
     )
+
+    @application.get("/ready", tags=["서버 상태"], summary="작품·계정 DB 준비 상태")
+    def readiness():
+        # 외부 유료 API는 호출하지 않는다. 실제 읽기 쿼리로 DB 접근을 검사한다.
+        try:
+            with closing(sqlite3.connect(store.db_path.as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
+                count = db.execute("SELECT count(*) FROM artworks").fetchone()[0]
+            with closing(sqlite3.connect(accounts.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
+                db.execute("SELECT id FROM users LIMIT 1").fetchone()
+        except sqlite3.Error:
+            logging.getLogger(__name__).exception("Readiness database check failed")
+            raise HTTPException(503, "DB를 확인해 주세요.", headers={"Retry-After": "3"}) from None
+        return {"status": "ready", "artworks": count}
     application.add_api_route(
         "/upload", upload_image, methods=["POST"], tags=["사진 업로드"],
         summary="사진 업로드 및 JPEG 변환",
