@@ -8,7 +8,8 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ToastHost } from '@/components/common/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/hooks/use-auth';
-import { useViewing } from '@/hooks/use-viewing';
+import { useProfile } from '@/hooks/use-profile';
+import { useSettings } from '@/hooks/use-settings';
 import { getCurrentUser } from '@/lib/api';
 
 SplashScreen.preventAutoHideAsync();
@@ -17,7 +18,8 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { session, loaded } = useAuth();
-  const viewing = useViewing();
+  const profile = useProfile();
+  const { settings, loaded: settingsLoaded } = useSettings();
   useEffect(() => {
     if (session) void getCurrentUser().catch(() => {});
   }, [session]);
@@ -25,7 +27,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AnimatedSplashOverlay />
-        {!loaded || !viewing.loaded ? (
+        {!loaded || !profile.loaded || !settingsLoaded ? (
           <View style={styles.loading}><ActivityIndicator size="large" accessibilityLabel="설정 불러오는 중" /></View>
         ) : (
           <Stack screenOptions={{ headerShown: false }}>
@@ -33,13 +35,16 @@ export default function RootLayout() {
               <Stack.Screen name="auth" />
             </Stack.Protected>
             <Stack.Protected guard={!!session}>
-              <Stack.Protected guard={viewing.completed}>
+              <Stack.Protected guard={settings.onboarding_completed}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="museum" />
                 <Stack.Screen name="zoom/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
                 <Stack.Screen name="capture" />
                 <Stack.Screen name="search" options={{ animation: 'fade', animationDuration: 180 }} />
                 <Stack.Screen name="spike" />
+                <Stack.Screen name="history" />
+                <Stack.Screen name="correction" />
+                <Stack.Screen name="not-found" />
               </Stack.Protected>
               <Stack.Screen name="onboarding" />
             </Stack.Protected>

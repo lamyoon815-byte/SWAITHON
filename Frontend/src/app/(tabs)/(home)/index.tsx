@@ -9,7 +9,8 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,

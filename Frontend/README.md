@@ -186,12 +186,12 @@ Frontend/
 |---|---|---|---|---|---|
 | - | 로그인 | `auth/login.tsx` | P0 | A | 실제 인증 API 연결 |
 | - | 회원가입 | `auth/register.tsx` | P0 | A | 실제 인증 API 연결 |
-| 5 | 온보딩 | `onboarding.tsx` | P0 | A | 구현 |
-| 6 | 보기 설정 테스트 | `onboarding.tsx` | P0 | A | AI 합의 규칙 반영 |
-| 6-1 | 내 보정값 확인 | `onboarding.tsx` | P0 | A | 결과 확인·기기 저장 구현 |
+| 5 | 온보딩 | `onboarding/index.tsx` | P0 | A | 구현 |
+| 6 | 보기 설정 테스트 | `onboarding/index.tsx` | P0 | A | AI 합의 규칙 반영 |
+| 6-1 | 내 보정값 확인 | `onboarding/index.tsx` | P0 | A | 결과 확인·기기 저장 구현 |
 | 1-3 | 작품을 찾지 못했어요 | `(tabs)/(home)/not-found.tsx` | P0 | A | 시작 전 |
 | 8 | 마이페이지 | `(tabs)/mypage/index.tsx` | P0 | A | 계정·보기 설정·로그아웃 연결 |
-| 8-1 | 내 보정값 세부 조정 | `(tabs)/mypage/correction.tsx` | P0 | A | 구현 |
+| 8-1 | 내 보정값 세부 조정 | `correction.tsx` | P0 | A | 구현 |
 | 7 | 관람 기록 | `(tabs)/mypage/history.tsx` | P1 | A | 시작 전 |
 | - | 하단 탭, 루트 레이아웃 | `_layout.tsx`, `(tabs)/_layout.tsx`, `components/app-tabs.tsx` | P0 | B | 진행 중 (디자인 반영, 로그인 분기는 A) |
 | 1 / 1-1 | 홈 (작품 선택 + 번호 입력) | `(tabs)/(home)/index.tsx` | P0 | B | 실제 BE 데이터 연결 |
@@ -586,7 +586,9 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 ## 2026-11-11 인증·보기 설정 반영
 
 - 첫 실행은 로그인. 회원가입 성공 시 즉시 로그인되며 보기 설정이 없는 기기는 온보딩으로 이동합니다. 로그아웃은 서버 세션을 무효화하고 기기 토큰을 지웁니다.
-- `store/viewing.ts`에 `color_type`, `severity`, `edge`, `contrast`, `brightness`, `sharpness`를 저장합니다. 이 설정은 이 기기의 계정들 사이에서 공유하며 서버에 자동 동기화하지 않습니다.
+- 원격 기능 병합 후 `store/profile.ts`를 공용 기기 프로필 저장소로 사용합니다. `calibration`에 `color_type`, `severity`, `edge`를, 프로필에 `contrast`, `brightness`, `sharpen`을 저장합니다. 기존 `swaithon.viewing.v1` 값은 최초 로드 시 단위를 유지하여 이전합니다. 서버에 자동 동기화하지 않습니다.
 - 마이페이지에서 종류·색 보정·선 굵기·대비(0.5~2)·밝기(-1~1)·선명도를 조정할 수 있습니다. 저장 전 미리보기는 CALIBRATION의 색/윤곽선 그림을 각각 사용합니다.
 - 작품 화면은 서버 `/correction`으로 색·윤곽선만 적용합니다. 서버에는 항상 `contrast: 1`, `brightness: 0`, `sharpness: 0`을 보내고 앱 Skia에서 밝기·대비·선명도를 적용합니다. 성공한 서버 이미지는 재사용하고 슬라이더 이동 중 호출을 지연합니다.
 - 확인 명령: `node --test scripts/tests/auth-calibration.test.cjs`, `npx expo lint`, `npx tsc --noEmit`.
+
+- 원격 develop의 온보딩 소개·캘리브레이션·결과 화면, 보정 세부 조정, 글씨 크기·해설 방식 설정, 관람 기록을 통합했습니다. 관람 기록의 당시 프로필도 서버 색·윤곽선 보정에 동일하게 적용됩니다.

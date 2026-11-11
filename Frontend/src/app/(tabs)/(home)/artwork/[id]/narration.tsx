@@ -11,7 +11,8 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -30,13 +31,12 @@ import { ScreenPadding, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useResource } from '@/hooks/use-resource';
+import { useProfile } from '@/hooks/use-profile';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getNarration, generateNarration } from '@/lib/api';
 import type { NarrationMode, GeneratedNarration } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
-// TODO(A): 로그인 후 받은 시각 프로필의 narration_mode · speech_rate로 시작한다.
-const START_MODE = DEFAULT_PROFILE.narration_mode;
 const START_RATE = DEFAULT_PROFILE.speech_rate;
 
 const MODES: { mode: NarrationMode; label: string }[] = [
@@ -46,17 +46,19 @@ const MODES: { mode: NarrationMode; label: string }[] = [
 ];
 
 export default function NarrationScreen() {
+  const { profile, loaded: profileLoaded } = useProfile();
+  const [selectedMode, setMode] = useState<NarrationMode | null>(null);
+  const mode = selectedMode ?? profile.narration_mode;
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottomInset = useTabBarInset();
   const reduceMotion = useReducedMotion();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
-  const narrationRes = useResource(id ? `narration:${id}` : null, () => getNarration(id!));
+  const narrationRes = useResource(id && profileLoaded ? `narration:${id}` : null, () => getNarration(id!));
   const [generated, setGenerated] = useState<GeneratedNarration | null>(null);
   const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
   const generationLock = useRef(false);
-  const [mode, setMode] = useState<NarrationMode>(START_MODE);
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);

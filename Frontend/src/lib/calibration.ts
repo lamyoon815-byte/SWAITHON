@@ -1,3 +1,4 @@
+import type { VisualProfile } from '@/types/profile';
 export type ColorType = 'normal' | 'protan' | 'deutan' | 'tritan';
 export type ViewingProfile = {
   color_type: ColorType;
@@ -46,4 +47,16 @@ export function normalizeViewing(value: Partial<ViewingProfile>): ViewingProfile
     edge: clamp(value.edge, 0, 1, 0), contrast: clamp(value.contrast, 0.5, 2, 1),
     brightness: clamp(value.brightness, -1, 1, 0), sharpness: clamp(value.sharpness, 0, 2, 0),
   };
+}
+
+
+/** Shared device profile, including a past viewing record, to the AI correction contract. */
+export function viewingFromProfile(profile: VisualProfile): ViewingProfile {
+  const legacyColor = { normal: 'normal', protanopia: 'protan', deuteranopia: 'deutan', tritanopia: 'tritan' } as const;
+  return normalizeViewing({
+    color_type: profile.calibration?.color_type ?? legacyColor[profile.color_vision],
+    severity: profile.calibration?.severity ?? profile.color_severity,
+    edge: profile.calibration?.edge ?? 0,
+    contrast: profile.contrast, brightness: profile.brightness, sharpness: profile.sharpen,
+  });
 }

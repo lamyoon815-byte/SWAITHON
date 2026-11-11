@@ -54,6 +54,44 @@ test('normal vision always clears color correction and invalid stored values are
   assert.equal(profile.brightness, -1);
 });
 
+test('history profile conversion preserves its color and edge values instead of current settings', () => {
+  const result = calibration.viewingFromProfile({
+    color_vision: 'protanopia', color_severity: 0.2,
+    calibration: { color_type: 'deutan', severity: 0.6, edge: 0.4 },
+    contrast: 0.8, brightness: -0.25, sharpen: 1.2,
+  });
+  assert.equal(result.color_type, 'deutan');
+  assert.equal(result.severity, 0.6);
+  assert.equal(result.edge, 0.4);
+  assert.equal(result.brightness, -0.25);
+  assert.equal(result.sharpness, 1.2);
+});
+
+test('legacy viewing settings migrate once and keep brightness and contrast units', async () => {
+  const storage = new Map([['swaithon.viewing.v1', JSON.stringify({ completed: true, values: {
+    color_type: 'tritan', severity: 0.6, edge: 0.2, contrast: 0.8, brightness: -0.25, sharpness: 1.4,
+  } })]]);
+  const store = load('store/profile.ts', {
+    '@react-native-async-storage/async-storage': { __esModule: true, default: {
+      getItem: async (key) => storage.get(key) ?? null,
+      setItem: async (key, value) => { storage.set(key, value); },
+    } },
+    '@/types/profile': load('types/profile.ts'),
+    '@/types/calibration': load('types/calibration.ts'),
+  });
+  store.subscribeProfile(() => {});
+  await new Promise((resolve) => setImmediate(resolve));
+  const state = store.getProfileSnapshot();
+  assert.equal(state.error, false);
+  assert.equal(state.saved, true);
+  assert.equal(state.profile.calibration.color_type, 'tritan');
+  assert.equal(state.profile.calibration.edge, 0.2);
+  assert.equal(state.profile.contrast, 0.8);
+  assert.equal(state.profile.brightness, -0.25);
+  assert.equal(state.profile.sharpen, 1.4);
+  assert.equal(JSON.parse(storage.get('swaithon:profile:v1')).color_vision, 'tritanopia');
+});
+
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const loginResult = {
   access_token: 'session-token', token_type: 'bearer', expires_in: 604800,

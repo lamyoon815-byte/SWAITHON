@@ -3,7 +3,7 @@
  * 위에서부터 안내 문구 → 점선 가이드가 있는 카메라(남는 높이를 전부 씀) → 팁 세 칸 → 큰 버튼.
  * 카메라 화면은 테마와 상관없이 항상 어둡게 둔다 (미리보기에 눈이 가도록).
  * 두 모드 모두 QR이 보이면 바로 인식한다. 인식된 작품의 미술관이 현재 미술관이 된다.
- * 인식 실패는 점선 사각형 가운데에 불투명 카드로 띄우고 소리로도 읽는다. 다시 스캔할 수 있을 때 사라진다.
+ * 미등록 작품은 탭 바 없는 실패 화면으로, 일시적인 QR 읽기 오류는 미리보기 안의 안내로 표시한다.
  * 빨강은 아이콘과 테두리에만 쓴다 (적색약에게 빨간 글씨는 어둡게 보이고, 카메라 화면 위에서는 대비가 들쭉날쭉하다).
  * 작품 촬영은 `/recognize/artwork`의 next_action으로 이동·후보 확인·미등록 분석·재촬영을 나눈다.
  */
@@ -14,7 +14,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
@@ -34,10 +35,6 @@ const RESCAN_MS = 3000;
 type Tip = { text: string; ios: SFSymbol; material: AndroidSymbol };
 type ScanError = { title: string; detail: string };
 
-const NOT_REGISTERED: ScanError = {
-  title: '등록되지 않은 QR 코드예요',
-  detail: '다른 QR을 비추거나 번호로 찾아 주세요',
-};
 const LOAD_FAILED: ScanError = {
   title: '작품 정보를 불러오지 못했어요',
   detail: '잠시 후 다시 비춰 주세요',
@@ -128,7 +125,11 @@ export default function CaptureScreen() {
       router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
       showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
     } catch (e) {
-      showScanError(e instanceof ApiError && e.status === 404 ? NOT_REGISTERED : LOAD_FAILED);
+      if (e instanceof ApiError && e.status === 404) {
+        router.replace({ pathname: '/not-found', params: { mode } });
+        return;
+      }
+      showScanError(LOAD_FAILED);
     }
   };
 

@@ -6,7 +6,8 @@
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/text';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,24 +15,31 @@ import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
+import { useProfile } from '@/hooks/use-profile';
+import { useHistory } from '@/hooks/use-history';
 import { getArtwork } from '@/lib/api';
-import { useViewing } from '@/hooks/use-viewing';
+
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
+import { viewingFromProfile } from '@/lib/calibration';
 
 export default function ZoomScreen() {
-  const { profile, values } = useViewing();
+  const { profile: currentProfile } = useProfile();
+  const { items: historyItems, loaded: historyLoaded } = useHistory();
   const palette = getPalette('dark', false);
-  const { id, original, strength } = useLocalSearchParams<{
+  const { id, original, strength, history: historyId } = useLocalSearchParams<{
     id: string;
     original?: string;
     /** 상세 화면의 보정 강도(0~1). 없으면 프로필 값 */
     strength?: string;
+    history?: string;
   }>();
+  const historyRecord = historyItems.find((item) => item.id === historyId && item.artwork.id === id);
+  const profile = historyRecord?.profile ?? currentProfile;
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
   const rawStrength = Number(strength ?? profile.strength);
   const amount = Number.isFinite(rawStrength) ? Math.max(0, Math.min(1, rawStrength)) : 1;
-  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, values, showOriginal, amount);
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount);
 
   return (
     // A full-screen modal is its own native window, so pinch needs its own gesture root here.
@@ -49,7 +57,7 @@ export default function ZoomScreen() {
           </Text>
         </View>
 
-        {artwork ? (
+        {artwork && (!historyId || (historyLoaded && historyRecord)) ? (
           <CorrectionCanvas
             source={corrected.source}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
@@ -62,9 +70,9 @@ export default function ZoomScreen() {
           />
         ) : (
           <View style={styles.canvasArea}>
-            {!!error && (
+            {(!!error || (historyId && historyLoaded && !historyRecord)) && (
               <Text style={[styles.message, { color: palette.text }]}>
-                작품 이미지를 불러오지 못했어요
+                {historyId && !historyRecord ? '관람 기록을 불러오지 못했어요. 기록 화면에서 다시 선택해 주세요.' : '작품 이미지를 불러오지 못했어요'}
               </Text>
             )}
           </View>

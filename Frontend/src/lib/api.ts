@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, GeneratedNarration } from '@/types/narration';
+import type { Narration, NarrationMode, GeneratedNarration } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
 import { clearSession, getAccessToken } from '@/store/auth';
 import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
@@ -107,8 +107,8 @@ export async function getArtwork(id: string): Promise<Artwork> {
   return fromServer(await request<Artwork>(`/artworks/${encodeURIComponent(id)}`));
 }
 
-export async function getNarration(id: string): Promise<Narration> {
-  return request<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=both`);
+export async function getNarration(id: string, mode: NarrationMode = 'both'): Promise<Narration> {
+  return request<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=${mode}`);
 }
 
 const generatedNarrations = new Map<string, GeneratedNarration>();
