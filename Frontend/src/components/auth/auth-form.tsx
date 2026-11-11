@@ -77,15 +77,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             </View>
 
             <View style={styles.fields}>
-              {signup && <View style={fieldStyle('nickname')}>
-                <Text style={[styles.label, { color: palette.textSecondary }]}>이름</Text>
-                <TextInput accessibilityLabel="이름" placeholder="앱에서 사용할 이름" placeholderTextColor={palette.textSecondary}
-                  value={nickname} onChangeText={setNickname} editable={!busy} maxLength={40} autoComplete="nickname"
-                  onFocus={() => setFocused('nickname')} onBlur={() => setFocused(null)} style={inputStyle} />
+              {signup && <View style={styles.group}>
+                <Text style={[styles.label, { color: palette.text }]}>이름</Text>
+                <View style={fieldStyle('nickname')}>
+                  <TextInput accessibilityLabel="이름" placeholder="앱에서 사용할 이름" placeholderTextColor={palette.textSecondary}
+                    value={nickname} onChangeText={setNickname} editable={!busy} maxLength={40} autoComplete="nickname"
+                    onFocus={() => setFocused('nickname')} onBlur={() => setFocused(null)} style={inputStyle} />
+                </View>
               </View>}
-              <View style={fieldStyle('email')}>
-                <Text style={[styles.label, { color: palette.textSecondary }]}>이메일</Text>
-                <View style={styles.inputRow}>
+              <View style={styles.group}>
+                <Text style={[styles.label, { color: palette.text }]}>이메일</Text>
+                <View style={[fieldStyle('email'), styles.inputRow]}>
                   <TextInput accessibilityLabel="이메일" placeholder="name@example.com" placeholderTextColor={palette.textSecondary}
                     value={email} onChangeText={setEmail} editable={!busy} keyboardType="email-address" autoCapitalize="none"
                     autoCorrect={false} autoComplete="email" textContentType="emailAddress"
@@ -95,9 +97,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                   </View>
                 </View>
               </View>
-              <View style={fieldStyle('password')}>
-                <Text style={[styles.label, { color: palette.textSecondary }]}>비밀번호</Text>
-                <View style={styles.inputRow}>
+              <View style={styles.group}>
+                <Text style={[styles.label, { color: palette.text }]}>비밀번호</Text>
+                <View style={[fieldStyle('password'), styles.inputRow]}>
                   <TextInput accessibilityLabel="비밀번호" placeholder="8자 이상 입력해 주세요" placeholderTextColor={palette.textSecondary}
                     value={password} onChangeText={setPassword} editable={!busy} secureTextEntry={!visible} maxLength={128}
                     autoCapitalize="none" autoCorrect={false} autoComplete={signup ? 'new-password' : 'current-password'}
@@ -107,13 +109,15 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                   {passwordToggle}
                 </View>
               </View>
-              {signup && <View style={fieldStyle('confirm')}>
-                <Text style={[styles.label, { color: palette.textSecondary }]}>비밀번호 확인</Text>
-                <TextInput accessibilityLabel="비밀번호 확인" placeholder="한 번 더 입력해 주세요" placeholderTextColor={palette.textSecondary}
-                  value={confirm} onChangeText={setConfirm} editable={!busy} secureTextEntry={!visible} maxLength={128}
-                  autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword"
-                  onFocus={() => setFocused('confirm')} onBlur={() => setFocused(null)}
-                  returnKeyType="go" onSubmitEditing={submit} style={inputStyle} />
+              {signup && <View style={styles.group}>
+                <Text style={[styles.label, { color: palette.text }]}>비밀번호 확인</Text>
+                <View style={fieldStyle('confirm')}>
+                  <TextInput accessibilityLabel="비밀번호 확인" placeholder="한 번 더 입력해 주세요" placeholderTextColor={palette.textSecondary}
+                    value={confirm} onChangeText={setConfirm} editable={!busy} secureTextEntry={!visible} maxLength={128}
+                    autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword"
+                    onFocus={() => setFocused('confirm')} onBlur={() => setFocused(null)}
+                    returnKeyType="go" onSubmitEditing={submit} style={inputStyle} />
+                </View>
               </View>}
             </View>
 
@@ -132,13 +136,15 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                   onPress={() => signup ? router.replace('/auth/login') : router.push('/auth/register')} />
               </View>
             </View>
-            <Text style={[styles.credit, { color: palette.textSecondary }]}>Claude Monet · Water Lilies · 1906</Text>
+            <Text style={[styles.credit, { color: palette.textSecondary }]}>SWAITHON · 김규린 · 김민서 · 박지현 · 배정윤</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const FieldRadius = 20;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 }, scroll: { flexGrow: 1, paddingBottom: Spacing.four },
@@ -148,8 +154,10 @@ const styles = StyleSheet.create({
   brand: { fontSize: 17, fontWeight: '800', letterSpacing: 1 },
   title: { fontSize: 30, lineHeight: 40, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },
   copy: { fontSize: 18, lineHeight: 28, textAlign: 'center' },
-  fields: { gap: 14 }, field: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, borderWidth: 2, borderRadius: 24 },
-  label: { fontSize: 17, fontWeight: '700' }, inputRow: { flexDirection: 'row', alignItems: 'center' },
+  fields: { gap: Spacing.three }, group: { gap: Spacing.two },
+  // 라벨은 박스의 둥근 모서리가 끝나는 곳(=radius)에서 시작한다. 입력 글자도 border 2 + padding 18 = 20에서 시작해 같은 선에 맞는다.
+  field: { paddingHorizontal: 18, borderWidth: 2, borderRadius: FieldRadius },
+  label: { fontSize: 17, fontWeight: '700', paddingLeft: FieldRadius }, inputRow: { flexDirection: 'row', alignItems: 'center' },
   input: { flex: 1, minHeight: 56, paddingVertical: 10, paddingHorizontal: 0, fontSize: 21 },
   eyeButton: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   fieldIcon: { width: 40, alignItems: 'center' },
