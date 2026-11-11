@@ -1,4 +1,4 @@
-# SWAITHON
+# MoMi
 
 ### 사용자 시각 특성에 맞춘 예술 감상 앱
 
@@ -155,7 +155,7 @@ CLIP 유사도 점수는 확률이나 정확도 백분율이 아닙니다.
 ## 디렉터리
 
 ```text
-SWAITHON/
+MoMi/
 ├── Frontend/                  # Expo 앱과 기능 검증 화면
 ├── Backend/
 │   ├── main.py                # FastAPI 앱 구성

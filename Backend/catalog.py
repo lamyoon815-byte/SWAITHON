@@ -117,7 +117,7 @@ class MuseumList(BaseModel):
 class CatalogStore:
     def __init__(self, data_dir: Path | None = None):
         default_dir = Path(__file__).resolve().parent / "data"
-        self.data_dir = Path(data_dir or os.environ.get("SWAITHON_DATA_DIR", default_dir)).resolve()
+        self.data_dir = Path(data_dir or (os.environ.get("MOMI_DATA_DIR") or os.environ.get("SWAITHON_DATA_DIR", default_dir))).resolve()
         self.images_dir = self.data_dir / "images"
         self.db_path = self.data_dir / "catalog.sqlite3"
 

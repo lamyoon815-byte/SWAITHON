@@ -29,7 +29,20 @@ function emit(next: Snapshot) {
 }
 
 function load() {
-  loading ??= AsyncStorage.getItem(KEY).then((raw) => {
+  loading ??= AsyncStorage.getItem(KEY).then(async (raw) => {
+    if (!raw) {
+      // Preserve settings saved by the earlier authenticated app before the stores were unified.
+      const legacyRaw = await AsyncStorage.getItem('swaithon.viewing.v1');
+      const legacy = legacyRaw ? JSON.parse(legacyRaw) : null;
+      if (legacy?.completed && isCalibrationSettings(legacy.values)) {
+        const { color_type, severity, edge, contrast, brightness, sharpness } = legacy.values;
+        const colorVision = { normal: 'normal', protan: 'protanopia', deutan: 'deuteranopia', tritan: 'tritanopia' } as const;
+        raw = JSON.stringify({ ...DEFAULT_PROFILE, calibration: { color_type, severity, edge },
+          color_vision: colorVision[color_type as keyof typeof colorVision], color_severity: severity,
+          ...normalizeCorrection({ contrast, brightness, sharpen: sharpness }) });
+        await AsyncStorage.setItem(KEY, raw);
+      }
+    }
     const stored = raw ? JSON.parse(raw) : null;
     if (stored !== null && (typeof stored !== 'object' || Array.isArray(stored))) {
       throw new Error('잘못된 프로필 형식');

@@ -38,7 +38,14 @@ function emit(next: Snapshot) {
 
 function load() {
   loading ??= AsyncStorage.getItem(KEY)
-    .then((raw) => (raw ? { ...DefaultSettings, ...JSON.parse(raw) } : DefaultSettings))
+    .then(async (raw) => {
+      const settings = raw ? { ...DefaultSettings, ...JSON.parse(raw) } : { ...DefaultSettings };
+      if (!settings.onboarding_completed) {
+        const previous = await AsyncStorage.getItem('swaithon.viewing.v1');
+        if (previous && JSON.parse(previous).completed === true) settings.onboarding_completed = true;
+      }
+      return settings;
+    })
     .catch(() => DefaultSettings)
     .then((settings) => emit({ settings, loaded: true }));
   return loading;

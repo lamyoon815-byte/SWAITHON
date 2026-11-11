@@ -1,104 +1,133 @@
-/**
- * BE 호출은 여기서만 한다 (README 6.5).
- * `EXPO_PUBLIC_API_URL`이 비어 있으면 `src/mocks/`를 돌려준다.
- * 작품·해설·인식은 토큰 없이 부른다. 회원가입·로그인·로그아웃만 계정 API를 쓴다(아래 "회원 인증").
- * 보정 설정은 아직 기기에만 저장한다(`store/profile.ts`, `store/settings.ts`).
- */
-
+/** 실제 백엔드만 사용한다. 서버 오류를 임시 데이터로 대체하지 않는다. */
 import { File } from 'expo-file-system';
+import { fetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 
-import artworksMock from '@/mocks/artworks.json';
-import museumsMock from '@/mocks/museums.json';
-import type { Artwork } from '@/types/artwork';
-import type { Session, User } from '@/types/auth';
+import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, NarrationMode, NarrationSegment } from '@/types/narration';
+import type { Narration, NarrationMode, GeneratedNarration } from '@/types/narration';
+import type { LoginResult, User } from '@/types/auth';
+import { clearSession, getAccessToken } from '@/store/auth';
+import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
-const artworks = artworksMock as Artwork[];
-const museums = museumsMock as Museum[];
+export const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
 export class ApiError extends Error {
-  constructor(readonly status: number) {
-    super(`API ${status}`);
+  constructor(readonly status: number, message = `API ${status}`) {
+    super(message);
   }
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
-  if (!res.ok) throw new ApiError(res.status);
+async function request<T>(path: string, init?: RequestInit, authenticated = true): Promise<T> {
+  if (!API_URL) throw new ApiError(0, '백엔드 주소가 설정되지 않았어요.');
+  const token = authenticated ? getAccessToken() : null;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    if (res.status === 401 && token && getAccessToken() === token) await clearSession();
+    const error = await res.json().catch(() => null) as { detail?: unknown } | null;
+    throw new ApiError(res.status, typeof error?.detail === 'string' ? error.detail : `API ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export function login(email: string, password: string) {
+  return request<LoginResult>('/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim(), password }),
+  }, false);
+}
+
+export function register(email: string, password: string, nickname: string) {
+  return request<LoginResult>('/auth/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim(), password, nickname: nickname.trim() }),
+  }, false);
+}
+
+export const getCurrentUser = () => request<User>('/me');
+
+export async function logout() {
+  await request<void>('/auth/logout', { method: 'POST' });
+  await clearSession();
+}
+
+// Cache only successful results; contrast/brightness do not affect the server image.
+const correctedImages = new Map<string, string>();
+const pendingCorrections = new Map<string, Promise<string>>();
+
+export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): Promise<string> {
+  const correction = serverCorrection(profile, strength);
+  const key = JSON.stringify([API_URL, artworkId, correction]);
+  const cached = correctedImages.get(key);
+  if (cached) return Promise.resolve(cached);
+  const pending = pendingCorrections.get(key);
+  if (pending) return pending;
+  const task = (async () => {
+    if (!API_URL) throw new ApiError(0, '백엔드 주소가 설정되지 않았어요.');
+    const body = new FormData();
+    body.append('artwork_id', artworkId);
+    body.append('profile', JSON.stringify(correction));
+    const token = getAccessToken();
+    const res = await fetch(`${API_URL}/correction`, {
+      method: 'POST', body, headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) throw new ApiError(res.status);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // Data URLs work as Skia and expo-image sources on phone, without temporary file lifecycle issues.
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    const uri = `data:image/jpeg;base64,${btoa(binary)}`;
+    correctedImages.set(key, uri);
+    if (correctedImages.size > 8) correctedImages.delete(correctedImages.keys().next().value!);
+    return uri;
+  })().finally(() => pendingCorrections.delete(key));
+  pendingCorrections.set(key, task);
+  return task;
 }
 
 type Page<T> = { items: T[]; total: number };
 
-/** BE는 `number`·`museum_id`가 null일 수 있다. 화면은 문자열을 기대하므로 빈 문자열로 맞춘다. */
 function fromServer(a: Artwork): Artwork {
   return { ...a, number: a.number ?? '', museum_id: a.museum_id ?? '' };
 }
 
-/**
- * mock 미술관·작품(FE 임시 데이터)은 서버를 붙여도 그대로 보여 주고, BE에 등록된 것을 뒤에 더한다.
- * BE에 연결하지 못해도 mock은 보인다.
- */
 export async function getMuseums(): Promise<Museum[]> {
-  if (!API_URL) return museums;
-  const server = await get<Page<Museum>>('/museums?limit=100')
-    .then((page) => page.items)
-    .catch(() => [] as Museum[]);
-  return [...museums, ...server.filter((m) => !museums.some((mock) => mock.id === m.id))];
+  return (await request<Page<Museum>>('/museums?limit=100')).items;
 }
 
-/** 미술관의 작품을 번호 순으로. mock 미술관이면 mock 작품, 아니면 BE 작품. */
 export async function getMuseumArtworks(museumId: string): Promise<Artwork[]> {
-  const isMock = museums.some((m) => m.id === museumId);
-  const list =
-    API_URL && !isMock
-      ? (
-          await get<Page<Artwork>>(`/artworks?limit=100&museum_id=${encodeURIComponent(museumId)}`)
-        ).items.map(fromServer)
-      : artworks.filter((a) => a.museum_id === museumId);
-  return list.sort((a, b) => a.number.localeCompare(b.number));
+  const page = await request<Page<Artwork>>(`/artworks?limit=100&museum_id=${encodeURIComponent(museumId)}`);
+  return page.items.map(fromServer).sort((a, b) => a.number.localeCompare(b.number));
 }
 
-/** mock에 있으면 mock, 없으면 BE에서 찾는다. 없으면 404 `ApiError`. */
 export async function getArtwork(id: string): Promise<Artwork> {
-  const found = artworks.find((a) => a.id === id);
-  if (found) return found;
-  if (API_URL) return fromServer(await get<Artwork>(`/artworks/${encodeURIComponent(id)}`));
-  throw new ApiError(404);
+  return fromServer(await request<Artwork>(`/artworks/${encodeURIComponent(id)}`));
 }
 
-/**
- * 검수된 해설 문장들 (`GET /artworks/{id}/narration`, README 6.2). 로그인 없이 부른다.
- * 기기에 저장한 해설 방식을 쿼리로 보내며 생략하면 both로 받는다.
- * mock 작품은 `description`으로 같은 모양을 만든다. 검수 해설이 없으면 409 `ApiError`.
- */
 export async function getNarration(id: string, mode: NarrationMode = 'both'): Promise<Narration> {
-  const mock = artworks.find((a) => a.id === id);
-  if (mock || !API_URL) {
-    const d = mock?.description;
-    if (!mock) throw new ApiError(404);
-    if (!d) throw new ApiError(409);
-    const all: NarrationSegment[] = [
-      ...d.facts.map((text) => ({ type: 'fact' as const, text, region_index: null })),
-      ...d.interpretations.map((text) => ({
-        type: 'interpretation' as const,
-        text: `가능한 감정적 해석입니다. ${text}`,
-        region_index: null,
-      })),
-    ];
-    const segments = all.filter((s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'));
-    return {
-      artwork_id: id,
-      mode,
-      segments,
-      text: segments.map((s) => s.text).join('\n'),
-      review_status: 'reviewed',
-    };
-  }
-  return get<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=${mode}`);
+  return request<Narration>(`/artworks/${encodeURIComponent(id)}/narration?mode=${mode}`);
+}
+
+const generatedNarrations = new Map<string, GeneratedNarration>();
+const pendingNarrations = new Map<string, Promise<GeneratedNarration>>();
+
+/** Generated text stays unreviewed and is reused during this app session. */
+export function generateNarration(id: string): Promise<GeneratedNarration> {
+  const cached = generatedNarrations.get(id);
+  if (cached) return Promise.resolve(cached);
+  const pending = pendingNarrations.get(id);
+  if (pending) return pending;
+  const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration`, { method: 'POST' })
+    .then((result) => {
+      if (result.fallback || !result.segments.length) throw new ApiError(502, 'AI 해설을 생성하지 못했어요. 다시 시도해 주세요.');
+      generatedNarrations.set(id, result);
+      return result;
+    }).finally(() => pendingNarrations.delete(id));
+  pendingNarrations.set(id, task);
+  return task;
 }
 
 export type RecognitionCandidate = {
@@ -113,75 +142,34 @@ export type RecognitionResult = {
   candidates: RecognitionCandidate[];
   status: 'matched' | 'needs_confirmation' | 'no_match';
   confidence: 'high' | 'medium' | 'low';
+  next_action: 'show_artwork' | 'confirm_candidates' | 'analyze' | 'retake';
+  message: string;
+  reason: 'matched' | 'low_confidence' | 'unregistered_artwork' | 'not_artwork' | 'placard_unreadable';
+  artwork_probability: number | null;
 };
 
-/**
- * 촬영본으로 작품 후보를 찾는다 (`POST /recognize`, README 6.3). 로그인 없이 호출한다.
- * 서버가 없으면 인식할 수 없으므로 0 상태의 `ApiError`를 던진다.
- */
-export async function recognizeArtwork(uri: string): Promise<RecognitionResult> {
-  if (!API_URL) throw new ApiError(0);
+export type AnalysisResult = {
+  description: Description;
+  review_status: 'unreviewed';
+  warning: string;
+  fallback: boolean;
+};
+
+async function upload<T>(path: string, uri: string): Promise<T> {
   const body = new FormData();
-  // SDK 58의 fetch(expo/fetch)는 RN식 { uri, name, type } 파일 객체를 못 보낸다
-  // ("Unsupported FormDataPart implementation"). bytes()가 있는 expo-file-system File을 넣는다.
-  body.append('image', new File(uri) as unknown as Blob);
-  body.append('mode', 'artwork');
-  const res = await fetch(`${API_URL}/recognize`, { method: 'POST', body });
-  if (!res.ok) throw new ApiError(res.status);
-  return res.json() as Promise<RecognitionResult>;
-}
-
-// ── 회원 인증 (`/auth/*`, Backend/accounts.py) ──────────────────────────────
-
-type LoginResult = { access_token: string; token_type: string; expires_in: number; user: User };
-
-/** 화면에 그대로 보여 줄 수 있는 한국어 메시지를 담는다. */
-export class AuthError extends Error {}
-
-function authMessage(status: number, kind: 'login' | 'register') {
-  if (status === 401) return '이메일 또는 비밀번호가 맞지 않아요.';
-  if (status === 409) return '이미 가입된 이메일이에요. 로그인해 주세요.';
-  if (status === 422) return kind === 'register' ? '이메일 형식과 비밀번호(8자 이상)를 확인해 주세요.' : '이메일과 비밀번호를 확인해 주세요.';
-  if (status === 429) return '시도가 너무 많아요. 잠시 후 다시 해 주세요.';
-  return '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.';
-}
-
-function toSession(result: LoginResult): Session {
-  return { token: result.access_token, user: result.user, expires_at: Date.now() + result.expires_in * 1000 };
-}
-
-/** 서버가 없을 때(개발용 mock) 쓰는 기기 안 계정. 화면 흐름만 확인한다. */
-function mockSession(email: string, nickname?: string): Session {
-  return {
-    token: `mock-${Date.now()}`,
-    user: { id: `mock-${email}`, email, nickname: nickname || email.split('@')[0], created_at: new Date().toISOString() },
-    expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000,
-  };
-}
-
-async function postAuth(path: string, body: object, kind: 'login' | 'register'): Promise<Session> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  } catch {
-    throw new AuthError(authMessage(0, kind));
+  if (Platform.OS === 'web') {
+    const photo = await fetch(uri);
+    body.append('image', await photo.blob(), 'capture.jpg');
+  } else {
+    body.append('image', new File(uri) as unknown as Blob);
   }
-  if (!res.ok) throw new AuthError(authMessage(res.status, kind));
-  return toSession((await res.json()) as LoginResult);
+  return request<T>(path, { method: 'POST', body });
 }
 
-export async function login(email: string, password: string): Promise<Session> {
-  if (!API_URL) return mockSession(email);
-  return postAuth('/auth/login', { email, password }, 'login');
+export function recognizeArtwork(uri: string): Promise<RecognitionResult> {
+  return upload<RecognitionResult>('/recognize/artwork', uri);
 }
 
-export async function register(email: string, password: string, nickname: string): Promise<Session> {
-  if (!API_URL) return mockSession(email, nickname);
-  return postAuth('/auth/register', { email, password, nickname }, 'register');
-}
-
-/** 서버 세션을 지운다. 실패해도(오프라인·만료) 기기에서는 로그아웃하므로 에러를 던지지 않는다. */
-export async function logout(token: string): Promise<void> {
-  if (!API_URL || token.startsWith('mock-')) return;
-  await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+export function analyzeArtwork(uri: string): Promise<AnalysisResult> {
+  return upload<AnalysisResult>('/analyze', uri);
 }

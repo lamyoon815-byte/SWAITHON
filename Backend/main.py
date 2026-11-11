@@ -17,6 +17,8 @@ if __package__:
     from .recognition import RecognitionService
     from .gemini import GeminiService
     from .ai_routes import create_ai_router
+    from .ai.budget import GeminiBudget
+    from .speech import OpenAISpeechService, create_speech_router
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
@@ -24,6 +26,8 @@ else:
     from recognition import RecognitionService
     from gemini import GeminiService
     from ai_routes import create_ai_router
+    from ai.budget import GeminiBudget
+    from speech import OpenAISpeechService, create_speech_router
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -37,15 +41,21 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     accounts = AccountStore(store.data_dir)
     recognition = recognition if recognition is not None else RecognitionService(store)
     gemini = gemini if gemini is not None else GeminiService()
+    if isinstance(gemini, GeminiService) and gemini.budget is None:
+        # 유료 API 예산 상한(기본 12,000원). 사용 내역은 data/gemini-usage.json에 기록한다.
+        gemini.budget = GeminiBudget(store.data_dir / "gemini-usage.json")
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         await run_in_threadpool(store.initialize)
         await run_in_threadpool(accounts.initialize)
+        # 시연용: CLIP_WARMUP=1이면 서버 시작 때 모델·인덱스를 미리 불러 첫 인식도 빠르게 한다.
+        if os.environ.get("CLIP_WARMUP", "").strip().lower() in {"1", "true", "on"} and hasattr(recognition, "warmup"):
+            await run_in_threadpool(recognition.warmup)
         yield
 
     application = FastAPI(
-        title="SWAITHON API",
+        title="MoMi API",
         description=(
             "작품 사진 업로드와 등록 작품 조회를 제공하는 백엔드 API입니다.\n\n"
             "작품 조회 결과의 `image_url`을 열면 등록된 원본 이미지를 볼 수 있습니다. "
@@ -66,10 +76,12 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     application.state.accounts = accounts
     application.state.catalog = store
     application.state.recognition = recognition
+    application.state.speech = OpenAISpeechService(store.data_dir)
+    application.include_router(create_speech_router(application.state.speech))
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"])
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After", "X-Voice-Cache-Key"])
 
     @application.middleware("http")
     async def private_cache_control(request: Request, call_next):

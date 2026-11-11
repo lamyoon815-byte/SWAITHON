@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "SWAITHON API",
+    "title": "MoMi API",
     "description": "작품 사진 업로드와 등록 작품 조회를 제공하는 백엔드 API입니다.\n\n작품 조회 결과의 `image_url`을 열면 등록된 원본 이미지를 볼 수 있습니다. 원본 이미지는 `/images/{filename}`에서 제공됩니다.",
     "version": "0.1.0"
   },

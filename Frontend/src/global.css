@@ -15,12 +15,9 @@
 /* Web keyboard focus (react-native-web). On iOS/Android the screen reader draws its own cursor.
    Instant, never transitioned; text color so it clears 3:1 on every surface. */
 :root {
-  --focus-ring: #26282d;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --focus-ring: #ededef;
-  }
+  color-scheme: dark;
+  background-color: #1c1d21;
+  --focus-ring: #ededef;
 }
 :focus-visible {
   outline: 3px solid var(--focus-ring);

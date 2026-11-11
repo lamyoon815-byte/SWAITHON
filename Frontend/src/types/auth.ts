@@ -1,14 +1,8 @@
-/** BE `User` (`/auth/login`, `/auth/register`, `/me`). */
-export type User = {
-  id: string;
-  email: string;
-  nickname: string;
-  created_at: string;
-};
-
-/** 로그인 결과. `expires_at`은 앱이 `expires_in`(초)으로 계산해 둔 만료 시각(ms). */
-export type Session = {
-  token: string;
+export type User = { id: string; email: string; nickname: string; created_at: string };
+export type LoginResult = {
+  access_token: string;
+  token_type: 'bearer';
+  expires_in: number;
   user: User;
-  expires_at: number;
 };
+export type Session = { token: string; expiresAt: number; user: User };

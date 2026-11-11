@@ -1,0 +1,3202 @@
+[
+{
+"object_id": "5",
+"number": "1937.1.5",
+"title": "The Madonna of Humility",
+"artist": "Fra Angelico",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e64daf38-38e8-4d0c-acb2-8ff370cc188c"
+},
+{
+"object_id": "6",
+"number": "1937.1.6.a",
+"title": "Saint Anthony Abbot [left panel]",
+"artist": "Puccio di Simone and Allegretto Nuzi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e879ab8f-0a66-4d84-8f7c-bafd62d662ee"
+},
+{
+"object_id": "9",
+"number": "1937.1.7",
+"title": "The Madonna of Humility",
+"artist": "Masaccio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/955ee859-1172-48d6-b5b3-189857de82f0"
+},
+{
+"object_id": "10",
+"number": "1937.1.8",
+"title": "The Nativity with the Prophets Isaiah and Ezekiel",
+"artist": "Duccio di Buoninsegna",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e66c8f60-ee91-46eb-9f70-a87ea34b76d4"
+},
+{
+"object_id": "14",
+"number": "1937.1.12",
+"title": "Claudia Quinta",
+"artist": "Neroccio de' Landi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4823046d-8c2c-4ae0-bc6f-c9fcae27ff2b"
+},
+{
+"object_id": "19",
+"number": "1937.1.17",
+"title": "Portrait of a Man",
+"artist": "Andrea del Castagno",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a21cc457-7ddf-4c4d-9934-8039bc919864"
+},
+{
+"object_id": "20",
+"number": "1937.1.18",
+"title": "The Adoration of the Child",
+"artist": "Filippino Lippi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d80a9e0f-0424-46ba-86f1-afd821e843b4"
+},
+{
+"object_id": "25",
+"number": "1937.1.23",
+"title": "Profile Portrait of a Lady",
+"artist": "Franco-Flemish 15th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/82e62b74-1316-4ed3-9bf2-504e3939edec"
+},
+{
+"object_id": "26",
+"number": "1937.1.24",
+"title": "The Alba Madonna",
+"artist": "Raphael",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f033a552-2901-4c21-95ed-93d13e598632"
+},
+{
+"object_id": "32",
+"number": "1937.1.28",
+"title": "The Flight into Egypt",
+"artist": "Vittore Carpaccio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/23f1a338-a614-4017-8381-23a7d6eff496"
+},
+{
+"object_id": "37",
+"number": "1937.1.30",
+"title": "Madonna and Child",
+"artist": "Antonello da Messina",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ce218ff9-837d-41f9-80dd-d9578995013c"
+},
+{
+"object_id": "38",
+"number": "1937.1.31",
+"title": "Portrait of a Young Man",
+"artist": "Attributed to Antonello da Messina",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8297c11b-591d-4b1e-832b-ee2bb9bec53e"
+},
+{
+"object_id": "51",
+"number": "1937.1.44",
+"title": "Portrait of a Lady",
+"artist": "Rogier van der Weyden",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/513e34ae-b923-4aed-a85d-453d1a3b4fa3"
+},
+{
+"object_id": "52",
+"number": "1937.1.45",
+"title": "Christ Appearing to the Virgin",
+"artist": "Follower of Rogier van der Weyden",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/89d562d2-a933-4218-bb2a-2e0f325af98b"
+},
+{
+"object_id": "55",
+"number": "1937.1.48",
+"title": "Susanna Fourment and Her Daughter",
+"artist": "Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0aa028c4-c063-4612-bb57-5a8ca4601ca1"
+},
+{
+"object_id": "59",
+"number": "1937.1.52",
+"title": "Portrait of a Gentleman",
+"artist": "Antonis Mor",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2b2c95ba-68bc-4a33-a23e-878bc480e874"
+},
+{
+"object_id": "63",
+"number": "1937.1.56",
+"title": "A Dutch Courtyard",
+"artist": "Pieter de Hooch",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1a1caf2d-5284-4849-9873-4560341a4b25"
+},
+{
+"object_id": "71",
+"number": "1937.1.64",
+"title": "Edward VI as a Child",
+"artist": "Hans Holbein the Younger",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1dc17d78-131c-4356-a589-bf467189f568"
+},
+{
+"object_id": "77",
+"number": "1937.1.70",
+"title": "Adriaen van Ostade",
+"artist": "Frans Hals",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2a84e43d-2935-48b3-a4e2-7a3e4fc53580"
+},
+{
+"object_id": "87",
+"number": "1937.1.80",
+"title": "Pope Innocent X",
+"artist": "Circle of Diego Velázquez",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/da9c1054-627f-4caf-bbdc-4faf97a779a8"
+},
+{
+"object_id": "90",
+"number": "1937.1.83",
+"title": "Saint Ildefonso",
+"artist": "El Greco (Domenikos Theotokopoulos)",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a600b632-2bb6-4979-a750-85cee48c24b6"
+},
+{
+"object_id": "95",
+"number": "1937.1.88",
+"title": "Señora Sabasa Garcia",
+"artist": "Francisco Goya",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f3ce4ceb-a752-4880-8615-0e6a87f34679"
+},
+{
+"object_id": "99",
+"number": "1937.1.92",
+"title": "Mrs. Richard Brinsley Sheridan",
+"artist": "Thomas Gainsborough",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9f1dfa05-09b7-4730-9529-a7953130ac65"
+},
+{
+"object_id": "102",
+"number": "1937.1.95",
+"title": "Lady Elizabeth Delmé and Her Children",
+"artist": "Sir Joshua Reynolds",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/72f7cb60-a0e0-40e7-abc6-86f62d5f7b4e"
+},
+{
+"object_id": "103",
+"number": "1937.1.96",
+"title": "Lady Mary Templetown and Her Eldest Son",
+"artist": "Sir Thomas Lawrence",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/03d67dc2-0626-4dab-83a6-c93bb0026f29"
+},
+{
+"object_id": "118",
+"number": "1937.1.111",
+"title": "The Frankland Sisters",
+"artist": "John Hoppner",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6e1f882e-57b2-4234-9d65-238436115808"
+},
+{
+"object_id": "165",
+"number": "1939.1.24",
+"title": "Interior of the Pantheon, Rome",
+"artist": "Giovanni Paolo Panini",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0584680b-b08b-4186-ab2f-56bd80e4524d"
+},
+{
+"object_id": "205",
+"number": "1939.1.64",
+"title": "The Game of the Cooking Pot",
+"artist": "Pietro Longhi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f4d9085a-54a4-40a7-b7ca-dbf60ec77152"
+},
+{
+"object_id": "224",
+"number": "1939.1.83",
+"title": "The Mystic Marriage of Saint Catherine",
+"artist": "Correggio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/220acbdd-fd77-4b65-908a-0658bcf2f471"
+},
+{
+"object_id": "239",
+"number": "1939.1.98",
+"title": "Portrait of a Man as Saint George",
+"artist": "Attributed to Giuseppe Caletti",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d5d035c8-7e8f-4239-b81e-ae85d8abe285"
+},
+{
+"object_id": "248",
+"number": "1939.1.107",
+"title": "A Sleeping Girl",
+"artist": "Pietro Rotari",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/57e86e75-8d4a-41bd-834a-af4352d1b00b"
+},
+{
+"object_id": "356",
+"number": "1939.1.215",
+"title": "Madonna and Child",
+"artist": "Pietro Perugino",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1ecf0487-06e6-4236-85c3-8f9d55da908c"
+},
+{
+"object_id": "366",
+"number": "1939.1.225",
+"title": "The Archangel Gabriel",
+"artist": "Masolino da Panicale",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/25119c6b-17c0-4daa-8589-dfcf2d041b4f"
+},
+{
+"object_id": "368",
+"number": "1939.1.227",
+"title": "Saint Florian",
+"artist": "Francesco del Cossa",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a34b93be-3903-47a5-a8ea-4915003a7ac4"
+},
+{
+"object_id": "369",
+"number": "1939.1.228",
+"title": "Saint Lucy",
+"artist": "Francesco del Cossa",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2c9db5b0-7ce2-4772-abc6-9f3a417bfc2f"
+},
+{
+"object_id": "391",
+"number": "1939.1.250",
+"title": "The Trojans Repairing Their Ships in Sicily",
+"artist": "Dosso Dossi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/fcb4b064-c44a-44b6-a95f-4066903f1386"
+},
+{
+"object_id": "411",
+"number": "1939.1.268",
+"title": "The Crippled and Sick Cured at the Tomb of Saint Nicholas",
+"artist": "Gentile da Fabriano",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0d611df5-8ef3-4153-8df7-c6eb6a86bc38"
+},
+{
+"object_id": "487",
+"number": "1939.1.344.b",
+"title": "Scenes from a Legend",
+"artist": "Giovanni Larciani (Master of the Kress Landscapes)",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9e7a7f3f-916f-4c13-ad35-50a7fe20ffff"
+},
+{
+"object_id": "498",
+"number": "1939.1.354",
+"title": "The Virgin Reading",
+"artist": "Vittore Carpaccio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/49a3ba61-e989-48cd-acb6-b9319de27557"
+},
+{
+"object_id": "515",
+"number": "1939.1.371",
+"title": "The Nativity with the Infant Saint John",
+"artist": "Piero di Cosimo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/af776d93-db3e-42ec-905b-5760dcc97bbc"
+},
+{
+"object_id": "560",
+"number": "1940.1.1",
+"title": "William Vans Murray",
+"artist": "Mather Brown",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/04ae7008-92a9-4320-8aeb-0523e3e6875b"
+},
+{
+"object_id": "566",
+"number": "1940.1.7",
+"title": "John Randolph",
+"artist": "Chester Harding",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4115380f-497d-41f7-b208-8d802944e9a6"
+},
+{
+"object_id": "1110",
+"number": "1942.8.16",
+"title": "Dr. William Hartigan (?)",
+"artist": "Gilbert Stuart",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/aa7e01d0-e50c-4452-ba6f-6a1c573a6458"
+},
+{
+"object_id": "1129",
+"number": "1942.8.35",
+"title": "Abraham Kintzing",
+"artist": "Thomas Sully",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/11b8ec3a-24cb-40f3-8602-4e46743001d5"
+},
+{
+"object_id": "1132",
+"number": "1942.8.38",
+"title": "Robert G. L. De Peyster",
+"artist": "Samuel Lovett Waldo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/856c6333-0b47-4f69-8603-186cf9651901"
+},
+{
+"object_id": "1133",
+"number": "1942.8.39",
+"title": "Benjamin West",
+"artist": "after Benjamin West",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/29245604-af41-4b8c-83e7-ee5806a69983"
+},
+{
+"object_id": "1140",
+"number": "1942.9.3",
+"title": "Madonna and Child with Saint Jerome and Saint Bernardino of Siena",
+"artist": "Benvenuto di Giovanni",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/70681fcc-b40a-4147-9803-c632037b4f74"
+},
+{
+"object_id": "1142",
+"number": "1942.9.5",
+"title": "The Baptism of Christ",
+"artist": "Paris Bordone",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/438b0fa2-4c5b-4993-ba89-d91a9d37fc39"
+},
+{
+"object_id": "1160",
+"number": "1942.9.21",
+"title": "The Hon. Mrs. Thomas Graham",
+"artist": "Thomas Gainsborough",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/360658c9-e588-4b72-933c-8d95ab53906a"
+},
+{
+"object_id": "1161",
+"number": "1942.9.22",
+"title": "John, 4th Earl of Darnley",
+"artist": "Thomas Gainsborough",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ff6db495-6391-4f75-b638-53bc0dfe975e"
+},
+{
+"object_id": "1162",
+"number": "1942.9.23",
+"title": "Lucrezia Sommaria",
+"artist": "Ridolfo Ghirlandaio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/96a8ace4-a8af-427a-979b-8fcf26cd5402"
+},
+{
+"object_id": "1166",
+"number": "1942.9.27",
+"title": "Grand Canal with the Rialto Bridge, Venice",
+"artist": "Francesco Guardi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d9e7fbf2-accf-4fcd-9996-ffc204a8875b"
+},
+{
+"object_id": "1204",
+"number": "1942.9.65",
+"title": "Philemon and Baucis",
+"artist": "Rembrandt van Rijn",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ff5b1370-fd8e-4289-855d-a5a662ce2397"
+},
+{
+"object_id": "1209",
+"number": "1942.9.70",
+"title": "Portrait of Rembrandt",
+"artist": "Rembrandt Workshop",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/99356b71-7652-482d-87c2-b99b94382742"
+},
+{
+"object_id": "1224",
+"number": "1942.9.85",
+"title": "Venice: The Dogana and San Giorgio Maggiore",
+"artist": "Joseph Mallord William Turner",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e69c25bb-f772-4ac2-966f-2954eb420a84"
+},
+{
+"object_id": "1229",
+"number": "1942.9.90",
+"title": "The Prefect Raffaele Raggi",
+"artist": "Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d9d2e050-e740-4bc7-8c09-69ad8aee5fbb"
+},
+{
+"object_id": "1232",
+"number": "1942.9.93",
+"title": "Filippo Cattaneo",
+"artist": "Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1de6821a-1650-45c3-9e67-ca484c709972"
+},
+{
+"object_id": "1234",
+"number": "1942.9.95",
+"title": "Catherine Howard, Lady d'Aubigny",
+"artist": "Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d98a958b-291a-40f3-9dda-b5d371b69dd7"
+},
+{
+"object_id": "1235",
+"number": "1942.9.96",
+"title": "Portrait of a Young Man",
+"artist": "Venetian 16th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/adfc4257-a364-4087-9a25-4727ef3bc56f"
+},
+{
+"object_id": "2649",
+"number": "1942.9.1801.a",
+"title": "Nous n'avons pas le patience d'attendre que nous fussions seuls",
+"artist": "Louis-Joseph Lefevre",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/87628334-7fe5-40de-8dd3-f66b608f76e5"
+},
+{
+"object_id": "2984",
+"number": "1942.9.2353",
+"title": "La voluptueuse",
+"artist": "René Gaillard after Jean-Baptiste Greuze",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/7a4ab75b-fcc1-40b0-bd8c-c3da45e1aea4"
+},
+{
+"object_id": "3160",
+"number": "1942.14.1",
+"title": "John Bill Ricketts",
+"artist": "Gilbert Stuart",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3dc56a71-7908-43fc-bb46-32c575540836"
+},
+{
+"object_id": "3204",
+"number": "1943.1.1",
+"title": "Moonlight",
+"artist": "Imitator of Ralph Albert Blakelock",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/aee8484d-34b4-41b1-acc2-07499f5bbddc"
+},
+{
+"object_id": "3211",
+"number": "1943.1.8",
+"title": "Mrs. William Griffin",
+"artist": "Thomas Sully",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c6fe2e51-2fd2-42ae-91eb-dcc0b9e8bc82"
+},
+{
+"object_id": "3238",
+"number": "1943.3.26",
+"title": "Sketch of a Woman",
+"artist": "Jean-Louis Forain",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2ed20848-64ef-47ed-b826-540d3d1d224f"
+},
+{
+"object_id": "3338",
+"number": "1943.3.126",
+"title": "Saint Thomas (?) or Saint Simon (?)",
+"artist": "Israhel van Meckenem after Master E.S.",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/b02302aa-c40c-467d-aa4f-2045546ebdc5"
+},
+{
+"object_id": "4088",
+"number": "1943.3.870",
+"title": "King Ferdinand I",
+"artist": "Barthel Beham",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/1efa0abe-4396-485e-85be-fcd391c0bcd3"
+},
+{
+"object_id": "5333",
+"number": "1943.3.2172",
+"title": "Drill with Tilted Pikes",
+"artist": "Jacques Callot",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/40054d41-b934-4ab2-a93b-cc62a40207c1"
+},
+{
+"object_id": "5338",
+"number": "1943.3.2177",
+"title": "Firing the Cannon",
+"artist": "Jacques Callot",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/41b6e01e-e0c2-4c06-a047-b8a9180522d2"
+},
+{
+"object_id": "7155",
+"number": "1943.3.4037",
+"title": "La Borne - Verdun (The End - Verdun)",
+"artist": "Jean-Louis Forain",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/bd0edac3-ce06-4d96-8e56-a172f0272366"
+},
+{
+"object_id": "7307",
+"number": "1943.3.4387",
+"title": "Masquerade",
+"artist": "German 16th Century",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/946a8c93-e05a-425c-a696-539f5e344f0d"
+},
+{
+"object_id": "7813",
+"number": "1943.3.4891",
+"title": "Preacher",
+"artist": "Wenceslaus Hollar after Hans Holbein the Younger after Abraham van Diepenbeeck",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/6e135eb7-29fa-4d35-be17-19a13724853e"
+},
+{
+"object_id": "9171",
+"number": "1943.3.6239",
+"title": "Birth of Adonis",
+"artist": "Benedetto Montagna",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/eb9d12fc-44a7-496d-8692-bcdfbc13d889"
+},
+{
+"object_id": "9460",
+"number": "1943.3.6666",
+"title": "Andre Le Fevre d'Ormesson",
+"artist": "Robert Nanteuil",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/716d2859-2a7b-46f3-87d4-5fcf767a5f2d"
+},
+{
+"object_id": "9484",
+"number": "1943.3.6690",
+"title": "Ornament in Hexagonal Shape",
+"artist": "Circle of Francesco Francia",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/ab9170e5-d57c-4273-8c3e-4e251dacef81"
+},
+{
+"object_id": "11901",
+"number": "1943.3.9386",
+"title": "Christ Crowned with Thorns",
+"artist": "Hendrik Goltzius",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/ddbcced2-285b-4108-b153-68767a0b0150"
+},
+{
+"object_id": "11947",
+"number": "1943.3.9432",
+"title": "Letter X",
+"artist": "Hans Lützelburger after Hans Holbein the Younger\n",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/5ab7909b-ffac-4521-a28c-1daf824d7c81"
+},
+{
+"object_id": "12129",
+"number": "1943.4.31",
+"title": "Christ at the Sea of Galilee",
+"artist": "Alessandro Magnasco",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/96d0a15c-9a96-44a0-81be-e5d5c4872451"
+},
+{
+"object_id": "12138",
+"number": "1943.4.40",
+"title": "Madonna of the Goldfinch",
+"artist": "Giovanni Battista Tiepolo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3e77b2e1-a36a-482f-85f8-96eaf89b679a"
+},
+{
+"object_id": "12143",
+"number": "1943.4.45",
+"title": "Madonna and Child with Five Angels",
+"artist": "Giovanni Baronzio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2f890ae3-3eae-41d3-8ada-6210ea87ea27"
+},
+{
+"object_id": "12205",
+"number": "1943.7.7",
+"title": "The Healing of the Paralytic",
+"artist": "Netherlandish 16th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/294e57e7-14ef-4e2e-8b3d-081b4cc05fd6"
+},
+{
+"object_id": "30229",
+"number": "1943.14.1",
+"title": "Commodore John Rodgers",
+"artist": "John Wesley Jarvis",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/dbb957df-2395-4f9d-8c96-ea496a608e8d"
+},
+{
+"object_id": "30344",
+"number": "1944.3.1",
+"title": "Horace Binney",
+"artist": "Gilbert Stuart",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/98e476f3-8940-4bd6-b2ce-1a335f4f04eb"
+},
+{
+"object_id": "30776",
+"number": "1945.4.1",
+"title": "The Lackawanna Valley",
+"artist": "George Inness",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/41934d82-bfb0-447b-b36e-d06dca991243"
+},
+{
+"object_id": "32577",
+"number": "1945.9.1",
+"title": "Lady with a Harp: Eliza Ridgely",
+"artist": "Thomas Sully",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b8f8a1ff-6d0e-4a1b-8470-d1d884b285f1"
+},
+{
+"object_id": "32587",
+"number": "1945.15.2",
+"title": "Procession of Gondolas in the Bacino di San Marco, Venice",
+"artist": "Antonio Joli",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/baa196ea-c6c8-4fcc-b320-5ebb2f49c8cb"
+},
+{
+"object_id": "32589",
+"number": "1945.15.4",
+"title": "Entrance to the Grand Canal from the Molo, Venice",
+"artist": "Canaletto",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/619045a2-672b-4e41-bf0d-f87633686d3b"
+},
+{
+"object_id": "32679",
+"number": "1946.7.1",
+"title": "Allegory of Painting",
+"artist": "François Boucher",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/fc864ff2-edf7-44cd-bd9e-0fa0d167d816"
+},
+{
+"object_id": "32681",
+"number": "1946.7.3",
+"title": "Madame Bergeret",
+"artist": "François Boucher",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/01c5e407-6e59-4ae8-a47e-dd51c5d619a7"
+},
+{
+"object_id": "32684",
+"number": "1946.7.6",
+"title": "A Game of Hot Cockles",
+"artist": "Jean Honoré Fragonard",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0c5e1eb1-cd12-45c5-9455-b287dd9dafbc"
+},
+{
+"object_id": "32689",
+"number": "1946.7.11",
+"title": "Landscape with Peasants",
+"artist": "Louis Le Nain",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/286d4b52-4ef8-4758-a9a9-1a0659ec7b88"
+},
+{
+"object_id": "32691",
+"number": "1946.7.13",
+"title": "Madame Le Fèvre de Caumartin as Hebe",
+"artist": "Jean-Marc Nattier",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f9b02d1b-69f0-4aa7-a798-c2948cf17b7c"
+},
+{
+"object_id": "32910",
+"number": "1946.9.212",
+"title": "The Approach to the Grand Central, New York",
+"artist": "Joseph Pennell",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/f93c25dc-131d-4711-914c-8889172b7397"
+},
+{
+"object_id": "33235",
+"number": "1946.11.225",
+"title": "Reguliers Gate (Regeliers Poort)",
+"artist": "Reinier Nooms, called Zeeman",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/36a56ecb-25d5-428c-8171-92606743ad04"
+},
+{
+"object_id": "33747",
+"number": "1947.3.1",
+"title": "Dutch Ships in a Lively Breeze",
+"artist": "Circle of Jacob Adriaensz Bellevois",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/62b78f22-2b55-42a5-a6e2-a2828d8fa1e6"
+},
+{
+"object_id": "33750",
+"number": "1947.6.1",
+"title": "A Prince of Saxony",
+"artist": "Lucas Cranach the Elder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c13d83bf-6bcf-49d2-ab42-642ff754cae1"
+},
+{
+"object_id": "33975",
+"number": "1947.12.4.b",
+"title": "A Crouching Figure Holding a Shield [verso]",
+"artist": "William Blake",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/cfd8483a-6394-4564-9855-220c1cc77ec0"
+},
+{
+"object_id": "34062",
+"number": "1947.17.14",
+"title": "John Sudam",
+"artist": "John Vanderlyn",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ff1e06cf-448f-4b0c-b361-a7ceff1e3e03"
+},
+{
+"object_id": "34081",
+"number": "1947.17.33",
+"title": "Portrait of a Man",
+"artist": "Unknown 18th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4af62dfb-9ca6-48f0-b539-7ae859077833"
+},
+{
+"object_id": "34126",
+"number": "1947.17.78",
+"title": "Thomas W. Dyott",
+"artist": "John Neagle",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e051c489-8d9b-4709-b913-ee230e25a71d"
+},
+{
+"object_id": "34147",
+"number": "1947.17.99",
+"title": "Portrait of a Man",
+"artist": "French 17th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/050d3a87-f256-45df-9958-2fd3c43d1bfe"
+},
+{
+"object_id": "34163",
+"number": "1947.19.1",
+"title": "Portrait of an Old Man",
+"artist": "Alphonse Legros",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9b390c82-01dd-4538-94fb-9091e489e17f"
+},
+{
+"object_id": "34956",
+"number": "1948.12.1",
+"title": "The Return of the Prodigal Son",
+"artist": "Bartolomé Esteban Murillo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/676fa96e-ad4e-4209-b985-ae0c15f5d902"
+},
+{
+"object_id": "35084",
+"number": "1948.19.1",
+"title": "Captain Patrick Miller",
+"artist": "Sir Henry Raeburn",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/730b46b8-d08f-4391-bcf4-20ac283d598c"
+},
+{
+"object_id": "35093",
+"number": "1949.1.9",
+"title": "The Bather",
+"artist": "Jean-François Millet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3f06ff12-3da9-499e-976e-5f2361f7e2ff"
+},
+{
+"object_id": "36976",
+"number": "1949.5.522",
+"title": "En Plein Soleil",
+"artist": "James McNeill Whistler",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/6c1a0284-26f5-4907-8944-be763beca1c8"
+},
+{
+"object_id": "37852",
+"number": "1950.14.214",
+"title": "Henry II de Bourbon, Prince de Conde",
+"artist": "Léonard Gaultier",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/b95ace5c-d18f-4d2f-9251-04c520cdd5b5"
+},
+{
+"object_id": "38645",
+"number": "1950.14.1007",
+"title": "Francisco Pizarro",
+"artist": "Crispijn de Passe I",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/e377973b-c6aa-465d-a7f5-e8f09dd2fbad"
+},
+{
+"object_id": "39760",
+"number": "1951.5.3",
+"title": "Mending the Harness",
+"artist": "Albert Pinkham Ryder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/868be5f8-bd09-44b4-a173-ab65103bbf4f"
+},
+{
+"object_id": "39816",
+"number": "1951.10.25",
+"title": "Feste de Bacchus, celebree par des Satyres et des Bacchantes (Feast of Bacchus Celeb rated by Satyrs and Bacchanales)",
+"artist": "Claude Gillot",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/b793f705-3101-4fe3-b12b-3aaf65703273"
+},
+{
+"object_id": "40607",
+"number": "1951.11.325",
+"title": "Sir Benjamin Rudyerd, Court of Wardes and Liveryes",
+"artist": "John Payne, after Daniel Mytens the Elder",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/0b76cd74-1e8e-4004-b032-bfba0de455be"
+},
+{
+"object_id": "41030",
+"number": "1951.11.748",
+"title": "Sir Henry Wotton, Diplomatist and Poet",
+"artist": "Unknown Artist",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/9f301e2e-9bee-4911-aa9d-3406ecffdcaa"
+},
+{
+"object_id": "41314",
+"number": "1951.15.1",
+"title": "Andrea Renier and His Son Daniele",
+"artist": "Follower of Jacopo Tintoretto",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a27c3de9-69f2-4406-a1cb-639b6689e988"
+},
+{
+"object_id": "41593",
+"number": "1952.2.11",
+"title": "Ranuccio Farnese",
+"artist": "Titian",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/acf2ae83-872b-4aee-b927-22913c5d06c1"
+},
+{
+"object_id": "41611",
+"number": "1952.5.1",
+"title": "Christ Risen from the Tomb",
+"artist": "Bergognone",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8d4d3401-5d6a-4ab1-9542-6d2886519a29"
+},
+{
+"object_id": "41612",
+"number": "1952.5.2",
+"title": "Joseph of Egypt",
+"artist": "Master of the Griselda Legend",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6789558e-0527-4d41-97e5-245336b76e8f"
+},
+{
+"object_id": "41620",
+"number": "1952.5.10",
+"title": "Saint Benedict Orders Saint Maurus to the Rescue of Saint Placidus",
+"artist": "Fra Filippo Lippi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2782d749-73fa-477a-be42-ce1f155ae30d"
+},
+{
+"object_id": "41626",
+"number": "1952.5.16",
+"title": "Saint John the Evangelist",
+"artist": "Master of Saint Francis",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1776edff-237b-411e-b28e-940e253398c1"
+},
+{
+"object_id": "41628",
+"number": "1952.5.18",
+"title": "Madonna and Child with God the Father Blessing and Angels",
+"artist": "Jacopo di Cione",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b9e37014-2bcf-4786-bdcd-9d5925e0e35f"
+},
+{
+"object_id": "41634",
+"number": "1952.5.24",
+"title": "Saint Simon",
+"artist": "Simone Martini",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1d4fe135-def0-4a61-89a5-ffa8b9ffa852"
+},
+{
+"object_id": "41658",
+"number": "1952.5.45",
+"title": "A Miracle of Saint Benedict",
+"artist": "French 15th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b805508a-ffe6-49d3-9a95-ae83e1046b18"
+},
+{
+"object_id": "41679",
+"number": "1952.5.64",
+"title": "Bishop Altobello Averoldo",
+"artist": "Francesco Francia",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/64a68e7b-3e9c-4405-acd5-aa3c0efa3f65"
+},
+{
+"object_id": "41681",
+"number": "1952.5.66",
+"title": "Portrait of a Young Lady",
+"artist": "Follower of Leonardo da Vinci",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/85bacc8a-0532-4156-8062-020e2f9afaa1"
+},
+{
+"object_id": "41693",
+"number": "1952.5.78",
+"title": "Apollo Pursuing Daphne",
+"artist": "Giovanni Battista Tiepolo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/28a2367a-927b-40a2-9c33-6f0d1ca932cc"
+},
+{
+"object_id": "42286",
+"number": "1952.9.3",
+"title": "Mrs. Charles S. Carstairs",
+"artist": "Sir William Orpen",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/331862c8-6f51-4f07-8f18-bb9be7e872e6"
+},
+{
+"object_id": "42323",
+"number": "1952.10.36",
+"title": "Landscape with Roller (Le paysage au rouleau)",
+"artist": "Alphonse Legros",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/825fd336-d5da-406b-9ffa-9ef1459a69a7"
+},
+{
+"object_id": "42395",
+"number": "1953.3.3.a",
+"title": "A Member of the de Hondecoeter Family [obverse]",
+"artist": "Probably Antwerp 16th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9f8a878d-1aa6-47a3-b577-b580f8188285"
+},
+{
+"object_id": "42406",
+"number": "1953.5.3",
+"title": "Clement Bonnell",
+"artist": "William Bonnell",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/632a0341-d349-4110-906b-ccf1aa60c2dc"
+},
+{
+"object_id": "42412",
+"number": "1953.5.9",
+"title": "Profile Portrait of a Young Man",
+"artist": "American 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/582bfcfa-79cc-466c-8a7c-01a69046cac2"
+},
+{
+"object_id": "42473",
+"number": "1953.5.70",
+"title": "Little Girl with Pet Rabbit",
+"artist": "Sturtevant J. Hamblin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d1dd8b19-417b-4a3b-923e-24ddac6fb09d"
+},
+{
+"object_id": "42489",
+"number": "1953.5.86",
+"title": "Attack on Bunker's Hill, with the Burning of Charles Town",
+"artist": "American 18th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/887b3c98-f27b-469a-a98a-c8d013d0cca8"
+},
+{
+"object_id": "42497",
+"number": "1953.5.94",
+"title": "Farmhouse in Mahantango Valley",
+"artist": "American 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b1ce4b8d-bb10-4989-a8a5-cc5c27e359b3"
+},
+{
+"object_id": "42498",
+"number": "1953.5.95",
+"title": "The Trotter",
+"artist": "Charles S. Humphreys",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/108500f8-2ddd-4214-81ae-3bc6acadbff6"
+},
+{
+"object_id": "42853",
+"number": "1953.10.1",
+"title": "Marina Piccola, Capri",
+"artist": "William Stanley Haseltine",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/07875217-5820-4a95-afbe-8056a8b60742"
+},
+{
+"object_id": "42929",
+"number": "1954.4.3",
+"title": "Snow in New York",
+"artist": "Robert Henri",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/243000de-3236-4cca-b4d5-6f4fe08b5ad7"
+},
+{
+"object_id": "42932",
+"number": "1954.6.1",
+"title": "Italian Woman (La Morieri)",
+"artist": "Jean-Baptiste-Camille Corot",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/23258d7c-8652-449a-924c-554e3c09d80d"
+},
+{
+"object_id": "42935",
+"number": "1954.8.1",
+"title": "The Mussel Harvest",
+"artist": "Auguste Renoir",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1d18373f-5ced-4d68-bbc5-c50097ca4644"
+},
+{
+"object_id": "42937",
+"number": "1954.9.1",
+"title": "Miss Jean Christie",
+"artist": "Style of Sir Henry Raeburn",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/32db4752-fd6e-4463-bc16-466a4e53468c"
+},
+{
+"object_id": "42940",
+"number": "1954.9.4",
+"title": "Mary Barry",
+"artist": "Gilbert Stuart",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/63a9f1f4-2581-4bfc-8015-5bfc6fa626b6"
+},
+{
+"object_id": "43198",
+"number": "1954.13.1",
+"title": "The Last Supper",
+"artist": "William Blake",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/018328c5-9864-47a7-9a06-0b73542d9fdc"
+},
+{
+"object_id": "43262",
+"number": "1954.17.1",
+"title": "The Gift of the Fishermen",
+"artist": "after Jean-Baptiste Joseph Pater",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/62069f18-73bc-4ad0-b55f-0ca92157fc4b"
+},
+{
+"object_id": "43441",
+"number": "1955.11.10",
+"title": "Emancipation Proclamation",
+"artist": "A.A. Lamb",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c1059816-1dc7-4af1-a5b3-26772de84b08"
+},
+{
+"object_id": "43456",
+"number": "1955.12.1",
+"title": "Peasant in a Round Hat (Paysan avec chapeau rond)",
+"artist": "Alphonse Legros",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/3780f1cc-5272-4a22-aa06-174e5291e598"
+},
+{
+"object_id": "43586",
+"number": "1956.7.1",
+"title": "Edith Reynolds",
+"artist": "Robert Henri",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4c997540-be91-40a8-8503-b67b3986e7ca"
+},
+{
+"object_id": "43609",
+"number": "1956.9.15",
+"title": "Costume Study for \"Jeux\"",
+"artist": "Lev Samoilovich Bakst",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/3245c444-1265-408b-8f0a-a401d1821bda"
+},
+{
+"object_id": "43631",
+"number": "1956.13.3",
+"title": "Ark of the Covenant",
+"artist": "Erastus Salisbury Field",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/168f4a0e-ac11-4a26-9a72-2ebf7990bb4e"
+},
+{
+"object_id": "43671",
+"number": "1956.15.1",
+"title": "Charles Carroll of Carrollton",
+"artist": "Chester Harding",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/534576fa-5fa3-4c8a-a152-c38243f36a8a"
+},
+{
+"object_id": "43674",
+"number": "1957.2.2",
+"title": "Annie C. Lochrey Husson (Mrs. Louis Husson)",
+"artist": "Thomas Eakins",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/cabcfcd6-68e8-4383-b41f-4642df5a8012"
+},
+{
+"object_id": "43676",
+"number": "1957.3.2",
+"title": "Julia Dodd (Mrs. George Dodd)",
+"artist": "John Neagle",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6726ab21-6193-4828-8756-724d49a51a42"
+},
+{
+"object_id": "45604",
+"number": "1958.2.1",
+"title": "Mary Crowninshield Endicott Chamberlain (Mrs. Joseph Chamberlain)",
+"artist": "John Singer Sargent",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a96ff252-3ed0-4e66-8b7f-9011788ac412"
+},
+{
+"object_id": "45876",
+"number": "1959.1.1",
+"title": "Easby Abbey, near Richmond",
+"artist": "George Cuitt the Younger",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9cd59cc1-c024-43ad-9e49-080aed4c801a"
+},
+{
+"object_id": "45881",
+"number": "1959.4.1",
+"title": "Epes Sargent",
+"artist": "John Singleton Copley",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5ca2c2cd-9fd0-49d7-b4dd-edfdda353874"
+},
+{
+"object_id": "45888",
+"number": "1959.9.3",
+"title": "Madonna and Child with Saints in the Enclosed Garden",
+"artist": "Follower of Robert Campin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d5e24c15-d22d-4f60-83b6-816c2fe41bf0"
+},
+{
+"object_id": "45958",
+"number": "1959.11.4",
+"title": "Jonathan Bentham",
+"artist": "American 18th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a7b44489-2b37-40a5-9daa-72438f8a62bf"
+},
+{
+"object_id": "45963",
+"number": "1959.11.9",
+"title": "Lady in White",
+"artist": "Ammi Phillips",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ecfcae8e-730e-4108-91bf-0e47dec617c9"
+},
+{
+"object_id": "46026",
+"number": "1960.6.2",
+"title": "Diana and Endymion",
+"artist": "Jean Honoré Fragonard",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5314b9a2-96a3-4ef8-bb58-7fbb27d71232"
+},
+{
+"object_id": "46028",
+"number": "1960.6.4",
+"title": "Saint Sebastian Succored by the Holy Women",
+"artist": "Jean-Baptiste-Camille Corot",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/626453f8-e7b0-453c-a0f4-ff7d21a0f2a3"
+},
+{
+"object_id": "46038",
+"number": "1960.6.14",
+"title": "Fête Champêtre",
+"artist": "after Jean-Baptiste Joseph Pater",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5a303da5-ebae-42b0-b842-3af2ae6115ae"
+},
+{
+"object_id": "46046",
+"number": "1960.6.22",
+"title": "Reclining Nude",
+"artist": "Jean-Jacques Henner",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3b0bb9c7-c0cc-4fba-b0b9-3c6e6531987b"
+},
+{
+"object_id": "46048",
+"number": "1960.6.24",
+"title": "Head of a Woman",
+"artist": "Umbrian 16th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/14e5fa0d-73cf-46af-831f-656fb53a6411"
+},
+{
+"object_id": "46088",
+"number": "1961.2.2",
+"title": "John Musters",
+"artist": "Sir Joshua Reynolds",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f7900072-fa44-4f8f-bbc2-b8d0cbcc09ad"
+},
+{
+"object_id": "46091",
+"number": "1961.4.1",
+"title": "Elizabeth Fulford Welshman",
+"artist": "John Greenwood",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/eb5ad869-b1c7-4cb1-9658-348751d9a0e9"
+},
+{
+"object_id": "46093",
+"number": "1961.5.2",
+"title": "Mrs. Thomas Horne",
+"artist": "Francis Cotes",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0603c5d8-278e-45ed-84ee-d5d456b5052c"
+},
+{
+"object_id": "46101",
+"number": "1961.9.2",
+"title": "The Crucifixion",
+"artist": "Bernardo Daddi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/33f1330d-2ca0-4f9c-97c9-ee767667d64c"
+},
+{
+"object_id": "46109",
+"number": "1961.9.10",
+"title": "Portrait of a Male Donor",
+"artist": "Petrus Christus",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/7270e9fe-1183-4441-a661-cbd826c7e8ec"
+},
+{
+"object_id": "46119",
+"number": "1961.9.20",
+"title": "Cardinal Francesco Cennini",
+"artist": "Giovanni Francesco Barbieri, called Guercino",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6f4d6afd-4968-4508-b730-f90c89e9d53c"
+},
+{
+"object_id": "46146",
+"number": "1961.9.47",
+"title": "Saint Jerome in the Wilderness",
+"artist": "Veronese Workshop (Possibly Benedetto Caliari)",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/15f8d0fb-d3ac-487b-91b7-eaa4f4adac70"
+},
+{
+"object_id": "46167",
+"number": "1961.9.68",
+"title": "Salvator Mundi",
+"artist": "Correggio",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c25b29e5-f86a-442c-a544-5c89c767b48b"
+},
+{
+"object_id": "46170",
+"number": "1961.9.71",
+"title": "The Assumption of the Virgin with Busts of the Archangel Gabriel and the Virgin of the Annunciation",
+"artist": "Paolo di Giovanni Fei",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/40067869-f92c-459c-9808-2d3ae3009311"
+},
+{
+"object_id": "46182",
+"number": "1961.9.83",
+"title": "Monsignor della Casa",
+"artist": "Pontormo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/33edad58-6362-474a-9edd-7af0531cc258"
+},
+{
+"object_id": "46191",
+"number": "1961.9.92",
+"title": "Three Figures Dressed for a Masquerade",
+"artist": "Louis-Joseph Le Lorrain",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a45afbb2-6c25-48a6-a7f8-9629ceb1fc00"
+},
+{
+"object_id": "46474",
+"number": "1963.9.1",
+"title": "Autumn - On the Hudson River",
+"artist": "Jasper Francis Cropsey",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0253c293-4cc1-4131-89a9-f2c997aebba0"
+},
+{
+"object_id": "46499",
+"number": "1963.10.24",
+"title": "Mademoiselle de Fitz-James",
+"artist": "Henri Fantin-Latour",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/446671ef-a5d1-4e77-b059-bef1c696cee6"
+},
+{
+"object_id": "46506",
+"number": "1963.10.31",
+"title": "Roulin's Baby",
+"artist": "Vincent van Gogh",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c78b52c9-ca48-4e92-8a82-0efec04599f2"
+},
+{
+"object_id": "46507",
+"number": "1963.10.32",
+"title": "Alsatian Girl",
+"artist": "Jean-Jacques Henner",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/467b3ed9-5955-4809-a000-c2c5894e4432"
+},
+{
+"object_id": "46520",
+"number": "1963.10.45",
+"title": "Girl in a Green Blouse",
+"artist": "Amedeo Modigliani",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/11de4474-0a05-4aaf-a8a0-827c9190d9bd"
+},
+{
+"object_id": "46534",
+"number": "1963.10.59",
+"title": "Marie Murer",
+"artist": "Auguste Renoir",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/83d4f5b6-7e34-456a-a1bc-470e4838bf3b"
+},
+{
+"object_id": "46538",
+"number": "1963.10.63",
+"title": "Boy on the Rocks",
+"artist": "Henri Rousseau",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c5bb7c2b-675e-4c31-8674-2e229e22a40b"
+},
+{
+"object_id": "46552",
+"number": "1963.10.77",
+"title": "Nude on a Divan",
+"artist": "Amedeo Modigliani",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/336d6784-a562-4bec-9a1e-bbc61054fd49"
+},
+{
+"object_id": "46577",
+"number": "1963.10.102",
+"title": "House of Père Lacroix",
+"artist": "Paul Cezanne",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f787246b-badc-4a5a-90b9-16b727c7fea1"
+},
+{
+"object_id": "46589",
+"number": "1963.10.114",
+"title": "A Young Woman Reading",
+"artist": "Gustave Courbet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/28b9e23a-3c0d-4e93-8349-b1aae8f87aee"
+},
+{
+"object_id": "46647",
+"number": "1963.10.172",
+"title": "Madame Amédée (Woman with Cigarette)",
+"artist": "Amedeo Modigliani",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/dcf1189f-9184-4250-ab08-dd57b7b8cb96"
+},
+{
+"object_id": "46652",
+"number": "1963.10.177",
+"title": "Banks of the Seine, Vétheuil",
+"artist": "Claude Monet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5dd2009f-7782-43d8-9892-be5733d8f43b"
+},
+{
+"object_id": "46656",
+"number": "1963.10.181",
+"title": "Jerusalem Artichoke Flowers",
+"artist": "Claude Monet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5bfb4c45-feb8-4dbb-8b77-519c0560dcaf"
+},
+{
+"object_id": "46660",
+"number": "1963.10.185",
+"title": "In the Dining Room",
+"artist": "Berthe Morisot",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ea8beda4-8914-4648-aa98-6358279fc362"
+},
+{
+"object_id": "46675",
+"number": "1963.10.200",
+"title": "The Prodigal Son",
+"artist": "Pierre Puvis de Chavannes",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6eb167b3-9282-46a9-8d83-4943dccf4363"
+},
+{
+"object_id": "46677",
+"number": "1963.10.202",
+"title": "Spring Woods",
+"artist": "Henry Ward Ranger",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/79cb3eba-4af9-4197-87a3-d61ca03ed227"
+},
+{
+"object_id": "46687",
+"number": "1963.10.212",
+"title": "Jacques-Louis David",
+"artist": "Studio of Georges Rouget",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/58a3cf06-8a1e-4672-b9fd-ae683c79e622"
+},
+{
+"object_id": "46688",
+"number": "1963.10.213",
+"title": "The Equatorial Jungle",
+"artist": "Henri Rousseau",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c6518c61-98bb-4759-9042-b4bc2ec343ef"
+},
+{
+"object_id": "46704",
+"number": "1963.10.229",
+"title": "Repast in a Garden",
+"artist": "Edouard Vuillard",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/469aefe8-b1eb-4b56-a5cf-101cc85e4f96"
+},
+{
+"object_id": "48447",
+"number": "1964.8.1295",
+"title": "Saint George and the Dragon",
+"artist": "Balthasar Moncornet",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/f2a22b47-5fab-4aef-9cfd-12f97b82859c"
+},
+{
+"object_id": "50215",
+"number": "1964.11.1",
+"title": "The Marquise de Pezay, and the Marquise de Rougé with Her Sons Alexis and Adrien",
+"artist": "Élisabeth-Louise Vigée Le Brun",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/12aab9ab-9927-40a5-b2fe-9737d1a37f05"
+},
+{
+"object_id": "50220",
+"number": "1964.16.1",
+"title": "A Knight of the Golden Fleece",
+"artist": "Attributed to Jean Perréal",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a3b8114a-3b9b-4407-9fce-cf7542a56d70"
+},
+{
+"object_id": "50256",
+"number": "1964.21.2",
+"title": "Erminia and the Shepherds",
+"artist": "Gian Antonio Guardi and Francesco Guardi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9bac5daf-11c8-4a6d-a834-0f0ad6406fd2"
+},
+{
+"object_id": "50258",
+"number": "1964.23.1",
+"title": "Captain Samuel Chandler",
+"artist": "Winthrop Chandler",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ac79dbbb-33ba-4dbe-abc1-b8090ae95a67"
+},
+{
+"object_id": "50281",
+"number": "1965.2.1",
+"title": "Rio de Janeiro Bay",
+"artist": "Martin Johnson Heade",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8175e345-711c-463c-9192-9814abaac5b6"
+},
+{
+"object_id": "50298",
+"number": "1965.13.1",
+"title": "Daniel in the Lions' Den",
+"artist": "Sir Peter Paul Rubens",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3612e738-ac27-4600-804c-db9cbbf16c30"
+},
+{
+"object_id": "50303",
+"number": "1965.15.4",
+"title": "Connecticut Sea Captain",
+"artist": "Isaac Sheffield",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/966daf66-223c-4e5c-9b7a-64b0de6bc83c"
+},
+{
+"object_id": "50306",
+"number": "1965.15.7",
+"title": "Mary Cuthbert (Mrs. James Cuthbert) (?)",
+"artist": "Jeremiah Theus",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2d9c553e-f90d-4fb2-8156-c307888922a8"
+},
+{
+"object_id": "50340",
+"number": "1965.16.32",
+"title": "Assinneboine Warrior and His Family",
+"artist": "George Catlin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/633ca099-eb0e-4651-a4e3-9b05fbdde60c"
+},
+{
+"object_id": "50364",
+"number": "1965.16.56",
+"title": "Pawneepict Chief, Two Daughters, and a Warrior",
+"artist": "George Catlin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9555b8f1-32a6-4dc6-945a-33a5833d4606"
+},
+{
+"object_id": "50396",
+"number": "1965.16.88",
+"title": "Three Iowa Indians",
+"artist": "George Catlin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3e11c2b5-d94c-4da9-a5d4-823fa1f9e885"
+},
+{
+"object_id": "50540",
+"number": "1965.16.232",
+"title": "Bride and Groom on Horseback - Connibo",
+"artist": "George Catlin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/fbfd7617-fd3a-40bd-aa98-545801e57dc4"
+},
+{
+"object_id": "50662",
+"number": "1966.1.1",
+"title": "Saint George and the Dragon",
+"artist": "Rogier van der Weyden",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f7d5354b-f6bc-44a3-8403-07f609a4c743"
+},
+{
+"object_id": "50685",
+"number": "1966.11.1",
+"title": "The Vanderkemp Children",
+"artist": "Thomas Sully",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/72643210-f184-44e6-92e3-3b2c384041db"
+},
+{
+"object_id": "50690",
+"number": "1966.13.4",
+"title": "Blacksmith Shop",
+"artist": "Francis A. Beckett",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/58d006cd-f833-4c00-af0e-8bd26ac806de"
+},
+{
+"object_id": "50725",
+"number": "1967.6.1.b",
+"title": "Wreath of Laurel, Palm, and Juniper with a Scroll inscribed Virtutem Forma Decorat [reverse]",
+"artist": "Leonardo da Vinci",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ff62e8d0-45c4-498f-ad36-6358de827e04"
+},
+{
+"object_id": "50802",
+"number": "1967.18.24",
+"title": "Souvenir of the Environs of Monaco (Souvenir des environs de Monaco)",
+"artist": "Jean-Baptiste-Camille Corot",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/2615cced-a5a3-4599-9eff-3289553873f6"
+},
+{
+"object_id": "50821",
+"number": "1967.20.2",
+"title": "Capture of the \"Savannah\" by the \"U.S.S. Perry\"",
+"artist": "Fritz Müller",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3de53820-9a39-4c57-b8a7-d83a4f8158bb"
+},
+{
+"object_id": "50884",
+"number": "1968.13.2",
+"title": "Interior of Saint Peter's, Rome",
+"artist": "Giovanni Paolo Pannini",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f71f90d6-c2ce-49d8-b95a-153d3ce250cc"
+},
+{
+"object_id": "51089",
+"number": "1968.26.1",
+"title": "Plains Indian",
+"artist": "J.W. Bradshaw",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d8da7536-7ce0-430c-867f-c146b9305c79"
+},
+{
+"object_id": "51090",
+"number": "1968.26.2",
+"title": "Felucca off Gibraltar",
+"artist": "Thomas Chambers",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8c73a8e6-8a04-41fa-b06f-3fadbe8037b1"
+},
+{
+"object_id": "51116",
+"number": "1969.6.7",
+"title": "Talia (Thalia)",
+"artist": "Master of the E-Series Tarocchi",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/f4607e95-bb5c-4021-bb76-28cf288bd40e"
+},
+{
+"object_id": "51144",
+"number": "1969.14.1",
+"title": "Landscape",
+"artist": "Imitator of Vincent van Gogh",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/212836fc-eb1f-4775-922a-9f62925a82cd"
+},
+{
+"object_id": "51491",
+"number": "1969.15.338",
+"title": "Four Women",
+"artist": "Jacques Callot after Matteo Rosselli",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/deb790ce-1af7-4070-b0d2-17bc840f976b"
+},
+{
+"object_id": "52163",
+"number": "1970.17.19",
+"title": "Children Playing on the Beach",
+"artist": "Mary Cassatt",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/20818b10-1f66-4186-ac55-af70e3586084"
+},
+{
+"object_id": "52185",
+"number": "1970.17.41",
+"title": "Bazille and Camille (Study for \"Déjeuner sur l'Herbe\")",
+"artist": "Claude Monet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/bfd3764c-8711-4b04-9f02-ed6b07995d40"
+},
+{
+"object_id": "52208",
+"number": "1970.17.64",
+"title": "Georges Rivière",
+"artist": "Auguste Renoir",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/7577f78d-d44a-413b-b50c-ae30b5ebc882"
+},
+{
+"object_id": "52228",
+"number": "1970.17.84",
+"title": "The Artist's Dog Flèche",
+"artist": "Henri de Toulouse-Lautrec",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8c0e57ec-5ee8-4fff-b303-6e34da2dc494"
+},
+{
+"object_id": "52239",
+"number": "1970.17.95",
+"title": "The Yellow Curtain",
+"artist": "Edouard Vuillard",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/7b7f5a2e-1beb-4556-82e2-a1dde75df795"
+},
+{
+"object_id": "52243",
+"number": "1970.17.99",
+"title": "Vase of Flowers on a Mantelpiece",
+"artist": "Edouard Vuillard",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0acda9d3-8c2f-4698-8af4-52ff72d7ccfb"
+},
+{
+"object_id": "52258",
+"number": "1970.17.114",
+"title": "Race Course at Longchamps",
+"artist": "French 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9d955a6e-1a8c-41de-b28a-140a0d019e29"
+},
+{
+"object_id": "52260",
+"number": "1970.17.116",
+"title": "Roses in a Vase",
+"artist": "French 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5f1d5f48-8378-47b8-bea6-af40486aac4f"
+},
+{
+"object_id": "52264",
+"number": "1970.17.120",
+"title": "William Pitt",
+"artist": "Gainsborough Dupont",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/20eb9317-4237-419b-91e8-3c5a568fc812"
+},
+{
+"object_id": "52274",
+"number": "1970.17.130",
+"title": "Mrs. George Hill",
+"artist": "Sir Henry Raeburn",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f9cb9e95-adf8-4732-a740-62b7885a4f43"
+},
+{
+"object_id": "52279",
+"number": "1970.17.135",
+"title": "Rotterdam Ferry-Boat",
+"artist": "Joseph Mallord William Turner",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d902b68e-b9cc-448c-856c-9bf49745d31d"
+},
+{
+"object_id": "52386",
+"number": "1970.34.1",
+"title": "Roxana Atwater Wentworth",
+"artist": "George Peter Alexander Healy",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8eb4cca4-f727-4e49-b416-6d1b2938a803"
+},
+{
+"object_id": "52389",
+"number": "1970.35.1",
+"title": "Antony Valabrègue",
+"artist": "Paul Cezanne",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8d80cc21-6326-4dab-b6c2-4e667a8e4acc"
+},
+{
+"object_id": "52622",
+"number": "1971.55.1",
+"title": "Ill-Matched Lovers",
+"artist": "Quentin Massys",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b7eac90c-768a-4d70-806f-5215154ed23f"
+},
+{
+"object_id": "52955",
+"number": "1971.83.9",
+"title": "Little Miss Fairfield",
+"artist": "William Matthew Prior",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/31e3fcdb-ccb8-44af-adb8-5e166d961732"
+},
+{
+"object_id": "52964",
+"number": "1971.83.18",
+"title": "The Proud Mother",
+"artist": "American 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/110ebd1d-1816-4fc9-8ce3-5d97fa3eb3be"
+},
+{
+"object_id": "52967",
+"number": "1971.83.21",
+"title": "Ichabod Crane and the Headless Horseman",
+"artist": "after William John Wilgus",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/38f8cffe-50a1-43f9-8f8d-50a62195572d"
+},
+{
+"object_id": "53110",
+"number": "1972.4.1",
+"title": "Harpocrates",
+"artist": "French 17th Century",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/9c2298eb-c483-45ba-8cf9-27901ee87c06"
+},
+{
+"object_id": "53129",
+"number": "1972.9.11",
+"title": "Haystacks in Brittany",
+"artist": "Paul Gauguin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9f7943f8-f2c8-4e4e-9c46-78fff42696d8"
+},
+{
+"object_id": "53800",
+"number": "1973.15.204",
+"title": "Reynard Attempts to Clear Himself",
+"artist": "Allart van Everdingen",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/4d36896e-531c-4269-962a-a4ba4885ee87"
+},
+{
+"object_id": "53813",
+"number": "1973.16.1",
+"title": "View of the Tiber near Perugia",
+"artist": "George Inness",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4e1c9d12-3f6c-4290-81d4-358b2c0682c7"
+},
+{
+"object_id": "54044",
+"number": "1973.58.3",
+"title": "Saint John the Evangelist",
+"artist": "John Skippe after Parmigianino",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/17373b13-0fbc-434e-9a6b-eddb9e3a7d16"
+},
+{
+"object_id": "54131",
+"number": "1973.69.1",
+"title": "Murnau",
+"artist": "Alexej von Jawlensky",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/25378dc6-d789-4af1-ba58-480bc250f43e"
+},
+{
+"object_id": "54386",
+"number": "1974.52.1",
+"title": "The Repentant Magdalen",
+"artist": "Georges de La Tour",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/878b78aa-12f0-4fd2-951b-713f67dba6d4"
+},
+{
+"object_id": "55546",
+"number": "1975.83.1",
+"title": "The Purple Martin (Hirundo purpurea)",
+"artist": "Mark Catesby",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/276e956c-0e13-431c-ac76-82ced35a33a8"
+},
+{
+"object_id": "55783",
+"number": "1976.27.1",
+"title": "Harriet Husson Carville (Mrs. James G. Carville)",
+"artist": "Thomas Eakins",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/145885c8-a3eb-4599-b86c-7b1aeaa4596f"
+},
+{
+"object_id": "55818",
+"number": "1976.36.1",
+"title": "The Sanctuary of Hercules",
+"artist": "Arnold Böcklin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f5309c2c-13a0-41d9-89d6-9659ad0534ec"
+},
+{
+"object_id": "56109",
+"number": "1976.63.1",
+"title": "The Invocation",
+"artist": "Paul Gauguin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/27b6ca51-b402-483f-9339-27ee2a10d500"
+},
+{
+"object_id": "56291",
+"number": "1977.21.1",
+"title": "Tavern Scene",
+"artist": "Adriaen van Ostade",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4dac0318-8cab-4fc1-b221-a672048a1c52"
+},
+{
+"object_id": "56597",
+"number": "1978.11.1",
+"title": "View of Dordrecht from the Dordtse Kil",
+"artist": "Jan van Goyen",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8fc41b7d-58de-4d53-a86d-5d4d4ca12f48"
+},
+{
+"object_id": "56662",
+"number": "1978.41.1",
+"title": "Baby (Cradle)",
+"artist": "Gustav Klimt",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c9129cd8-4893-443a-ac43-8a64fdab5852"
+},
+{
+"object_id": "56743",
+"number": "1978.80.16",
+"title": "Catherine A. May",
+"artist": "Ammi Phillips",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9f0ea53c-1a6d-46ed-a567-f5ae8845aee3"
+},
+{
+"object_id": "56747",
+"number": "1978.80.20",
+"title": "Susanna Truax",
+"artist": "American 18th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/58792a79-2b43-4846-8148-34964326ca26"
+},
+{
+"object_id": "58254",
+"number": "1980.45.546",
+"title": "Study of a Semi-Reclining Figure",
+"artist": "John Flaxman",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/a10c6595-d95e-4ebf-ba12-cf11cf369da3"
+},
+{
+"object_id": "58259",
+"number": "1980.45.551",
+"title": "Frightened Man Looking Up; Woman and Children",
+"artist": "British 18th Century after John Flaxman",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/c6105143-0dfa-451a-b5b3-b5ef7e248533"
+},
+{
+"object_id": "59887",
+"number": "1980.61.7",
+"title": "Steamship \"Erie\"",
+"artist": "American 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/de2f2512-0f1b-4629-ad7b-756c581ea58e"
+},
+{
+"object_id": "59893",
+"number": "1980.61.13",
+"title": "Portrait of an Unknown Family with a Terrier",
+"artist": "British 19th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/71cb47a7-af14-40f9-acbe-864809a8861b"
+},
+{
+"object_id": "59895",
+"number": "1980.62.2",
+"title": "Still Life: Fruit, Bird, and Dwarf Pear Tree",
+"artist": "Charles V. Bond",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c4a024c1-f19d-499e-bc17-76765bab8023"
+},
+{
+"object_id": "59900",
+"number": "1980.62.7",
+"title": "Woman Holding a Book",
+"artist": "Erastus Salisbury Field",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ff27dabd-4630-454a-8d0b-98013b605fd6"
+},
+{
+"object_id": "59915",
+"number": "1980.62.22",
+"title": "Joshua Lamb",
+"artist": "Abram Ross Stanley",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c88239a5-a242-43fc-9618-bbabc77721ef"
+},
+{
+"object_id": "59916",
+"number": "1980.62.23",
+"title": "Baby in Wicker Basket",
+"artist": "Joseph Whiting Stock",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/243882c6-c500-409e-8a5b-2a8bf5525b8e"
+},
+{
+"object_id": "59935",
+"number": "1980.62.41",
+"title": "The Domino Girl",
+"artist": "American 18th Century",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/aa7d5a50-744d-4fed-a5ab-87096eff7373"
+},
+{
+"object_id": "61174",
+"number": "1982.36.1",
+"title": "Still Life with Dead Game",
+"artist": "Willem van Aelst",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4246e72b-cc40-4c13-a02d-59f0ac901740"
+},
+{
+"object_id": "61254",
+"number": "1982.76.8",
+"title": "Wapping",
+"artist": "James McNeill Whistler",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6ca3d2cf-0738-4644-9b72-2c5fea4eeeb0"
+},
+{
+"object_id": "61359",
+"number": "1983.1.9",
+"title": "Jetty and Wharf at Trouville",
+"artist": "Eugène Boudin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4a3e29f1-a598-4902-b75e-f1061d4f5543"
+},
+{
+"object_id": "61365",
+"number": "1983.1.15",
+"title": "Washerwoman near Trouville",
+"artist": "Eugène Boudin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/31f31ddd-bc7a-46e2-a3f5-ccb23873b60c"
+},
+{
+"object_id": "61366",
+"number": "1983.1.16",
+"title": "Entrance to the Harbor, Le Havre",
+"artist": "Eugène Boudin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/05d1b6ea-8357-4fe6-a2ca-2db4fff480c6"
+},
+{
+"object_id": "61392",
+"number": "1983.1.42",
+"title": "A Scene from The Beggar's Opera",
+"artist": "William Hogarth",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/702ac353-8de6-4661-bf9d-0e9e2236cb50"
+},
+{
+"object_id": "61394",
+"number": "1983.1.44",
+"title": "Lake Albano",
+"artist": "Richard Wilson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/403cf43c-7dcd-4082-aae5-f5e0bb512a7c"
+},
+{
+"object_id": "61398",
+"number": "1983.1.48",
+"title": "The Lavie Children",
+"artist": "Johann Zoffany",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/87327813-1d7e-43e4-bdcd-06e852095654"
+},
+{
+"object_id": "62294",
+"number": "1983.19.2",
+"title": "Study of Birds and Monkeys",
+"artist": "Circle of Jan van Kessel the Elder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8928c15c-cf7b-4bdd-9c55-2306f68c7c9b"
+},
+{
+"object_id": "62296",
+"number": "1983.19.4",
+"title": "Concert of Birds",
+"artist": "Circle of Jan van Kessel the Elder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ebe7093f-d86b-48a2-a512-3ae0d5b00cb3"
+},
+{
+"object_id": "63071",
+"number": "1984.7.14",
+"title": "Fiesole, Cloister of S. Domenico",
+"artist": "Oscar F. Bluemner",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/7e6d2945-a66e-4228-aa98-2318fc966066"
+},
+{
+"object_id": "66405",
+"number": "1985.64.7",
+"title": "Harlequin",
+"artist": "Paul Cezanne",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5e204056-579e-4617-a6a4-0b26ecc0b7db"
+},
+{
+"object_id": "66408",
+"number": "1985.64.10",
+"title": "Calm Sea",
+"artist": "Gustave Courbet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c790c1ba-9b5f-4275-9f7d-7f501e30992c"
+},
+{
+"object_id": "66414",
+"number": "1985.64.16",
+"title": "Study for \"The Dancing Lesson\": The Banjo Player",
+"artist": "Thomas Eakins",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9b65e8fc-64e8-429f-948a-4073d5f5478f"
+},
+{
+"object_id": "66421",
+"number": "1985.64.23",
+"title": "View on the Outskirts of Caen",
+"artist": "Stanislas Lépine",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6b9afa63-72ca-4160-8b92-38b8372d4544"
+},
+{
+"object_id": "66433",
+"number": "1985.64.35",
+"title": "Claude Monet",
+"artist": "Auguste Renoir",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/93d0b993-6291-44bc-bd2f-4b5b35e31473"
+},
+{
+"object_id": "66577",
+"number": "1985.64.163",
+"title": "Home to Thanksgiving",
+"artist": "John Schutler after George Henry Durrie",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/d5316b31-27bf-4115-9dfe-80c187f8a1e5"
+},
+{
+"object_id": "69591",
+"number": "1986.93.1",
+"title": "George Cotton Smith",
+"artist": "Robert Henri",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3bb9a72d-d8e0-4364-9423-28aaacdbbb44"
+},
+{
+"object_id": "70233",
+"number": "1987.70.19",
+"title": "Simon-Nicolas-Henri Linguet",
+"artist": "Augustin de Saint-Aubin",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/55a8962c-8bec-4e60-a8dd-59474501a76d"
+},
+{
+"object_id": "70987",
+"number": "1989.13.1",
+"title": "Natural Arch at Capri",
+"artist": "William Stanley Haseltine",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/87b960fb-4699-4e53-9964-f5ce5808f936"
+},
+{
+"object_id": "71458",
+"number": "1990.30.1",
+"title": "The Church of Souain",
+"artist": "Félix Vallotton",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d24bdec0-5069-4768-96bd-583ca9629c0f"
+},
+{
+"object_id": "71550",
+"number": "1990.59.1",
+"title": "Sainte-Adresse",
+"artist": "Claude Monet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/579777b9-33fb-493e-8e2c-89b972019854"
+},
+{
+"object_id": "71554",
+"number": "1990.62.1",
+"title": "View of an Italian Port",
+"artist": "Nicolaes Pietersz Berchem",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c835e6ed-d7c4-4f86-aea9-5eaf06b09818"
+},
+{
+"object_id": "71588",
+"number": "1990.74.1",
+"title": "U.S. Thread Company Mills, Willimantic, Connecticut",
+"artist": "Julian Alden Weir",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b587fc1c-9778-425a-9914-7d03cc5fad23"
+},
+{
+"object_id": "72077",
+"number": "1991.19.1",
+"title": "Lamentation",
+"artist": "Jacopo Palma il Giovane",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/81063038-c4e9-42e8-92f7-9943c172c44e"
+},
+{
+"object_id": "72912",
+"number": "1991.105.19",
+"title": "Son and the Donkey",
+"artist": "Elihu Vedder",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/61edb048-a148-4b4c-ba69-1d1d8a2e4bc5"
+},
+{
+"object_id": "73436",
+"number": "1991.142.1",
+"title": "Warwick Castle, England",
+"artist": "Jasper Francis Cropsey",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/cdd32fb4-89be-4332-81e3-88a06d4ad91b"
+},
+{
+"object_id": "74041",
+"number": "1991.210.52",
+"title": "Knabe mit Hund (Boy with Dog)",
+"artist": "Lovis Corinth",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/e11c9bf2-849f-4898-b47e-bd4fd7e97573"
+},
+{
+"object_id": "74268",
+"number": "1991.217.68",
+"title": "Man Polishing a Boot",
+"artist": "Vincent van Gogh",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/1688a5d5-13a0-4a6e-bd3f-7de35c3c23a2"
+},
+{
+"object_id": "76210",
+"number": "1992.51.4",
+"title": "Roses and a Tulip in a Glass Vase",
+"artist": "Jan Philips van Thielen",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/bb138d50-c61a-46f3-8ca5-25c670329c1e"
+},
+{
+"object_id": "78648",
+"number": "1991.208.75",
+"title": "Pierre de Weims",
+"artist": "Balthasar Moncornet",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/73f0a79d-3ab4-496f-a313-6aeacfd90134"
+},
+{
+"object_id": "80924",
+"number": "1993.8.1",
+"title": "The Fortress of Königstein",
+"artist": "Bernardo Bellotto",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8b3b5c3e-0b36-4229-bbcf-645cd16126f9"
+},
+{
+"object_id": "84655",
+"number": "1994.9.4",
+"title": "Entrance to the Bowels of the Earth",
+"artist": "Antonio Basoli",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/fd966b22-311d-4f5b-a235-e217c7ec9067"
+},
+{
+"object_id": "89672",
+"number": "1994.59.3",
+"title": "Grapes",
+"artist": "Joseph Decker",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/032fdf38-ca4e-4bc4-8bc1-f57d300b54a9"
+},
+{
+"object_id": "89675",
+"number": "1994.59.1",
+"title": "Winter in the Country",
+"artist": "George Henry Durrie",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a6a9b39d-661b-4420-9c1e-00adf4d9e8e8"
+},
+{
+"object_id": "89681",
+"number": "1994.59.9",
+"title": "View of the Louvre",
+"artist": "Stanislas Lépine",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3238d41c-6d94-49dc-8b3a-3d069210d022"
+},
+{
+"object_id": "89683",
+"number": "1994.59.6",
+"title": "The Gardener - Old Peasant with Cabbage",
+"artist": "Camille Pissarro",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/6e323b85-74c2-4c6c-9ae2-ff74b3ad05a2"
+},
+{
+"object_id": "90867",
+"number": "2011.60.3",
+"title": "Nannies with a Child",
+"artist": "Jules Pascin",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/2197d908-1045-4ecc-af4c-104db3458730"
+},
+{
+"object_id": "90910",
+"number": "1974.55.7.d",
+"title": "Isaias",
+"artist": "Theodor Galle after Jan van der Straet",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/02fc3d06-3f06-4894-a5b0-f7c8f5285a36"
+},
+{
+"object_id": "92091",
+"number": "1995.24.25",
+"title": "Study for a Panel",
+"artist": "Charles Sprague Pearce",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/ee7565bd-4095-47a6-bbf5-245ac1011bdc"
+},
+{
+"object_id": "92997",
+"number": "1995.47.12",
+"title": "Tama, the Japanese Dog",
+"artist": "Edouard Manet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/de58e33a-5e3f-48a7-8e81-60fd18006772"
+},
+{
+"object_id": "93046",
+"number": "1995.47.10",
+"title": "Still Life with Peonies",
+"artist": "Paul Gauguin",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9f47ac4b-d7dd-4b0e-a9f5-3154a787e2fd"
+},
+{
+"object_id": "93047",
+"number": "1995.47.11",
+"title": "Village at the Water's Edge",
+"artist": "Roger de La Fresnaye",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/17b39e53-84e8-4979-a49d-1a11d6ce96b3"
+},
+{
+"object_id": "93668",
+"number": "2008.132.1",
+"title": "Landscape in Auvergne",
+"artist": "Henri-Joseph Harpignies",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0d2988a3-7fab-4123-a6b9-31aea299f4b4"
+},
+{
+"object_id": "97063",
+"number": "2014.79.53",
+"title": "Marie Buloz Pailleron (Madame Édouard Pailleron)",
+"artist": "John Singer Sargent",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2e694859-eac1-4662-b1dd-ac0d10273655"
+},
+{
+"object_id": "99277",
+"number": "1997.57.7",
+"title": "A Young Man in a Broad Hat",
+"artist": "Giovanni Battista Piazzetta",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/814c34be-d474-4fdb-8e5a-1957ef2cdf95"
+},
+{
+"object_id": "101549",
+"number": "1997.69.1",
+"title": "The Hunts of Maximilian: The Stag Hunt (August)",
+"artist": "Bernard van Orley",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/24272ed7-1eef-4edf-bfb9-d4f3185a9c03"
+},
+{
+"object_id": "101776",
+"number": "1997.57.1",
+"title": "Alexander and Bucephalus",
+"artist": "Edgar Degas",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/499390e8-9619-4d62-8084-ddc06cd72359"
+},
+{
+"object_id": "104243",
+"number": "1998.20.1",
+"title": "Cloud Study: Stormy Sunset",
+"artist": "John Constable",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/83544e9a-2499-4d42-aeb1-62dbc2c2392b"
+},
+{
+"object_id": "106787",
+"number": "2003.140.1",
+"title": "Garland of Flowers with Adoration of the Shepherds",
+"artist": "Frans Francken the Younger and Master HDB",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8b4801f8-9c5a-433c-80a2-33de1a3ea769"
+},
+{
+"object_id": "110279",
+"number": "1999.79.32",
+"title": "Still Life with Oranges and Goblet of Wine",
+"artist": "John Frederick Peto",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/941f147a-44c6-4d0f-9659-b8078f72bc4a"
+},
+{
+"object_id": "111124",
+"number": "2000.4.1",
+"title": "River Landscape",
+"artist": "Jan Brueghel the Elder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0ef454d7-7988-4044-81e3-38daf8dbf70e"
+},
+{
+"object_id": "111248",
+"number": "2004.128.48",
+"title": "Mon Caporal, je n'ai pu avons que ça",
+"artist": "Horace Vernet",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/d86eabc5-5ea2-49ac-a110-8f9ae4dc1711"
+},
+{
+"object_id": "112629",
+"number": "2000.75.1",
+"title": "The Martyrdom of Saint Gennaro",
+"artist": "Mattia Preti",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/05d70ba8-5283-44eb-92df-b8e286cf4217"
+},
+{
+"object_id": "117150",
+"number": "2000.91.1",
+"title": "An Italianate Evening Landscape",
+"artist": "Jan Both",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/125d79bc-0a09-4428-bfb2-ceaf995400cd"
+},
+{
+"object_id": "117333",
+"number": "2022.181.81",
+"title": "A Hanging Wall Pouch",
+"artist": "Cornelis Norbertus Gijsbrechts",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e1499e4f-b6db-4837-a46a-cc4f1929d1a4"
+},
+{
+"object_id": "118825",
+"number": "1960.6.11.g",
+"title": "Saint James the Less",
+"artist": "after Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8b2a2fb8-69d0-40f4-ac1f-b268fc43c83f"
+},
+{
+"object_id": "118829",
+"number": "1960.6.11.k",
+"title": "Saint Philip",
+"artist": "after Sir Anthony van Dyck",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8d0dd05f-1221-40ca-a3e9-390f7afafe3b"
+},
+{
+"object_id": "118846",
+"number": "2002.78.1",
+"title": "Saint Francis in Prayer",
+"artist": "Bernardo Strozzi",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4819cafa-fa8e-445c-b594-58ba885443aa"
+},
+{
+"object_id": "119019",
+"number": "2014.79.24",
+"title": "Poor Artist's Cupboard",
+"artist": "Charles Bird King",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ae58e93b-c26e-449c-889c-f71a7308ed7b"
+},
+{
+"object_id": "119184",
+"number": "2001.87.1",
+"title": "The Grand Canal",
+"artist": "Richard Parkes Bonington",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/ad9dfdee-4bb5-4cc2-b968-04be6d00455d"
+},
+{
+"object_id": "120009",
+"number": "2002.98.217",
+"title": "The Two",
+"artist": "Anders Zorn",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/a7b1014d-3f46-4c54-bf25-c84726a3520e"
+},
+{
+"object_id": "121344",
+"number": "2020.112.10",
+"title": "People by the Blue Lake",
+"artist": "August Macke",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/72f706d6-0de4-418d-87fa-95dd1c13578c"
+},
+{
+"object_id": "121618",
+"number": "2004.99.1",
+"title": "The Artist Sketching at Mount Desert, Maine",
+"artist": "Sanford Robinson Gifford",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d721c70d-c45f-491c-a409-43cf241c4a0b"
+},
+{
+"object_id": "124519",
+"number": "2003.39.1",
+"title": "Niche with Falconry Gear",
+"artist": "Christoffel Pierson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/30249fb8-83b4-46d0-a7ad-be4f93251e5d"
+},
+{
+"object_id": "126132",
+"number": "2025.89.2",
+"title": "Fog off Mount Desert",
+"artist": "Frederic Edwin Church",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5e688f46-2045-4de7-8ec1-bc73115d15d3"
+},
+{
+"object_id": "129433",
+"number": "2004.29.1",
+"title": "Ripening Pears",
+"artist": "Joseph Decker",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/42dff6c0-2a30-4a89-b7d5-55dd1c38ce6c"
+},
+{
+"object_id": "129615",
+"number": "2004.43.1",
+"title": "Landscape with a Draftsman among Ancient Ruins",
+"artist": "Johann Oswald Harms",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/612afb19-cf89-4a80-ae71-9043bd09fa38"
+},
+{
+"object_id": "130843",
+"number": "2004.140.39",
+"title": "Frosty Day",
+"artist": "Alexej von Jawlensky",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/fe56ac1b-c660-49c5-8ad8-0dd326366ade"
+},
+{
+"object_id": "130863",
+"number": "2004.140.26",
+"title": "Arch of Titus",
+"artist": "Circle of Giovanni Paolo Panini",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/eb6536b4-4049-412e-8271-a1e398d14c06"
+},
+{
+"object_id": "130892",
+"number": "2004.166.26",
+"title": "Lion Defending its Prey",
+"artist": "Sir Edwin Landseer",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a26fedd2-10bf-4aab-b46f-98a3f4bb69db"
+},
+{
+"object_id": "131302",
+"number": "2010.93.18",
+"title": "Salome with the Head of St. John the Baptist",
+"artist": "Northern Italian 16th Century",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/4c9350c0-099a-4bd6-b118-8690b7c4d24a"
+},
+{
+"object_id": "133023",
+"number": "2010.93.41",
+"title": "Head of an Old Man",
+"artist": "Abraham Bloemaert",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/c5ad51e9-e75b-4c88-905d-66917ad1498e"
+},
+{
+"object_id": "133512",
+"number": "2007.138.1",
+"title": "An Arapahoe Boy",
+"artist": "George de Forest Brush",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9c959daa-bda4-4632-8500-77928beab9d5"
+},
+{
+"object_id": "136018",
+"number": "2006.128.22",
+"title": "The Towpath",
+"artist": "Johan Barthold Jongkind",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/1b205f03-ef58-4ce4-9980-ed4a777ff30b"
+},
+{
+"object_id": "136019",
+"number": "2006.128.24",
+"title": "George Moore in the Artist's Garden",
+"artist": "Edouard Manet",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d285792e-0961-4900-af88-e10624689d79"
+},
+{
+"object_id": "136238",
+"number": "2006.125.24",
+"title": "Sketching, No. 1",
+"artist": "James McNeill Whistler",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/a36e82e3-09cf-4a0a-8537-736e5408aba7"
+},
+{
+"object_id": "137693",
+"number": "2005.161.1",
+"title": "Raspberries",
+"artist": "Lilly Martin Spencer",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a1bcc83a-d79f-4390-8884-95cd75ab6862"
+},
+{
+"object_id": "138735",
+"number": "2007.73.1",
+"title": "Washerwomen on the Banks of the Durance",
+"artist": "Paul Guigou",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9c0e94a1-09ed-47fd-ad50-8a364d45f3e1"
+},
+{
+"object_id": "139290",
+"number": "2007.111.81.a",
+"title": "Studies of Glass Jars and Figures (recto)",
+"artist": "Ambrogio Figino",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/53067ec6-9590-4bae-be1f-1f87cb7abb30"
+},
+{
+"object_id": "140376",
+"number": "2008.32.1",
+"title": "View of Hoorn",
+"artist": "Abraham de Verwer",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/787d420b-974d-4949-8564-df84a9a12816"
+},
+{
+"object_id": "140910",
+"number": "2008.66.3",
+"title": "Gathering Lilies",
+"artist": "Eastman Johnson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f3531fb2-e3eb-4c79-a0f8-3e77b99e4e9c"
+},
+{
+"object_id": "142008",
+"number": "2010.77.1",
+"title": "Four Seasons in One Head",
+"artist": "Giuseppe Arcimboldo",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/bbb48182-d0e5-4a88-8759-6dda58d05d90"
+},
+{
+"object_id": "143868",
+"number": "2009.70.247",
+"title": "Five Male Nudes Gesticulating as a Nude Woman Enters a Portal",
+"artist": "Theodore M. von Holst",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/681f8292-2fa2-4a0b-972e-c09a3a2a2a21"
+},
+{
+"object_id": "157924",
+"number": "2012.89.3",
+"title": "Lambs, Nantucket",
+"artist": "Eastman Johnson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/2a956a8c-a9a5-4567-ab5f-f60a768ed49a"
+},
+{
+"object_id": "157928",
+"number": "2012.89.7",
+"title": "Village by the Sea in Brittany",
+"artist": "Odilon Redon",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/199a3f5f-4bb5-4aa9-a8cc-73dd2ee06ad0"
+},
+{
+"object_id": "159200",
+"number": "2017.19.54",
+"title": "Shepherd Playing a Flute with Goats",
+"artist": "Francesco Londonio",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/27a98b51-7a1b-43fc-9451-e7b179f202a9"
+},
+{
+"object_id": "160802",
+"number": "2013.17.5",
+"title": "Christ Crowned with Thorns",
+"artist": "Andrea Scacciati after Bartolomeo Cesi",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/070a4e77-b7ea-4327-9b4f-6190a6083e25"
+},
+{
+"object_id": "162261",
+"number": "2013.62.1",
+"title": "View of Medinet El-Fayoum",
+"artist": "Jean-Léon Gérôme",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/45927cd3-b962-4cf4-b1ae-e85120baf240"
+},
+{
+"object_id": "163323",
+"number": "2013.122.1",
+"title": "Green Wheat Fields, Auvers",
+"artist": "Vincent van Gogh",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b479275a-4f8a-4702-83c2-9dcc4cbe60ce"
+},
+{
+"object_id": "164915",
+"number": "2014.18.7",
+"title": "The Riders",
+"artist": "Edgar Degas",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5044a30b-b86e-4c12-9178-7aedaadb36e6"
+},
+{
+"object_id": "164929",
+"number": "2014.18.19",
+"title": "School Time",
+"artist": "Winslow Homer",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4e2c5d2f-48a5-4119-a0ad-65b7f8e13b85"
+},
+{
+"object_id": "164952",
+"number": "2014.18.42",
+"title": "Young Peasant Girls Resting in the Fields near Pontoise",
+"artist": "Camille Pissarro",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f722edfb-50df-4e71-8e89-a2ad2a7f524d"
+},
+{
+"object_id": "164965",
+"number": "2014.18.55",
+"title": "Horse and Boats (Study for \"Bathers at Asnières\")",
+"artist": "Georges Seurat",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b9301087-6e10-447e-9454-daa81d189bd5"
+},
+{
+"object_id": "164968",
+"number": "2014.18.58",
+"title": "Haystacks",
+"artist": "Georges Seurat",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/0531b959-f183-41ac-b321-e5a3f28c28f1"
+},
+{
+"object_id": "165887",
+"number": "2015.41.1",
+"title": "Eddy Cassatt (Edward Buchanan Cassatt)",
+"artist": "Mary Cassatt",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3957d0b7-ae16-48b6-8046-dcf8bbd3ec1e"
+},
+{
+"object_id": "166432",
+"number": "2014.136.119",
+"title": "A Pastoral Visit",
+"artist": "Richard Norris Brooke",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/e5b06963-1e7c-43c7-8920-fe6761f8c24d"
+},
+{
+"object_id": "166461",
+"number": "2014.136.111",
+"title": "Leisure and Labor",
+"artist": "Frank Blackwell Mayer",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/58338188-a428-4069-85fc-a54e08a6b68e"
+},
+{
+"object_id": "166465",
+"number": "2015.19.1",
+"title": "Richard Mentor Johnson",
+"artist": "John Neagle",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b2633d57-205c-492b-a9e2-d862a4e92fd4"
+},
+{
+"object_id": "166466",
+"number": "2014.136.11",
+"title": "The House Maid",
+"artist": "William McGregor Paxton",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/286ee8af-d946-4d2b-a7e5-7c4b6011e567"
+},
+{
+"object_id": "166468",
+"number": "2014.79.30",
+"title": "The Valley of the Seine, from the Hills of Giverny",
+"artist": "Theodore Robinson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/31b66660-52db-433c-a969-033fb716c138"
+},
+{
+"object_id": "166481",
+"number": "2014.79.36",
+"title": "Waiting for the Stage",
+"artist": "Richard Caton Woodville",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3f2e5dae-30af-442a-baa4-4541853b756b"
+},
+{
+"object_id": "166491",
+"number": "2017.122.1",
+"title": "Glass and Checkerboard",
+"artist": "Juan Gris",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d4ca2b12-bdf1-4360-a3de-4fb2b1927481"
+},
+{
+"object_id": "173090",
+"number": "2015.143.998",
+"title": "Mr. Alfred Cabassol ... recevez ce signe de l'honneur ...",
+"artist": "Honoré Daumier",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/0701d607-dfad-4418-9153-bf62c0847107"
+},
+{
+"object_id": "176395",
+"number": "2016.22.12",
+"title": "Maryland Heights: Siege of Harpers Ferry",
+"artist": "William MacLeod",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/93abac1f-231d-4f75-ba62-483102ad71f4"
+},
+{
+"object_id": "176848",
+"number": "2014.136.44",
+"title": "Sunlight",
+"artist": "Théodore Rousseau",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/654155ee-99ff-44cb-9fd1-427666350a8d"
+},
+{
+"object_id": "176888",
+"number": "2014.136.124",
+"title": "Portrait of a Gentleman",
+"artist": "Ammi Phillips",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/f8932bcc-9ced-432b-9f01-6cf68acba256"
+},
+{
+"object_id": "177034",
+"number": "2016.22.2",
+"title": "The Layette",
+"artist": "Theodore Robinson",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/baf58b79-9351-41dc-967b-f6c5accf2998"
+},
+{
+"object_id": "177037",
+"number": "2015.19.83",
+"title": "Mishap at the Ford",
+"artist": "Alvan T. Fisher",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/d53b759e-fc4b-4726-8213-deee3542fa73"
+},
+{
+"object_id": "177786",
+"number": "2014.136.42",
+"title": "Conviviality Near the Inn",
+"artist": "Constantijn van Renesse",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/cd3ab444-8451-4661-bfea-e0dd0e386296"
+},
+{
+"object_id": "178262",
+"number": "2015.19.165",
+"title": "The Naturalists",
+"artist": "Jehan Georges Vibert",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8f2ef029-1356-43a5-b34c-9522ffb058ec"
+},
+{
+"object_id": "180979",
+"number": "2015.19.565",
+"title": "Fisherman",
+"artist": "Eastman Johnson",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/b8d38296-9a5e-4fe6-b288-466f79db9d2f"
+},
+{
+"object_id": "181031",
+"number": "2015.19.506",
+"title": "Study for \"Faith\" and \"Hope\"",
+"artist": "John La Farge",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/d4db5fa2-df45-4941-b1ec-b110332f74ec"
+},
+{
+"object_id": "182685",
+"number": "2015.19.488",
+"title": "Landscape, Land of Nod",
+"artist": "Childe Hassam",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/1a5cf9f6-6071-4496-8f30-bfa91972f8f3"
+},
+{
+"object_id": "184969",
+"number": "2015.19.3601",
+"title": "Porcelains and Glass",
+"artist": "James Henry Moser",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/16e5fa13-3755-4e09-a73e-a8bd72451828"
+},
+{
+"object_id": "195112",
+"number": "2014.136.120",
+"title": "Lake George",
+"artist": "John William Casilear",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/016249c7-c3d7-4203-9b7f-decf29692d6d"
+},
+{
+"object_id": "195138",
+"number": "2015.143.9",
+"title": "Landscape",
+"artist": "Jean-Baptiste-Camille Corot",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/64190215-4741-4d33-a20d-be79ef4202c1"
+},
+{
+"object_id": "195347",
+"number": "2014.136.97",
+"title": "Rebecca Bryan White (Mrs. John White)",
+"artist": "Charles Willson Peale",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/57e321b7-50f7-476a-a635-70b807e1bf40"
+},
+{
+"object_id": "195461",
+"number": "2014.136.114",
+"title": "The Adoration of the Shepherds",
+"artist": "Anton Raphael Mengs",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/9eab2ffc-a0bb-4442-9826-e80ff5a4bb74"
+},
+{
+"object_id": "195487",
+"number": "2015.19.195",
+"title": "Slate, Pipe, Tobacco, and Box of Matches",
+"artist": "Peter McCallion",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a77c3d35-7aae-4a53-9e74-223e47494446"
+},
+{
+"object_id": "195497",
+"number": "2015.143.13",
+"title": "Wooded Landscape with Figures",
+"artist": "Meindert Hobbema",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/435b1a2c-543e-479d-a642-bcf6aecab5b2"
+},
+{
+"object_id": "195825",
+"number": "2014.136.418",
+"title": "In the Forest",
+"artist": "Narcisse Virgile Diaz de la Peña",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/96adf641-cc97-46de-8447-ebfb678b9840"
+},
+{
+"object_id": "195860",
+"number": "2014.136.26",
+"title": "Souvenir of Terracina",
+"artist": "Jean-Baptiste-Camille Corot",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b3550d55-0c4f-43dc-ab19-b527523718ba"
+},
+{
+"object_id": "196572",
+"number": "2015.143.409",
+"title": "Un homme dans ses petits souliers",
+"artist": "Honoré Daumier",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/1f05b304-fbd4-4ce6-ba47-d432df2f2bd2"
+},
+{
+"object_id": "204932",
+"number": "1939.1.261.a-c",
+"title": "Madonna and Child, with Saints Peter and John the Evangelist, and Man of Sorrows [entire triptych]",
+"artist": "Nardo di Cione",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a8576cf2-9196-4b68-b8cb-49b8d152133a"
+},
+{
+"object_id": "206124",
+"number": "1941.5.1.a-c",
+"title": "Madonna and Child with the Blessing Christ, and Saints Mary Magdalene and Catherine of Alexandria with Angels [entire tr",
+"artist": "Pietro Lorenzetti",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/5aadf03c-ba67-4cc7-b06f-1c489f73e55f"
+},
+{
+"object_id": "206775",
+"number": "2017.159.1",
+"title": "Still Life with Trophies of the Hunt",
+"artist": "Pierre Dupuis",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/b1015b29-4e1d-41b2-a519-88f28907a91e"
+},
+{
+"object_id": "210148",
+"number": "2017.129.1",
+"title": "Bishop Saint in Supplication",
+"artist": "Pietro Bernardi",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/5079d9ab-22da-4b76-bf64-59b20f4cb25f"
+},
+{
+"object_id": "212504",
+"number": "1943.3.4438",
+"title": "German Joust of Peace",
+"artist": "German 16th Century",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/3ae85985-14a9-4192-9d2f-05ffebc57322"
+},
+{
+"object_id": "214111",
+"number": "2018.44.1",
+"title": "Flowers in a Cut Glass Vase",
+"artist": "William Perkins Babcock",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a89bbeac-f07f-443e-9246-fec5a55eeb19"
+},
+{
+"object_id": "214114",
+"number": "2018.44.3",
+"title": "Still Life, Wineglass, Two Peaches",
+"artist": "Robert Spear Dunning",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/7fdfc013-3553-4709-86ba-1bc7db2c3d70"
+},
+{
+"object_id": "214125",
+"number": "2018.44.13",
+"title": "Still Life, Apples, Grapes",
+"artist": "Barton Stone Hays",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/af04b7a0-3f77-44ee-912e-1022bb233fa7"
+},
+{
+"object_id": "214137",
+"number": "2018.44.22",
+"title": "Buddha's Flowers: Lotus, Tokyo",
+"artist": "Theodore Wores",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3ba8ddc1-4c33-4b79-a3b9-e999b1d9b6f7"
+},
+{
+"object_id": "214255",
+"number": "2018.44.125",
+"title": "Trailing Arbutus",
+"artist": "Fidelia Bridges",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/818d138e-3c36-4d40-a169-e1528b712747"
+},
+{
+"object_id": "214900",
+"number": "2018.44.25",
+"title": "Myosotis and Roses in a Vase",
+"artist": "Frederick Stone Batcheller",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/4b73e97f-c155-43d7-b4a9-6f040b27f680"
+},
+{
+"object_id": "215128",
+"number": "2015.19.1584.40.9",
+"title": "David Watson",
+"artist": "Charles B. J. Févret de Saint-Mémin",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/76ef4f21-f1ef-46f8-a3dd-33041f359a25"
+},
+{
+"object_id": "218605",
+"number": "2019.2.1",
+"title": "The Departure for the Hunt",
+"artist": "Philips Wouwerman",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/a3f3893a-6169-480f-8330-30f19ddbd989"
+},
+{
+"object_id": "222552",
+"number": "2020.26.1",
+"title": "Wooded Landscape with Travelers",
+"artist": "Jan Brueghel the Elder",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/987bd9f9-cfbd-4f4e-b0a4-0d11709f18ac"
+},
+{
+"object_id": "223229",
+"number": "2021.103.5",
+"title": "Little Donkey in Sunlight (Somarello al sole)",
+"artist": "Giovanni Fattori",
+"classification": "Print",
+"iiif": "https://api.nga.gov/iiif/0cf0dbe3-20b6-470b-bc70-2ae24eafd714"
+},
+{
+"object_id": "223874",
+"number": "2021.53.1",
+"title": "Christ in Glory with Angels and a Saint Kneeling in Adoration",
+"artist": "Francesco Allegrini",
+"classification": "Drawing",
+"iiif": "https://api.nga.gov/iiif/3478d8d0-bf8e-4f64-8e01-82ba95dd89aa"
+},
+{
+"object_id": "224919",
+"number": "2022.38.1",
+"title": "Lucia Bonasoni Garzoni",
+"artist": "Lavinia Fontana",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/3b5b7b90-f466-48fa-8202-bf5a4eb17dd2"
+},
+{
+"object_id": "226393",
+"number": "2024.146.1",
+"title": "The Cliff (La Falaise)",
+"artist": "Jules Breton",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/8f7a8d86-0a50-4620-8c66-5d873a115368"
+},
+{
+"object_id": "226411",
+"number": "2023.3.2",
+"title": "Still Life with Apples, Pears, Cucumbers, Figs, Plums, and a Melon",
+"artist": "Fede Galizia",
+"classification": "Painting",
+"iiif": "https://api.nga.gov/iiif/92f2f8c5-9fad-4664-bb1d-8cfe4e496079"
+}
+]

@@ -19,6 +19,9 @@ import { useProfile } from '@/hooks/use-profile';
 import { useHistory } from '@/hooks/use-history';
 import { getArtwork } from '@/lib/api';
 
+import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
+import { viewingFromProfile } from '@/lib/calibration';
+
 export default function ZoomScreen() {
   const { profile: currentProfile } = useProfile();
   const { items: historyItems, loaded: historyLoaded } = useHistory();
@@ -34,6 +37,9 @@ export default function ZoomScreen() {
   const profile = historyRecord?.profile ?? currentProfile;
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
+  const rawStrength = Number(strength ?? profile.strength);
+  const amount = Number.isFinite(rawStrength) ? Math.max(0, Math.min(1, rawStrength)) : 1;
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount);
 
   return (
     // A full-screen modal is its own native window, so pinch needs its own gesture root here.
@@ -53,9 +59,9 @@ export default function ZoomScreen() {
 
         {artwork && (!historyId || (historyLoaded && historyRecord)) ? (
           <CorrectionCanvas
-            source={artwork.image_url}
+            source={corrected.source}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-            correction={{ ...profile, strength: strength ? Number(strength) : profile.strength }}
+            correction={{ ...profile, strength: amount }}
             original={showOriginal}
             zoomable
             palette={palette}

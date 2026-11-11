@@ -14,12 +14,13 @@ import { ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from
 import { NARRATION_OPTIONS } from '@/constants/narration';
 import { MaxContentWidth, ScreenPadding, Scrim, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useAvatar } from '@/hooks/use-avatar';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { getMuseums } from '@/lib/api';
+import { getMuseums, logout as apiLogout } from '@/lib/api';
 import type { DeviceSettings } from '@/store/settings';
 import type { NarrationMode } from '@/types/narration';
 
@@ -37,7 +38,9 @@ export default function MyPageScreen() {
   const { settings, loaded, updateSettings } = useSettings();
   const { data: museums, error: museumError, reload: reloadMuseums } = useResource('museums', getMuseums);
   const [sheet, setSheet] = useState<'font' | 'narration' | 'museum' | 'photo' | null>(null);
-  const { user, avatar, loaded: authLoaded, signOut, setAvatar, clearAvatar } = useAuth();
+  const { session } = useAuth();
+  const user = session?.user ?? null;
+  const { avatar, setAvatar, clearAvatar } = useAvatar(user?.id);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [savingMode, setSavingMode] = useState(false);
@@ -106,11 +109,11 @@ export default function MyPageScreen() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
-      await signOut();
+      await apiLogout();
       setConfirmLogout(false);
       showToast('로그아웃했어요', 'success');
     } catch {
-      showToast('로그아웃하지 못했어요. 다시 시도해 주세요', 'error');
+      showToast('로그아웃하지 못했어요. 연결을 확인해 주세요', 'error');
     } finally {
       setLoggingOut(false);
     }
@@ -137,14 +140,8 @@ export default function MyPageScreen() {
           ) : (
             <View style={styles.profileRow}>
               <Avatar uri={null} palette={palette} />
-              <View style={styles.profileTexts}>
-                <Text style={[styles.profileName, { color: palette.text }]}>{authLoaded ? '로그인해 주세요' : '불러오는 중'}</Text>
-                <Text lineBreakStrategyIOS="hangul-word" style={[styles.profileEmail, { color: palette.textSecondary }]}>내 보기 설정과 관람 기록을 계정에 이어 둘 수 있어요</Text>
-              </View>
+              <Text style={[styles.profileName, { color: palette.text }]}>불러오는 중</Text>
             </View>
-          )}
-          {authLoaded && !user && (
-            <View style={styles.buttonRow}><BigButton label="로그인 · 회원가입" palette={palette} onPress={() => router.push('/login')} /></View>
           )}
         </View>
         <View style={styles.section}>
@@ -167,6 +164,9 @@ export default function MyPageScreen() {
           </View>
           <View style={[styles.card, card]}>
             <SettingRow label="방문한 미술관" icon={{ ios: 'building.columns', android: 'account_balance' }} palette={palette} onPress={() => openSheet('museum')} />
+          </View>
+          <View style={[styles.card, card]}>
+            <SettingRow label="앱 소개 다시 보기" icon={{ ios: 'sparkles', android: 'auto_awesome' }} palette={palette} onPress={() => router.push('/onboarding')} />
           </View>
         </View>
         {user && (

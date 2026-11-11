@@ -45,14 +45,3 @@ export const DEFAULT_PROFILE: VisualProfile = {
   speech_rate: 1,
   high_contrast: false,
 };
-
-/**
- * 진단 결과가 아직 없을 때 보정본·강도 슬라이더가 실제로 달라 보이게 하는 임시 값.
- * TODO(A): 로그인·캘리브레이션 뒤 받은 시각 프로필로 바꾸고 이 값은 지운다.
- */
-export const PREVIEW_PROFILE: VisualProfile = {
-  ...DEFAULT_PROFILE,
-  contrast: 1.35,
-  brightness: 0.05,
-  sharpen: 0.8,
-};

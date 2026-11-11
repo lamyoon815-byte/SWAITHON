@@ -16,7 +16,7 @@ export type RecentArtwork = Pick<
   viewed_at: string;
 };
 
-const KEY = 'swaithon:recent-artworks:v1';
+const KEY = 'swaithon:recent-artworks:v2-real-catalog';
 const MAX = 20;
 
 type Snapshot = { items: RecentArtwork[]; loaded: boolean };

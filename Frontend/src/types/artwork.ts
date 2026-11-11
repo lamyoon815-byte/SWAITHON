@@ -25,10 +25,10 @@ export type Artwork = {
   /** 사람이 검수하기 전에는 null */
   description: Description | null;
   review_status: 'pending' | 'reviewed';
-  /** 고화질 원본. mock에는 이미지가 없어 빈 문자열 */
+  /** 백엔드가 제공하는 고화질 원본 URL */
   image_url: string;
-  /** TODO(BE): 미술관별 작품 번호. BE 요청 1번이 들어오기 전까지 mock 전용 */
+  /** 미술관별 작품 번호 */
   number: string;
-  /** TODO(BE): 소속 미술관. BE 요청 1번이 들어오기 전까지 mock 전용 */
+  /** 소속 미술관 ID */
   museum_id: string;
 };

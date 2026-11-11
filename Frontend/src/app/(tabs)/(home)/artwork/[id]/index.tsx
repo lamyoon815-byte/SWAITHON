@@ -1,3 +1,5 @@
+import { viewingFromProfile } from '@/lib/calibration';
+import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 // 와이어프레임 2 작품 감상 → 디자인 "저시력 미술관 앱"의 작품 상세
 /**
  * 위에서부터 큰 작품 이미지(보정 캔버스, 누르면 크게 보기) · 미술관과 번호 · 제목 · 작가 ·
@@ -41,6 +43,7 @@ const HERO_HEIGHT = 380;
 /** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
 const DESC_SIZES = [18, 20, 23, 26];
 
+
 export default function ArtworkScreen() {
   const { profile: currentProfile, loaded: profileLoaded, error: profileError } = useProfile();
   const { items: historyItems, loaded: historyLoaded, error: historyError } = useHistory();
@@ -58,6 +61,7 @@ export default function ArtworkScreen() {
   const [chosenStrength, setStrength] = useState<number | null>(null);
   const strength = chosenStrength ?? profile.strength;
   const [sizeStep, setSizeStep] = useState(1);
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), original, strength);
   useRecordViewing(artwork, profile, strength, original, profileLoaded && !profileError, !historyId);
 
   // Remember it for the search screen's "최근 본 작품".
@@ -124,7 +128,7 @@ export default function ArtworkScreen() {
             accessibilityHint="전체 화면에서 확대해 볼 수 있어요"
             onPress={openZoom}>
             <CorrectionCanvas
-              source={artwork.image_url}
+              source={corrected.source}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
               correction={{ ...profile, strength }}
               original={original}
@@ -132,6 +136,9 @@ export default function ArtworkScreen() {
               style={styles.heroCanvas}
             />
           </Pressable>
+          {(corrected.loading || corrected.error) ? <Text accessibilityLiveRegion="polite" style={[styles.message, { color: palette.text }]}>
+            {corrected.loading ? '색과 윤곽선을 보정하고 있어요' : '색 보정을 잠시 쓸 수 없어요. 앱의 밝기·대비 보정만 적용했어요.'}
+          </Text> : null}
           <View style={styles.heroBack}>
             <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
           </View>

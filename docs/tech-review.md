@@ -271,7 +271,7 @@ API별 요청·응답 및 보정 함수 미연결 상태는 [FE 전달 문서](f
 ## 8. FE README 9.2 API 반영
 
 - 미술관: `GET /museums`, `GET /artworks?museum_id=...`, `GET /artworks/by-number?museum_id=...&number=...`.
-- QR 형식: `swaithon://artwork/<artwork_id>`. 앱에서 ID를 검증한 뒤 상세 API 조회.
+- QR 형식: `momi://artwork/<artwork_id>`. 앱에서 ID를 검증한 뒤 상세 API 조회.
 - 인식: `confidence=high|medium|low`를 반환. 기준 미설정 시 후보는 medium, 후보 없음은 low.
   실제 촬영본 평가 후 match/high 임계값을 설정하며 아직 임의로 high를 활성화하지 않았습니다.
 - 자동 촬영: 사용자당 60회/60초, 사진 처리 1개/프로세스, 초과·혼잡 시 Retry-After 제공.

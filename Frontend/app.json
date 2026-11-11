@@ -1,12 +1,15 @@
 {
   "expo": {
-    "name": "SWAITHON",
-    "slug": "SWAITHON",
+    "name": "MoMi",
+    "slug": "momi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "swaithon",
-    "userInterfaceStyle": "automatic",
+    "scheme": [
+      "momi",
+      "swaithon"
+    ],
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -28,9 +31,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#1C1D21",
+          "image": "./assets/images/mascot/chameleon.png",
+          "imageWidth": 220
         }
       ],
       "expo-asset",
@@ -43,6 +46,14 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
       [
         "expo-image-picker",
         {
