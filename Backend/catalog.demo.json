@@ -2,7 +2,9 @@
   {
     "id": "mona-lisa",
     "title": "모나리자",
+    "original_title": "Mona Lisa",
     "artist": "레오나르도 다 빈치",
+    "original_artist": "Leonardo da Vinci",
     "number": "INV 779",
     "museum": "루브르 박물관",
     "museum_id": "louvre",

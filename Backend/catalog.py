@@ -56,8 +56,12 @@ class ArtworkMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
+    # 앱에 보이는 이름은 한국어로 통일한다(저시력 사용자·한국어 음성). 실제 명패는 영어라
+    # 원제·원어 작가명을 따로 두고 명패 인식 매칭에 함께 쓴다.
     title: str = Field(min_length=1)
     artist: str = Field(min_length=1)
+    original_title: str | None = Field(default=None, min_length=1)
+    original_artist: str | None = Field(default=None, min_length=1)
     year: str | None = None
     # 소장번호처럼 문자나 앞자리 0이 있을 수 있어 문자열로 저장한다.
     number: str | None = Field(default=None, min_length=1)

@@ -233,8 +233,12 @@ class RecognitionService:
         records, _ = self.catalog.list(100000, 0)
         results = []
         for record in records:
-            title_score = fuzz.WRatio(title or text, normalize(record["title"]))
-            score = 0.8 * title_score + 0.2 * fuzz.WRatio(artist, normalize(record["artist"])) if artist else title_score
+            # 한국어 제목과 원제(명패 언어) 중 더 가까운 쪽으로 비교한다.
+            titles = [normalize(value) for value in (record["title"], record.get("original_title")) if value]
+            artists = [normalize(value) for value in (record["artist"], record.get("original_artist")) if value]
+            title_score = max(fuzz.WRatio(title or text, value) for value in titles)
+            artist_score = max(fuzz.WRatio(artist, value) for value in artists) if artist else 0
+            score = 0.8 * title_score + 0.2 * artist_score if artist else title_score
             if score >= 60:
                 results.append({"artwork_id": record["id"], "title": record["title"], "artist": record["artist"], "score": score / 100})
         return sorted(results, key=lambda row: (-row["score"], row["artwork_id"]))[:3]
