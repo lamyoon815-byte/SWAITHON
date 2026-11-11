@@ -26,8 +26,18 @@ class FixtureGemini:
     def read_placard(self, content):
         return PlacardText(title="작품", artist="작가", text="작품 작가")
 
-    def describe(self, content, metadata=None):
+    def describe(self, content, metadata=None, brief=False):
         return Description.model_validate(DESCRIPTION)
+
+    def long_commentary(self, content, metadata):
+        return dict(LONG)
+
+
+LONG = {"sections": [
+    {"key": "intro", "heading": "들어가며", "type": "fact", "text": "작가가 그린 작품입니다. 지금은 미술관에 있습니다.", "sources": [1]},
+    {"key": "closing", "heading": "마무리", "type": "interpretation", "text": "어떤 느낌이 드시나요?", "sources": []}],
+    "quotes": [], "notes": [], "sources": [{"no": 1, "title": "museum.org", "url": "https://museum.org/a"}],
+    "char_count": 40, "estimated_seconds": 7}
 
 
 class FixtureRecognition:
@@ -104,6 +114,35 @@ class AIRouteTests(unittest.TestCase):
         self.assertIsNone(self.client.get("/artworks/sample").json()["description"])
         self.assertEqual(before, {path.name for path in self.app.state.catalog.images_dir.iterdir()})
 
+    def test_brief_and_detailed_narrations_are_generated_and_saved_separately(self):
+        self.seed("pending")
+        with patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            brief = self.client.post("/artworks/sample/narration").json()
+        self.assertEqual(brief["length"], "brief")
+        self.assertTrue(describe.call_args.args[2])  # brief prompt (about one minute)
+        with patch.object(FixtureGemini, "long_commentary", return_value=dict(LONG)) as long:
+            first = self.client.post("/artworks/sample/narration?length=detailed").json()
+            again = self.client.post("/artworks/sample/narration?length=detailed").json()
+        self.assertEqual(long.call_count, 1)
+        self.assertEqual(first, again)
+        self.assertEqual(first["length"], "detailed")
+        self.assertEqual([s["text"] for s in first["segments"]],
+                         ["작가가 그린 작품입니다.", "지금은 미술관에 있습니다.", "어떤 느낌이 드시나요?"])
+        self.assertEqual([s["type"] for s in first["segments"]], ["fact", "fact", "interpretation"])
+        self.assertEqual(first["sources"], LONG["sources"])
+        self.assertEqual(self.client.post("/artworks/sample/narration?length=long").status_code, 422)
+
+    def test_curated_long_commentary_file_wins_over_generation(self):
+        self.seed("pending")
+        folder = self.root / "long-commentary"
+        folder.mkdir()
+        (folder / "sample.json").write_text(json.dumps({**LONG, "estimated_seconds": 200}, ensure_ascii=False), encoding="utf-8")
+        with patch("Backend.ai_routes.LONG_COMMENTARY_DIR", folder), \
+                patch.object(FixtureGemini, "long_commentary", side_effect=AssertionError("must not generate")):
+            data = self.client.post("/artworks/sample/narration?length=detailed").json()
+        self.assertEqual(data["estimated_seconds"], 200)
+        self.assertEqual(data["segments"][0]["text"], "작가가 그린 작품입니다.")
+
     def test_narration_survives_restart_and_cache_hits_do_not_use_ai_limit(self):
         first = self.client.post("/artworks/sample/narration")
         self.assertEqual(first.status_code, 200)
@@ -163,6 +202,12 @@ class AIRouteTests(unittest.TestCase):
         self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 429)
         # The existing analyze route shares that same limit.
         self.assertEqual(self.client.post("/analyze", files={"image": ("x.png", self.image, "image/png")}).status_code, 429)
+        # Color correction is local image processing: the AI limit must not block it.
+        self.client.put("/me/profile", headers=self.headers, json={
+            "calibration": {"color_type": "normal", "severity": 0, "edge": 0},
+        })
+        correction = self.client.post("/correction", headers=self.headers, data={"artwork_id": "sample"})
+        self.assertEqual(correction.status_code, 200, correction.text)
 
     def test_threshold_rejection_and_boundary(self):
         self.app.state.recognition.match_threshold = 0.71
