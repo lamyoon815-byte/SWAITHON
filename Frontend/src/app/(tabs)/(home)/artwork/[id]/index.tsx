@@ -289,6 +289,18 @@ export default function ArtworkScreen() {
                 <View style={styles.aiLoading}>
                   <MascotLoading compact message="한글 작품 설명을 준비하고 있어요." palette={loadingPalette} />
                 </View>
+              ) : !!artwork.background && /[가-힣]/.test(artwork.background) ? (
+                <Text
+                  style={[
+                    styles.descText,
+                    {
+                      color: palette.text,
+                      fontSize: descSize,
+                      lineHeight: descSize * 1.7,
+                    },
+                  ]}>
+                  {artwork.background}
+                </Text>
               ) : (
                 <Text style={[styles.descPending, { color: palette.textSecondary, fontSize: descSize }]}>아직 해설이 준비되지 않았어요</Text>
               )}

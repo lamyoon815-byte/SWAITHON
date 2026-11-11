@@ -9,16 +9,17 @@
  * 배경 음악이 켜져 있으면(기본 켜짐, 마이페이지와 같은 설정) 해설 전체의 분위기(10가지)에 맞는 음악을 해설 뒤에 작게 깐다.
  */
 
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Image as NativeImage, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { BackHandler, Image as NativeImage, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { Text } from '@/components/common/text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ArtworkZoomView } from '@/components/artwork/zoom-view';
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
@@ -84,6 +85,7 @@ export default function NarrationScreen() {
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [length, setLength] = useState<NarrationLength>('brief');
 
@@ -112,7 +114,7 @@ export default function NarrationScreen() {
   const moodRes = useResource(musicOn && id && all.length > 0 ? `mood:${id}:${ai ? length : 'reviewed'}` : null,
     () => getNarrationMood(all.map((s) => s.text).join(' '), id, (ai?.description ?? artwork?.description)?.mood_keywords ?? []));
   const mood = moodRes.data ?? null;
-  useBackgroundMusic(mood?.music_url ?? null, player.playing, musicOn);
+  useBackgroundMusic(mood?.music_url ?? null, player.playing || player.preparing, musicOn, player.paused);
   const musicNote = !musicOn ? '해설 뒤에 분위기에 맞는 음악을 작게 깔아요'
     : mood ? `${mood.name} 분위기` : moodRes.error ? '음악을 고르지 못했어요' : '분위기에 맞는 음악을 고르는 중이에요…';
 
@@ -160,7 +162,7 @@ export default function NarrationScreen() {
   const stageHeight = typeof frame.height === 'number' ? frame.height : maxStageHeight;
 
   // 읽는 부분 따라가며 확대(켜고 끄기). 재생 중이고 지금 문장에 영역이 있을 때만 확대한다.
-  const [follow, setFollow] = useState(false);
+  const [follow, setFollow] = useState(true);
   const [zoomed, setZoomed] = useState(false);
   const zoomScale = useSharedValue(1);
   const zoomX = useSharedValue(0);
@@ -241,9 +243,16 @@ export default function NarrationScreen() {
   }));
 
   const openZoom = () => {
-    if (!id) return;
-    router.push({ pathname: '/zoom/[id]', params: { id, original: '0', strength: String(strength) } });
+    if (artwork) setZoomOpen(true);
   };
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setZoomOpen(false);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [zoomOpen]);
 
   // 읽는 문장이 바뀌면 사용자가 보던 곳을 따른다.
   // 그림이 화면에 보이고 있거나 따라 확대가 켜져 있으면 그림을 그대로 두고, 아래 문장 목록을 보고 있었으면 그 문장 카드로 스크롤한다.
@@ -264,7 +273,10 @@ export default function NarrationScreen() {
 
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
+    <View style={[styles.screen, { backgroundColor: palette.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.screen, zoomOpen && styles.hiddenNarration]}
+      pointerEvents={zoomOpen ? 'none' : 'auto'} accessibilityElementsHidden={zoomOpen}
+      importantForAccessibility={zoomOpen ? 'no-hide-descendants' : 'auto'}>
       <View style={styles.header}>
         <BackButton label="작품으로 돌아가기" palette={palette} />
         <View style={styles.headerTexts}>
@@ -538,6 +550,21 @@ export default function NarrationScreen() {
         }}
       />
     </SafeAreaView>
+      {zoomOpen && <Animated.View style={styles.fullscreenArtwork} accessibilityViewIsModal
+        entering={reduceMotion ? undefined : FadeIn.duration(120)}
+        exiting={reduceMotion ? undefined : FadeOut.duration(120)}>
+        <ArtworkZoomView
+          artwork={artwork ?? null}
+          profile={profile}
+          strength={strength}
+          player={player}
+          sentences={segments.map((segment) => segment.text)}
+          narrationFailed={failed || !!aiError}
+          onClose={() => setZoomOpen(false)}
+        />
+      </Animated.View>}
+
+    </View>
   );
 }
 
@@ -607,6 +634,8 @@ function PillButton({
 }
 
 const styles = StyleSheet.create({
+  hiddenNarration: { opacity: 0 },
+  fullscreenArtwork: { ...StyleSheet.absoluteFill, zIndex: 100, backgroundColor: '#000000' },
   lengthWrap: { gap: 6, paddingHorizontal: ScreenPadding, paddingTop: Spacing.three },
   lengthHint: { fontSize: 15, textAlign: 'center' },
   screen: { flex: 1 },

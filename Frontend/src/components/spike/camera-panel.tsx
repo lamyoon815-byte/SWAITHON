@@ -65,7 +65,7 @@ export function CameraPanel({ palette }: { palette: Palette }) {
               ref={cameraRef}
               style={StyleSheet.absoluteFill}
               facing="back"
-              autofocus="on"
+              autofocus="off"
               onCameraReady={() => setReady(true)}
               accessibilityLabel="카메라 미리보기"
             />

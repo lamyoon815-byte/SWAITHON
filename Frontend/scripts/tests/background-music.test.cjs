@@ -113,3 +113,22 @@ test('음악을 못 불러오면 조용히 멈추고 같은 주소는 다시 시
   music.update(URL_A, true);
   assert.equal(players.length, 1);
 });
+
+
+test('explicit pause immediately freezes music and resumes the same player at the same position', () => {
+  const { lib, music, players, advance } = setup();
+  music.update(URL_A, true); advance(lib.FADE_IN_MS);
+  const current = players[0];
+  current.currentTime = 42.5;
+  music.update(URL_A, false, true);
+  assert.equal(current.playing, false);
+  assert.equal(current.released, false);
+  advance(lib.LINGER_MS + lib.FADE_OUT_MS + 1000);
+  assert.equal(current.playing, false);
+  assert.equal(current.currentTime, 42.5);
+  music.update(URL_A, true, false);
+  assert.equal(players.length, 1);
+  assert.equal(current.playing, true);
+  assert.equal(current.currentTime, 42.5);
+  assert.equal(current.plays, 2);
+});

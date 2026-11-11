@@ -38,6 +38,8 @@ import type { CaptureMode } from '@/types/capture';
 
 /** The same QR stays in view for a while; ignore repeats for this long. */
 const RESCAN_MS = 3000;
+// Give the camera time to settle exposure and continuous focus before the first shutter.
+const CAMERA_SETTLE_MS = 600;
 
 type Tip = { text: string; ios: SFSymbol; material: AndroidSymbol };
 type ScanError = { title: string; detail: string };
@@ -66,6 +68,8 @@ export default function CaptureScreen() {
   const { updateSettings } = useSettings();
   const cameraRef = useRef<CameraView>(null);
   const scanLock = useRef(false);
+  const captureLock = useRef(false);
+  const readyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
@@ -77,6 +81,7 @@ export default function CaptureScreen() {
   useEffect(
     () => () => {
       clearTimeout(errorTimer.current);
+      clearTimeout(readyTimer.current);
       stopSpeaking();
     },
     [],
@@ -97,7 +102,7 @@ export default function CaptureScreen() {
   };
 
   const onBarcode = async ({ data }: BarcodeScanningResult) => {
-    if (scanLock.current) return;
+    if (scanLock.current || captureLock.current || !ready || candidates) return;
     const id = parseArtworkQr(data);
     if (!id) return;
     scanLock.current = true;
@@ -154,13 +159,14 @@ export default function CaptureScreen() {
    * 셔터 실패와 인식 실패를 나눠 안내한다. 촬영이 끝났으면 "사진을 찍지 못했어요"는 쓰지 않는다.
    */
   const capture = async () => {
-    if (!cameraRef.current || busy) return;
+    if (!cameraRef.current || !ready || busy || captureLock.current || scanLock.current || candidates) return;
+    captureLock.current = true;
     setBusy(true);
     setLoadingMessage('사진을 준비하고 있어요.');
     try {
       let photo;
       try {
-        photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+        photo = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false });
       } catch {
         showToast('사진을 찍지 못했어요. 다시 눌러 주세요', 'error');
         return;
@@ -206,6 +212,7 @@ export default function CaptureScreen() {
         );
       }
     } finally {
+      captureLock.current = false;
       setBusy(false);
       setLoadingMessage(null);
     }
@@ -235,11 +242,21 @@ export default function CaptureScreen() {
               ref={cameraRef}
               style={StyleSheet.absoluteFill}
               facing="back"
-              autofocus="on"
+              // In Expo Camera 58, "off" means continuous AF; "on" focuses once and locks.
+              autofocus="off"
               enableTorch={torch}
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-              onBarcodeScanned={onBarcode}
-              onCameraReady={() => setReady(true)}
+              onBarcodeScanned={ready && !busy && !candidates ? onBarcode : undefined}
+              onCameraReady={() => {
+                clearTimeout(readyTimer.current);
+                setReady(false);
+                readyTimer.current = setTimeout(() => setReady(true), CAMERA_SETTLE_MS);
+              }}
+              onMountError={() => {
+                clearTimeout(readyTimer.current);
+                setReady(false);
+                showToast('카메라를 시작하지 못했어요. 화면을 닫고 다시 열어 주세요', 'error');
+              }}
               accessibilityLabel="카메라 화면"
             />
             <View
@@ -322,7 +339,7 @@ export default function CaptureScreen() {
 
       <View style={styles.footer}>
         <BottomButton
-          label={busy ? '찍는 중…' : '촬영'}
+          label={busy ? '찍는 중…' : !ready && granted ? '카메라 준비 중…' : '촬영'}
           a11yLabel="촬영해서 작품 찾기. QR 코드는 비추기만 해도 찾아요"
           palette={palette}
           disabled={!granted || !ready || busy}
