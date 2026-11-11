@@ -12,7 +12,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, BackHandler, Image as NativeImage, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { BackHandler, Image as NativeImage, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -25,6 +25,7 @@ import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
 import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
+import { MascotLoading } from '@/components/common/mascot-loading';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { PressableScale } from '@/components/common/pressable-scale';
 import { RegionOverlay } from '@/components/narration/region-overlay';
@@ -130,6 +131,14 @@ export default function NarrationScreen() {
   };
   const total = segments.length;
   const current = segments[player.index];
+  const sentenceWeights = segments.map((segment) => Math.max(1, segment.text.replace(/\s/g, '').length));
+  const totalWeight = sentenceWeights.reduce((sum, value) => sum + value, 0);
+  const totalSeconds = ai?.estimated_seconds ?? totalWeight / 5.5;
+  const elapsedWeight = sentenceWeights.slice(0, player.index).reduce((sum, value) => sum + value, 0);
+  const sentenceProgress = player.duration > 0 ? Math.min(1, player.currentTime / player.duration) : 0;
+  const elapsedSeconds = totalWeight > 0
+    ? ((elapsedWeight + (sentenceWeights[player.index] ?? 0) * sentenceProgress) / totalWeight) * totalSeconds
+    : 0;
 
   const reduceMotion = useReducedMotion();
   // 작품 테두리를 그림 비율에 맞춘다.
@@ -348,26 +357,21 @@ export default function NarrationScreen() {
             onChange={(next) => { player.reset(); setLength(next); }}
             options={LENGTHS.map((l) => ({ value: l.value, label: l.label, accessibilityLabel: `${l.label}, ${l.hint}` }))}
           />
-          <Text style={[styles.lengthHint, { color: palette.textSecondary }]}>
-            {LENGTHS.find((l) => l.value === length)!.hint}
-            {ai?.estimated_seconds ? ` · 지금 해설 ${Math.max(1, Math.round(ai.estimated_seconds / 60))}분` : ''}
-          </Text>
         </View>
       )}
 
       {/* 그림 아래 조작 줄: 따라 확대(아이폰식 스위치) · 크게 보기 */}
       {!!artwork && (
         <View style={styles.imageTools}>
-          {regions.length > 0 ? (
-            <Pressable accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
-              accessibilityState={{ checked: follow }} onPress={() => setFollow((v) => !v)} style={styles.followRow}>
+          <Pressable disabled={regions.length === 0} accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
+              accessibilityState={{ checked: follow, disabled: regions.length === 0 }} onPress={() => setFollow((v) => !v)} style={[styles.followRow, regions.length === 0 && styles.disabled]}>
               <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
               <View style={styles.switchBox}>
                 <Switch value={follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
+                  disabled={regions.length === 0}
                   trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
               </View>
             </Pressable>
-          ) : <View />}
           <View style={styles.toolButtons}>
           <PressableScale accessibilityRole="button" accessibilityLabel="작품 크게 보기" onPress={openZoom}
             style={[styles.zoomButton, { backgroundColor: palette.fill }]}>
@@ -443,19 +447,18 @@ export default function NarrationScreen() {
           </Text>
         ) : (
           <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: palette.text }]}>
-              {loading
-                ? '해설을 불러오는 중이에요'
-                : failed
-                  ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
-                  : aiError ? '해설을 준비하지 못했어요' : length === 'detailed' ? '상세 해설을 준비하고 있어요. 30초쯤 걸려요…' : '해설을 준비하고 있어요…'}
-            </Text>
+            {(loading || (missing && !aiError)) ? (
+              <MascotLoading compact message={loading ? '작품 해설을 확인하고 있어요.' : length === 'detailed' ? 'AI 상세 해설을 준비하고 있어요.' : 'AI 작품 해설을 준비하고 있어요.'} palette={palette} />
+            ) : (
+              <Text style={[styles.emptyText, { color: palette.text }]}
+              >
+                {failed ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요' : '해설을 준비하지 못했어요'}
+              </Text>
+            )}
             {failed && <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />}
-            {missing && <>
-              {aiError ? <>
+            {missing && aiError && <>
                 <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{aiError}</Text>
                 <PillButton label="다시 만들기" palette={palette} onPress={aiRes.reload} />
-              </> : <ActivityIndicator color={palette.text} accessibilityLabel="해설을 준비하는 중" />}
             </>}
           </View>
         )}
@@ -465,7 +468,8 @@ export default function NarrationScreen() {
       {total > 0 && (
         <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight}>
         <View style={styles.panel}>
-          <SeekBar total={total} index={player.index} palette={palette} onSeek={(i) => player.goTo(i)} />
+          <SeekBar total={total} index={player.index} elapsedSeconds={elapsedSeconds} totalSeconds={totalSeconds}
+            palette={palette} onSeek={(i) => player.goTo(i)} />
 
           <View style={styles.transport}>
             <RoundButton
@@ -661,6 +665,7 @@ const styles = StyleSheet.create({
   followLayer: { width: '100%', height: '100%' },
   imageTools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, paddingHorizontal: ScreenPadding, paddingTop: 12 },
   followRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  disabled: { opacity: 0.4 },
   followLabel: { fontSize: FontSize.label, lineHeight: 24, fontWeight: 700, includeFontPadding: false, textAlignVertical: 'center' },
   switchBox: { height: MinTouchTarget, justifyContent: 'center' },
   toolButtons: { flexDirection: 'row', gap: Spacing.two },

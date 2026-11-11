@@ -30,7 +30,7 @@ test('capture waits for camera warmup and prevents duplicate shutters while the 
     '@/components/common/toast': { showToast: () => {} },
   };
   for (const [module, name] of Object.entries({ 'back-button': 'BackButton', 'bottom-sheet': 'BottomSheet', 'text-button': 'TextButton',
-    'pressable-scale': 'PressableScale', text: 'Text' })) mocks[`@/components/common/${module}`] = { [name]: name };
+    'pressable-scale': 'PressableScale', text: 'Text', 'mascot-loading': 'MascotLoading' })) mocks[`@/components/common/${module}`] = { [name]: name };
   const source = fs.readFileSync(path.join(__dirname, '../../src/app/capture.tsx'), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const module = { exports: {} };

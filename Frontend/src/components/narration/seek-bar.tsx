@@ -18,6 +18,8 @@ import type { Palette } from '@/constants/a11y';
 type Props = {
   total: number;
   index: number;
+  elapsedSeconds: number;
+  totalSeconds: number;
   palette: Palette;
   onSeek: (index: number) => void;
 };
@@ -27,7 +29,12 @@ const HIT = 48;
 /** 눈금에서 이만큼(pt) 안쪽이면 자석처럼 끌린다 */
 const DETENT = 12;
 
-export function SeekBar({ total, index, palette, onSeek }: Props) {
+function formatTime(value: number) {
+  const seconds = Math.max(0, Math.round(value));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+export function SeekBar({ total, index, elapsedSeconds, totalSeconds, palette, onSeek }: Props) {
   const reduceMotion = useReducedMotion();
   const [width, setWidth] = useState(0);
   const [preview, setPreview] = useState<number | null>(null);
@@ -122,6 +129,12 @@ export function SeekBar({ total, index, palette, onSeek }: Props) {
           <Animated.View pointerEvents="none" style={[styles.thumb, { backgroundColor: palette.accent, borderColor: palette.background }, thumbStyle]} />
         </View>
       </GestureDetector>
+      <Text
+        accessibilityLabel={`현재 ${formatTime(elapsedSeconds)}, 전체 ${formatTime(totalSeconds)}`}
+        style={[styles.time, { color: palette.textSecondary }]}
+      >
+        {formatTime(elapsedSeconds)} / {formatTime(totalSeconds)}
+      </Text>
       {preview !== null && (
         <Text pointerEvents="none" style={[styles.bubble, { color: palette.text }]}>{preview + 1} / {total}</Text>
       )}
@@ -136,5 +149,6 @@ const styles = StyleSheet.create({
   // 막대 가운데에서 위쪽 절반만(아래 절반은 없앰). 짧게 두어 막대를 덜 가린다.
   tickMark: { position: 'absolute', top: HIT / 2 - 7, width: 2, height: 7, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.85)' },
   thumb: { position: 'absolute', left: 0, top: (HIT - THUMB) / 2, width: THUMB, height: THUMB, borderRadius: THUMB / 2, borderWidth: 3 },
+  time: { marginTop: -4, textAlign: 'right', fontSize: 15, fontWeight: 700, fontVariant: ['tabular-nums'] },
   bubble: { position: 'absolute', top: -26, alignSelf: 'center', fontSize: 16, fontWeight: 800, fontVariant: ['tabular-nums'] },
 });

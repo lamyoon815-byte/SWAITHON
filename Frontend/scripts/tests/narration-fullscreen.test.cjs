@@ -54,6 +54,7 @@ test('opening and closing fullscreen keeps the narrator and music active without
     'common/text': 'Text', 'artwork/zoom-view': 'ArtworkZoomView', 'common/back-button': 'BackButton', 'common/big-button': 'BigButton',
     'common/bottom-sheet': 'BottomSheet', 'common/bottom-action-bar': 'BottomActionBar', 'common/correction-canvas': 'CorrectionCanvas',
     'common/segmented-control': 'SegmentedControl', 'common/pressable-scale': 'PressableScale', 'narration/region-overlay': 'RegionOverlay', 'narration/seek-bar': 'SeekBar',
+    'common/mascot-loading': 'MascotLoading',
   })) mocks[`@/components/${module}`] = component(name);
   const source = fs.readFileSync(path.join(__dirname, '../../src/app/(tabs)/(home)/artwork/[id]/narration.tsx'), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
