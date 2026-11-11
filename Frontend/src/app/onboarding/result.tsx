@@ -16,13 +16,8 @@ import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
 import { formatCorrection } from '@/lib/profile-format';
-
-const COLOR_LABELS = {
-  normal: '색 보정 없음',
-  protanopia: '빨강 보정',
-  deuteranopia: '녹색 보정',
-  tritanopia: '파랑 보정',
-} as const;
+import { correctionSettings } from '@/lib/correction-settings';
+import { CALIBRATION_COLOR_LABELS, colorSeverities } from '@/types/calibration';
 
 /** 와이어프레임 6-1: 계정 DB에 저장한 보기 설정 확인. */
 export default function CorrectionResultScreen() {
@@ -33,11 +28,14 @@ export default function CorrectionResultScreen() {
   const [barHeight, setBarHeight] = useState(0);
   const calibration = profile.calibration;
   const colorType = calibration?.color_type ?? 'normal';
+  const colors = colorSeverities(correctionSettings(profile));
+  const activeColors = colorType === 'normal' ? [] : (Object.keys(colors) as (keyof typeof colors)[]).filter((type) => colors[type] > 0);
   const colorImage = colorType === 'normal' ? CALIBRATION.preview.deutan.artwork[0]
     : CALIBRATION.preview[colorType].artwork[Math.round((calibration?.severity ?? 0) * 5)];
-  const source = preview === 'edge' ? CALIBRATION.edge.images[Math.round((calibration?.edge ?? 0) * 5)] : colorImage;
+  const source = preview === 'edge' ? CALIBRATION.edge.images[Math.round((calibration?.edge ?? 0) * 5)]
+    : calibration?.color_severities ? CALIBRATION.preview.deutan.artwork[0] : colorImage;
   const rows = [
-    ['색 보정', profile.color_vision === 'normal' ? COLOR_LABELS.normal : `${COLOR_LABELS[profile.color_vision]} · ${Math.round(profile.color_severity * 100)}%`],
+    ['색 보정', activeColors.map((type) => `${CALIBRATION_COLOR_LABELS[type]} · ${Math.round(colors[type] * 100)}%`).join(', ') || CALIBRATION_COLOR_LABELS.normal],
     ['윤곽선 강조', calibration ? `${Math.round(calibration.edge * 100)}%` : '설정 전'],
     ['대비', formatCorrection('contrast', profile.contrast)],
     ['밝기', formatCorrection('brightness', profile.brightness)],
@@ -66,6 +64,7 @@ export default function CorrectionResultScreen() {
               source={source}
               accessibilityLabel={preview === 'edge' ? '윤곽선 강조 미리보기, 히로시게의 다리 위 소나기' : '색 보정 미리보기, 반 고흐의 작품'}
               correction={profile}
+              colorSeverities={preview === 'color' && colorType !== 'normal' ? calibration?.color_severities : undefined}
               palette={palette}
               style={styles.preview}
             />

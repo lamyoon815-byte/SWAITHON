@@ -274,6 +274,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
             # 대비·밝기·선명도는 DB에서 읽은 앱 설정으로 Skia가 한 번만 처리한다.
             selected = saved.model_copy(update={
                 "severity": saved.severity * strength if saved.color_type != "normal" else 0,
+                "color_severities": {color: value * strength if saved.color_type != "normal" else 0
+                                     for color, value in saved.color_severities.items()} if saved.color_severities is not None else None,
                 "edge": saved.edge * strength, "contrast": 1, "brightness": 0, "sharpness": 0,
             })
             correction_limiter.check(client_key(request))

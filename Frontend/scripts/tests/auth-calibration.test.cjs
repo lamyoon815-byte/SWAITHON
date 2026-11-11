@@ -22,7 +22,72 @@ function load(file, mocks = {}, globals = {}) {
   return module.exports;
 }
 
-const calibration = load('lib/calibration.ts');
+const calibrationTypes = load('types/calibration.ts');
+const calibration = load('lib/calibration.ts', { '@/types/calibration': calibrationTypes });
+const correctionSettingsLib = load('lib/correction-settings.ts', {
+  '@/assets/images/calibration': { CALIBRATION: {} }, '@/types/calibration': calibrationTypes,
+});
+
+test('color types keep independent levels when switching, disabling, and returning to a previous type', () => {
+  const { correctionSettings, updateCorrectionSettings, correctionSettingsChanged } = correctionSettingsLib;
+  const { DEFAULT_PROFILE } = load('types/profile.ts');
+  let values = correctionSettings({ ...DEFAULT_PROFILE, calibration: { color_type: 'protan', severity: 0.4, edge: 0.2 } });
+  const saved = structuredClone(values);
+  values = updateCorrectionSettings(values, { color_type: 'deutan' });
+  assert.equal(values.severity, 0);
+  values = updateCorrectionSettings(values, { severity: 0.8 });
+  values = updateCorrectionSettings(values, { color_type: 'tritan' });
+  values = updateCorrectionSettings(values, { severity: 0.6 });
+  values = updateCorrectionSettings(values, { color_type: 'protan' });
+  assert.equal(values.severity, 0.4);
+  values = updateCorrectionSettings(values, { severity: 0.2 });
+  assert.deepEqual({ ...values.color_severities }, { protan: 0.2, deutan: 0.8, tritan: 0.6 });
+  assert.equal(saved.severity, 0.4, 'draft updates must not mutate the saved profile');
+  assert.equal(correctionSettingsChanged(values, saved), true);
+  assert.equal(correctionSettingsChanged(values, structuredClone(values)), false);
+  const disabled = updateCorrectionSettings(values, { color_type: 'normal' });
+  assert.equal(calibration.serverCorrection(disabled).severity, 0);
+  assert(Object.values(calibration.serverCorrection(disabled).color_severities).every((level) => level === 0));
+  values = updateCorrectionSettings(disabled, { color_type: 'deutan' });
+  assert.equal(values.severity, 0.8, 'the existing off control must retain the stored levels');
+  values = updateCorrectionSettings(values, { severity: 0 });
+  assert.deepEqual({ ...values.color_severities }, { protan: 0.2, deutan: 0, tritan: 0.6 });
+});
+
+test('all color levels are converted and scaled even if the currently selected type is zero', () => {
+  const profile = calibration.viewingFromProfile({
+    ...load('types/profile.ts').DEFAULT_PROFILE,
+    calibration: { color_type: 'deutan', severity: 0, edge: 0.4, color_severities: { protan: 0.6, deutan: 0, tritan: 0.8 } },
+  });
+  const server = calibration.serverCorrection(profile, 0.5);
+  assert.equal(server.severity, 0);
+  assert.equal(server.edge, 0.2);
+  assert.deepEqual({ ...server.color_severities }, { protan: 0.3, deutan: 0, tritan: 0.4 });
+  for (const colors of [{ protan: -0.1 }, { tritan: 1.1 }, { normal: 0 }, { deutan: NaN }, []]) {
+    assert.equal(calibrationTypes.isCalibrationSettings({ color_type: 'protan', severity: 0.4, edge: 0, color_severities: colors }), false);
+  }
+});
+
+test('artwork correction loads when another type is active and skips requests when all types are off', async () => {
+  for (const enabled of [true, false]) {
+    const timers = [];
+    const calls = [];
+    const { useCorrectedArtwork } = load('hooks/use-corrected-artwork.ts', {
+      react: { useEffect: (effect) => effect(), useState: (initial) => [initial, () => {}] },
+      '@/lib/api': { ApiError: class extends Error {}, cachedCorrectedImage: () => undefined,
+        getCorrectedImage: async (...args) => { calls.push(args); return 'corrected'; } },
+      '@/lib/calibration': calibration,
+      '@/hooks/use-profile': { useProfile: () => ({ loaded: true, error: false, reloadProfile: () => {} }) },
+      '@/store/auth': { getAccessToken: () => 'account' },
+    }, { setTimeout: (callback) => { timers.push(callback); return 1; } });
+    const values = { ...calibration.DEFAULT_VIEWING, color_type: 'tritan', severity: 0,
+      color_severities: { protan: enabled ? 0.6 : 0, deutan: 0, tritan: 0 }, revision: 'a'.repeat(64) };
+    useCorrectedArtwork('sample', 'original.jpg', values);
+    timers.forEach((callback) => callback());
+    await tick();
+    assert.equal(calls.length, enabled ? 1 : 0);
+  }
+});
 
 test('MoMi and previously printed QR codes resolve to the same artwork', () => {
   const { parseArtworkQr } = load('lib/artwork-qr.ts');
@@ -149,6 +214,25 @@ test('calibration is saved to the account DB before being used and untested filt
   assert.equal(store.getProfileSnapshot().profile.sharpen, 0);
 });
 
+test('all color levels survive saving, reloading, unrelated settings, and recalibrating another type', async () => {
+  const { store, profiles } = profileStore();
+  await tick();
+  await store.saveCalibration({ color_type: 'protan', severity: 0.4, edge: 0.2, contrast: 1.2 });
+  const { correctionSettings, updateCorrectionSettings } = correctionSettingsLib;
+  let values = correctionSettings(store.getProfileSnapshot().profile);
+  values = updateCorrectionSettings(values, { color_type: 'deutan' });
+  values = updateCorrectionSettings(values, { severity: 0.6 });
+  values = updateCorrectionSettings(values, { color_type: 'tritan' });
+  values = updateCorrectionSettings(values, { severity: 0.8 });
+  await store.saveViewingSettings(values);
+  await store.saveNarrationMode('facts');
+  const restored = profileStore({ profiles });
+  await tick();
+  assert.deepEqual({ ...restored.store.getProfileSnapshot().profile.calibration.color_severities }, { protan: 0.4, deutan: 0.6, tritan: 0.8 });
+  await restored.store.saveCalibration({ color_type: 'deutan', severity: 0.2, edge: 0.2, contrast: 1.2 });
+  assert.deepEqual(profiles.get('user-1').calibration.color_severities, { protan: 0.4, deutan: 0.2, tritan: 0.8 });
+});
+
 test('a failed DB save never becomes a successful calibration in shared state', async () => {
   const { store, writes } = profileStore({ failPut: true });
   await tick();
@@ -235,7 +319,7 @@ test('each slider level selects its matching bundled color and edge preview, wit
   const assetDir = path.join(__dirname, '../../assets/images/calibration');
   const assets = Object.fromEntries(fs.readdirSync(assetDir).filter((name) => name.endsWith('.jpg')).map((name) => [`./${name}`, name]));
   const { CALIBRATION } = load('../assets/images/calibration/index.ts', assets);
-  const { correctionPreview } = load('lib/correction-settings.ts', { '@/assets/images/calibration': { CALIBRATION } });
+  const { correctionPreview } = load('lib/correction-settings.ts', { '@/assets/images/calibration': { CALIBRATION }, '@/types/calibration': calibrationTypes });
   for (const color_type of ['protan', 'deutan', 'tritan']) {
     for (const [index, severity] of manifest.preview.levels.entries()) {
       const values = { color_type, severity, edge: severity, contrast: 1, brightness: 0, sharpen: 0 };

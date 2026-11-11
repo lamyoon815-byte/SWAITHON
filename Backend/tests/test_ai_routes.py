@@ -305,6 +305,15 @@ class AIRouteTests(unittest.TestCase):
             response = client.post("/correction", headers=headers, data={"artwork_id": "sample"})
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual((captured[-1]["color_type"], captured[-1]["severity"], captured[-1]["edge"]), ("tritan", 0.2, 0))
+            # Selecting a zero-valued type must not disable the other saved corrections.
+            client.put("/me/profile", headers=headers, json={"calibration": {
+                "color_type": "deutan", "severity": 0, "edge": 0.4,
+                "color_severities": {"protan": 0.6, "deutan": 0, "tritan": 0.8},
+            }})
+            response = client.post("/correction", headers=headers, data={"artwork_id": "sample", "strength": "0.5"})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(captured[-1]["color_severities"], {"protan": 0.3, "deutan": 0, "tritan": 0.4})
+            self.assertEqual(captured[-1]["edge"], 0.2)
             other = client.post("/auth/register", json={"email": "other@example.com", "password": "password-12345", "nickname": "다른 관람객"}).json()
             response = client.post("/correction", headers={"Authorization": "Bearer " + other["access_token"]}, data={"artwork_id": "sample"})
             self.assertEqual(response.status_code, 409)

@@ -19,9 +19,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_va
 from pwdlib import PasswordHash
 
 if __package__:
-    from .ai.profile import AIProfile
+    from .ai.profile import AIProfile, ColorSeverities
 else:
-    from ai.profile import AIProfile
+    from ai.profile import AIProfile, ColorSeverities
 
 
 class Credentials(BaseModel):
@@ -71,6 +71,7 @@ class CalibrationSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     color_type: Literal["normal", "protan", "deutan", "tritan"]
     severity: float = Field(ge=0, le=1)
+    color_severities: ColorSeverities | None = Field(default=None, exclude_if=lambda value: value is None)
     edge: float = Field(ge=0, le=1)
 
     @model_validator(mode="after")
@@ -174,6 +175,9 @@ class AccountStore:
     def set_ai_profile(self, user_id: str, profile: AIProfile):
         with closing(self.connect()) as connection:
             with connection:
+                connection.execute("BEGIN IMMEDIATE")
+                row = connection.execute("SELECT profile_json FROM ai_profiles WHERE user_id = ?", (user_id,)).fetchone()
+                profile = profile.with_color_severities(AIProfile.model_validate_json(row[0]) if row else None)
                 connection.execute(
                     "INSERT INTO ai_profiles VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET profile_json=excluded.profile_json",
                     (user_id, profile.model_dump_json()),
@@ -261,6 +265,7 @@ class AccountStore:
             ai = AIProfile.model_validate_json(row["ai_profile_json"])
             profile.calibration = CalibrationSettings(
                 color_type=ai.color_type, severity=ai.severity if ai.color_type != "normal" else 0, edge=ai.edge,
+                color_severities=ai.color_severities,
             )
             profile.color_vision = COLOR_VISION[ai.color_type]
             profile.color_severity = profile.calibration.severity
@@ -279,8 +284,11 @@ class AccountStore:
         with closing(self.connect()) as connection:
             with connection:
                 connection.execute("BEGIN IMMEDIATE")
-                if profile.revision is not None and profile.revision != self._profile_snapshot(connection, user_id)[0].revision:
+                current, previous_ai = self._profile_snapshot(connection, user_id)
+                if profile.revision is not None and profile.revision != current.revision:
                     raise HTTPException(409, "다른 화면에서 보정값이 변경되었습니다. 다시 불러온 뒤 저장해 주세요.")
+                if ai_profile is not None:
+                    ai_profile = ai_profile.with_color_severities(previous_ai)
                 connection.execute("UPDATE profiles SET profile_json = ? WHERE user_id = ?",
                                    (profile.model_dump_json(exclude={"calibration", "revision"}), user_id))
                 if ai_profile is not None:

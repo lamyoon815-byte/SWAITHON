@@ -20,7 +20,7 @@ import {
   useImage,
   type DataSourceParam,
 } from '@shopify/react-native-skia';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '@/components/common/text';
 import {
@@ -36,8 +36,10 @@ import { BigButton } from '@/components/common/big-button';
 import { MascotLoading } from '@/components/common/mascot-loading';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
+import { colorCorrectionUniforms, getColorCorrectionEffect } from '@/lib/color-correction';
 import { getSharpenEffect } from '@/lib/sharpen';
 import type { CorrectionValues } from '@/types/profile';
+import type { ColorSeverities } from '@/types/calibration';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
@@ -61,6 +63,8 @@ type Props = {
   /** 스크린리더가 읽는 이름. 예: "별이 빛나는 밤, 빈센트 반 고흐" */
   accessibilityLabel: string;
   correction: CorrectionValues;
+  /** 내 보정값 미리보기만 사용한다. 작품 이미지는 서버에서 이미 색 보정했다. */
+  colorSeverities?: ColorSeverities;
   /** true면 보정 없이 원본을 그린다 */
   original?: boolean;
   /** 서버가 만든 100% 색각·윤곽 보정본. 있으면 원본 위에 overlayAmount 비율로 겹쳐 그려
@@ -85,6 +89,7 @@ export function CorrectionCanvas({
   source,
   accessibilityLabel,
   correction,
+  colorSeverities,
   original = false,
   overlay,
   overlayAmount = 1,
@@ -138,6 +143,12 @@ export function CorrectionCanvas({
     return fade.get() * (live.get() >= 0 ? live.get() : staticOverlay);
   });
   const sharpenEffect = getSharpenEffect();
+  const colorEffect = colorSeverities && !original ? getColorCorrectionEffect() : null;
+  const colorUniforms = useMemo(
+    () => colorCorrectionUniforms(colorSeverities ?? {}, 1 + (contrast - 1) * staticAmount, brightness * staticAmount),
+    [colorSeverities, contrast, brightness, staticAmount],
+  );
+  const colorFilter = colorEffect ? <RuntimeShader source={colorEffect} uniforms={colorUniforms} /> : null;
 
   const scale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -250,8 +261,12 @@ export function CorrectionCanvas({
               width={size.width}
               height={size.height}
               sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }}>
-              <ColorMatrix matrix={matrix} />
-              {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
+              {colorFilter ? (
+                sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms}>{colorFilter}</RuntimeShader> : colorFilter
+              ) : <>
+                <ColorMatrix matrix={matrix} />
+                {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
+              </>}
             </Image>
             {!!overlayImage && !original && (
               <Image

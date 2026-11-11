@@ -17,7 +17,8 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
   const { loaded, error: profileError, reloadProfile } = useProfile();
   const full = serverCorrection(values, 1);
   // Start as soon as the artwork id is known; the original image URL is not needed for the request.
-  const active = loaded && !profileError && !!id && !original && (full.severity > 0 || full.edge > 0);
+  const active = loaded && !profileError && !!id && !original && (full.severity > 0 || full.edge > 0
+    || Object.values(full.color_severities ?? {}).some((value) => value > 0));
   const key = active ? JSON.stringify([getAccessToken(), values.revision, id, full, maxSide ?? null]) : null;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ key: string; source?: string; error?: unknown } | null>(null);

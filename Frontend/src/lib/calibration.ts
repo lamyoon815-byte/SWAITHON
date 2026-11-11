@@ -1,8 +1,10 @@
 import type { VisualProfile } from '@/types/profile';
+import { colorSeverities, type ColorSeverities } from '@/types/calibration';
 export type ColorType = 'normal' | 'protan' | 'deutan' | 'tritan';
 export type ViewingProfile = {
   color_type: ColorType;
   severity: number;
+  color_severities?: ColorSeverities;
   edge: number;
   contrast: number;
   /** App/Skia unit; never sent to /correction. */
@@ -34,6 +36,9 @@ export function serverCorrection(profile: ViewingProfile, strength = 1) {
   return {
     color_type: profile.color_type,
     severity: profile.color_type === 'normal' ? 0 : profile.severity * strength,
+    ...(profile.color_severities ? { color_severities: Object.fromEntries(
+      Object.entries(colorSeverities(profile)).map(([type, value]) => [type, profile.color_type === 'normal' ? 0 : value * strength]),
+    ) } : {}),
     edge: profile.edge * strength,
     contrast: 1, brightness: 0, sharpness: 0,
   };
@@ -51,6 +56,7 @@ export function normalizeViewing(value: Partial<ViewingProfile>): ViewingProfile
   return {
     color_type,
     severity: color_type === 'normal' ? 0 : clamp(value.severity, 0, 1, 0),
+    ...(value.color_severities ? { color_severities: colorSeverities({ color_type, severity: value.severity ?? 0, color_severities: value.color_severities }) } : {}),
     edge: clamp(value.edge, 0, 1, 0), contrast: clamp(value.contrast, 0.5, 2, 1),
     brightness: clamp(value.brightness, -1, 1, 0), sharpness: clamp(value.sharpness, 0, 2, 0),
   };
@@ -63,6 +69,7 @@ export function viewingFromProfile(profile: VisualProfile): ViewingProfile {
   return { ...normalizeViewing({
     color_type: profile.calibration?.color_type ?? legacyColor[profile.color_vision],
     severity: profile.calibration?.severity ?? profile.color_severity,
+    color_severities: profile.calibration?.color_severities,
     edge: profile.calibration?.edge ?? 0,
     contrast: profile.contrast, brightness: profile.brightness, sharpness: profile.sharpen,
   }), revision: profile.revision };

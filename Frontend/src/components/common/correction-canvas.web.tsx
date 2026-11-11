@@ -10,11 +10,13 @@ import { Text } from '@/components/common/text';
 
 import { FontSize, type Palette } from '@/constants/a11y';
 import type { CorrectionValues } from '@/types/profile';
+import type { ColorSeverities } from '@/types/calibration';
 
 type Props = {
   source: DataSourceParam;
   accessibilityLabel: string;
   correction: CorrectionValues;
+  colorSeverities?: ColorSeverities;
   original?: boolean;
   zoomable?: boolean;
   palette: Palette;

@@ -19,7 +19,7 @@ import { CalibrationSlider } from '@/components/mypage/calibration-slider';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
-import { correctionSettings, correctionSettingsChanged } from '@/lib/correction-settings';
+import { correctionSettings, correctionSettingsChanged, updateCorrectionSettings } from '@/lib/correction-settings';
 import { combinedCorrectionPreview } from '@/lib/combined-correction-preview';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
 import type { ViewingSettings } from '@/types/profile';
@@ -108,6 +108,7 @@ export default function CorrectionScreen() {
           source={preview}
           accessibilityLabel="반 고흐의 프로방스의 농가, 색 보정과 윤곽선 강조를 함께 적용한 미리보기"
           correction={{ ...values, strength: 1 }}
+          colorSeverities={values.color_type === 'normal' ? undefined : values.color_severities}
           original={original}
           palette={palette}
           style={styles.preview}
@@ -134,7 +135,7 @@ export default function CorrectionScreen() {
               {(Object.keys(CALIBRATION_COLOR_LABELS) as CalibrationColorType[]).map((type) => {
                 const selected = values.color_type === type;
                 return <PressableScale key={type} accessibilityRole="radio" accessibilityLabel={CALIBRATION_COLOR_LABELS[type]} accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
-                  onPress={() => setDraft({ ...values, color_type: type, severity: type === 'normal' ? 0 : values.severity })}
+                  onPress={() => setDraft((current) => updateCorrectionSettings(current ?? saved, { color_type: type }))}
                   style={({ pressed }) => [styles.colorChoice, { backgroundColor: selected ? palette.highlight : palette.fill, borderColor: selected ? palette.highlight : palette.border, opacity: disabled || original ? 0.4 : pressed ? 0.7 : 1 }]}>
                   <Text lineBreakStrategyIOS="hangul-word" style={[styles.colorChoiceLabel, { color: selected ? palette.highlightText : palette.text, fontWeight: selected ? 800 : 600 }]}>{CALIBRATION_COLOR_LABELS[type]}</Text>
                 </PressableScale>;
@@ -143,12 +144,12 @@ export default function CorrectionScreen() {
           </View>
           <View style={[styles.divider, { backgroundColor: palette.outline }]} />
           <CalibrationSlider label="색 보정 세기" value={values.severity} disabled={disabled || original || values.color_type === 'normal'} palette={palette}
-            onChange={(severity) => setDraft({ ...values, severity })} />
+            onChange={(severity) => setDraft((current) => updateCorrectionSettings(current ?? saved, { severity }))} />
           {values.color_type === 'normal' && <Text style={[styles.cardNote, { color: palette.textSecondary }]}>색 보정 종류를 선택하면 세기를 조절할 수 있어요.</Text>}
         </View>
         <View style={[styles.controls, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
           <CalibrationSlider label="윤곽선 강조" value={values.edge} disabled={disabled || original} palette={palette}
-            onChange={(edge) => setDraft({ ...values, edge })} />
+            onChange={(edge) => setDraft((current) => updateCorrectionSettings(current ?? saved, { edge }))} />
         </View>
 
         <View style={[styles.controls, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
@@ -160,7 +161,7 @@ export default function CorrectionScreen() {
                 value={values[control.field]}
                 disabled={disabled || original}
                 palette={palette}
-                onChange={(field, value) => setDraft({ ...values, [field]: value })}
+                onChange={(field, value) => setDraft((current) => updateCorrectionSettings(current ?? saved, { [field]: value }))}
               />
             </View>
           ))}

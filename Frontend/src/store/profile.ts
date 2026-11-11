@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_PROFILE, type CorrectionValues, type ViewingSettings, type VisualProfile } from '@/types/profile';
 import type { NarrationMode } from '@/types/narration';
-import { isCalibrationSettings, type CalibrationResult } from '@/types/calibration';
+import { colorSeverities, isCalibrationSettings, type CalibrationResult } from '@/types/calibration';
 import { getProfile, putProfile } from '@/lib/api';
 import { correctionStrength } from '@/lib/calibration';
 import { getAccessToken, getAuthSnapshot, subscribeAuth } from '@/store/auth';
@@ -120,25 +120,30 @@ export async function saveCalibration(result: CalibrationResult) {
   if (!isCalibrationSettings(result) || ![1, 1.2, 1.4, 1.6, 1.8, 2].includes(result.contrast)) {
     throw new Error('잘못된 보기 설정');
   }
-  const { color_type, severity, edge, contrast } = result;
-  return updateProfile({
-    ...calibrationPatch({ color_type, severity, edge }), contrast, brightness: 0, sharpen: 0, strength: 1,
-  });
+  const { contrast } = result;
+  return updateProfile((profile) => ({
+    ...calibrationPatch(result, profile.calibration), contrast, brightness: 0, sharpen: 0, strength: 1,
+  }));
 }
 
-function calibrationPatch(settings: VisualProfile['calibration']) {
+function calibrationPatch(settings: VisualProfile['calibration'], previous?: VisualProfile['calibration']) {
   if (!isCalibrationSettings(settings)) throw new Error('잘못된 보기 설정');
   const { color_type, severity, edge } = settings;
+  const combined = settings.color_severities || previous?.color_severities
+    || (previous && previous.color_type !== 'normal' && previous.color_type !== color_type);
+  const colors = { ...colorSeverities(previous ?? settings), ...settings.color_severities };
+  if (!settings.color_severities && color_type !== 'normal') colors[color_type] = severity;
+  const calibration = { color_type, severity, edge, ...(combined ? { color_severities: colors } : {}) };
   const colorVision = { normal: 'normal', protan: 'protanopia', deutan: 'deuteranopia', tritan: 'tritanopia' } as const;
-  return { calibration: { color_type, severity, edge }, color_vision: colorVision[color_type], color_severity: severity };
+  return { calibration, color_vision: colorVision[color_type], color_severity: severity };
 }
 
 /** 색 보정·윤곽선과 기존 세부 조정을 하나의 쓰기로 저장하여 부분 저장을 막는다. */
 export async function saveViewingSettings(values: ViewingSettings) {
-  return updateProfile({ ...calibrationPatch(values), ...normalizeCorrection(values) });
+  return updateProfile((profile) => ({ ...calibrationPatch(values, profile.calibration), ...normalizeCorrection(values) }));
 }
 
-function updateProfile(patch: Partial<VisualProfile>) {
+function updateProfile(patch: Partial<VisualProfile> | ((profile: VisualProfile) => Partial<VisualProfile>)) {
   const token = getAccessToken();
   const next = writing.then(async () => {
     await load();
@@ -147,7 +152,8 @@ function updateProfile(patch: Partial<VisualProfile>) {
     // 해설 방식 같은 작은 변경으로 다른 기기에서 저장한 보정값을 덮어쓰지 않는다.
     const latest = await getProfile();
     if (token !== getAccessToken()) throw new Error('계정이 변경되었어요');
-    const profile = { ...normalizeProfile(latest), ...patch };
+    const current = normalizeProfile(latest);
+    const profile = { ...current, ...(typeof patch === 'function' ? patch(current) : patch) };
     const saved = await putProfile(profile);
     if (token !== getAccessToken()) throw new Error('계정이 변경되었어요');
     // 먼저 시작된 조회가 늦게 도착해 방금 저장한 값을 되돌리지 못하게 한다.

@@ -3,7 +3,7 @@
 계약: correct_image(RGB JPEG bytes, AIProfile dict) -> 같은 크기의 JPEG bytes
 
 보정 순서 (색을 먼저 바로잡고, 밝기·선명도를 조정한 뒤, 윤곽선은 마지막에 덧그려 다른 보정에 뭉개지지 않게 한다)
-1. 색각이상 색 보정 (color_type, severity)
+1. 색각이상 색 보정 (color_severities; 이전 설정은 color_type, severity)
    Machado(2009) 모델로 '이 사용자에게 보이는 색'을 계산하고, 원본과의 차이(구분되지 않는 색 정보)를
    사용자가 구분할 수 있는 채널로 옮겨 더한다(달토나이제이션, Fidaner et al. 2005 방식).
    Machado 행렬은 선형 RGB 기준이므로 sRGB → 선형 → 보정 → sRGB로 변환한다.
@@ -192,7 +192,14 @@ def emphasize_edges(rgb, edge: float):
 
 def correct_array(rgb, profile: dict):
     """sRGB(0~1, float32, H×W×3) 이미지에 프로필 보정을 순서대로 적용한다."""
-    rgb = daltonize(rgb, profile.get("color_type", "normal"), float(profile.get("severity", 0)))
+    color_type = profile.get("color_type", "normal")
+    colors = profile.get("color_severities")
+    if colors is None:
+        colors = {color_type: float(profile.get("severity", 0))}
+    # 편집 순서와 무관하게 같은 결과를 만든다. 0인 종류는 원본을 그대로 통과한다.
+    if color_type != "normal":
+        for color in ("protan", "deutan", "tritan"):
+            rgb = daltonize(rgb, color, float(colors.get(color, 0)))
     rgb = brightness_contrast(rgb, float(profile.get("brightness", 0)), float(profile.get("contrast", 1)))
     rgb = sharpen(rgb, float(profile.get("sharpness", 0)))
     rgb = emphasize_edges(rgb, float(profile.get("edge", 0)))

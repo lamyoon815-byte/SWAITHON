@@ -154,6 +154,32 @@ class AccountTests(unittest.TestCase):
         self.assertEqual(self.client.get("/me/profile", headers=headers).json(), before)
         self.assertIsNone(self.client.get("/me/ai-profile", headers=headers).json())
 
+    def test_color_levels_persist_independently_through_old_and_new_profile_writes(self):
+        first, headers = self.register()
+        settings = {"color_type": "protan", "severity": 0.4, "edge": 0.2,
+                    "color_severities": {"protan": 0.4, "deutan": 0.6, "tritan": 0.8}}
+        saved = self.client.put("/me/profile", headers=headers, json={"calibration": settings}).json()
+        self.assertEqual(saved["calibration"], settings)
+        changed = self.client.put("/me/profile", headers=headers, json={**saved,
+            "calibration": {"color_type": "deutan", "severity": 0.2, "edge": 0.2}})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        levels = {"protan": 0.4, "deutan": 0.2, "tritan": 0.8}
+        self.assertEqual(changed.json()["calibration"]["color_severities"], levels)
+        self.assertNotEqual(changed.json()["revision"], saved["revision"])
+        # A zero disables only that type; the direct AI-profile endpoint also preserves others.
+        changed = self.client.put("/me/ai-profile", headers=headers, json={"color_type": "tritan", "severity": 0})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        levels["tritan"] = 0
+        from Backend.accounts import AccountStore
+        restored = AccountStore(self.root / "data").profile(first["user"]["id"])
+        self.assertEqual(restored.calibration.color_severities, levels)
+        # The existing off choice disables rendering without erasing the individual values.
+        off = self.client.put("/me/profile", headers=headers, json={"calibration": {"color_type": "normal", "severity": 0, "edge": 0}})
+        self.assertEqual(off.json()["calibration"]["color_severities"], levels)
+        for invalid in ({"protan": -0.1}, {"tritan": 1.1}, {"normal": 0}, {"other": 0.2}):
+            response = self.client.put("/me/profile", headers=headers, json={"calibration": {**settings, "color_severities": invalid}})
+            self.assertEqual(response.status_code, 422, response.text)
+
     def test_profile_revision_prevents_stale_settings_from_overwriting_calibration(self):
         _, headers = self.register()
         first = self.client.put("/me/profile", headers=headers, json={
