@@ -260,7 +260,7 @@ export default function CalibrationScreen() {
       </View>}
       {/* 위 진행 표시는 고정하고, 그 아래로 스크롤되는 내용은 점점 흐려지며 사라진다. */}
       <View style={styles.scrollArea}>
-      <ScrollView ref={scroll} contentContainerStyle={[styles.content, { paddingBottom: (questionPhase ? barHeight : insets.bottom) + Spacing.four }]}>
+      <ScrollView ref={scroll} contentContainerStyle={[styles.content, { paddingBottom: (questionPhase || phase === 'complete' ? barHeight : insets.bottom) + Spacing.four }]}>
         {phase !== 'complete' && <View style={styles.intro}>
           <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={[styles.heading, { color: palette.highlight }]}>{question}</Text>
           <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>{description}</Text>
@@ -331,10 +331,7 @@ export default function CalibrationScreen() {
             ))}
           </View>
         </View>}
-        {phase === 'complete' && <View style={styles.manual}>
-          <Text style={[styles.resultNote, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>
-          <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '보정값 확인하기'} palette={palette} disabled={disabled} onPress={() => { void finish(); }} /></View>
-        </View>}
+        {phase === 'complete' && <Text style={[styles.resultNote, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>}
         {phase !== 'complete' && <TextButton label="이 단계 건너뛰기" accessibilityHint="지금 단계는 보정 없음으로 두고 다음 단계로 이동해요" palette={palette} disabled={disabled} onPress={() => act({ type: 'skip' })} />}
         {error && <View style={styles.manual}><Text style={[styles.note, { color: palette.textSecondary }]}>기존 설정을 불러오지 못했어요.</Text><View style={styles.buttonRow}><BigButton label="설정 다시 불러오기" palette={palette} onPress={() => { void reloadProfile(); }} /></View></View>}
       </ScrollView>
@@ -347,6 +344,10 @@ export default function CalibrationScreen() {
           <BigButton label="다음 문제" palette={palette} disabled={disabled || !imageReady} accessibilityHint="현재 그림은 잘 보이지 않는 것으로 기록하고 다음 문제로 이동해요" onPress={moveNext} />
         </View>
         <Text style={[styles.navHint, { color: palette.textSecondary }]}>다음 문제를 누르면 현재 그림은 ‘잘 보이지 않음’으로 기록돼요.</Text>
+      </BottomActionBar>}
+      {/* 결과 화면의 보정값 확인하기도 문제 화면처럼 아래에 고정한다. */}
+      {phase === 'complete' && <BottomActionBar background={palette.background} onHeight={setBarHeight}>
+        <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '보정값 확인하기'} palette={palette} disabled={disabled} onPress={() => { void finish(); }} /></View>
       </BottomActionBar>}
       <ConfirmDialog
         visible={pendingAnswer?.frame === state}
