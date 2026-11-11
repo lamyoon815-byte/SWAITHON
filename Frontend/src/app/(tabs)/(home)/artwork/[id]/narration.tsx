@@ -8,10 +8,13 @@
  * 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
  */
 
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { ActivityIndicator, Image as NativeImage, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Text } from '@/components/common/text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +25,8 @@ import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { PressableScale } from '@/components/common/pressable-scale';
+import { RegionOverlay } from '@/components/narration/region-overlay';
+import { SeekBar } from '@/components/narration/seek-bar';
 import { SpeedSheet, formatRate } from '@/components/narration/speed-sheet';
 import {
   ButtonGap,
@@ -63,7 +68,9 @@ export default function NarrationScreen() {
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
   const strength = correctionStrength(strengthParam !== undefined ? Number(strengthParam) : profile.strength);
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
-  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), originalParam === '1', strength);
+  // 보정 전후 비교. 작품 화면에서 고른 상태로 시작한다.
+  const [showOriginal, setShowOriginal] = useState(originalParam === '1');
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
@@ -93,8 +100,137 @@ export default function NarrationScreen() {
   const missing = !ai && noReviewed;
   const failed = !ai && !!err && !missing;
   const loading = !ai && !narrationRes.data && !err;
+  // 작품 위 영역 상자: 검수 해설은 작품 description, AI 해설은 함께 온 description의 regions.
+  const regions = ai?.description?.regions ?? artwork?.description?.regions ?? [];
+  const usableRegions = new Set(segments.flatMap((s) => (s.region_index === null ? [] : [s.region_index])));
+  const jumpToRegion = (region: number) => {
+    const at = segments.findIndex((s) => s.region_index === region);
+    if (at >= 0) player.goTo(at);
+  };
   const total = segments.length;
   const current = segments[player.index];
+
+  const reduceMotion = useReducedMotion();
+  // 작품 테두리를 그림 비율에 맞춘다.
+  // 그림 영역 폭만 재고, 높이는 그림 비율로 정한다(최대 화면의 42%). 가로 그림은 낮아져서 아래 조작 줄이 그림에 붙는다.
+  const [stageWidth, setStageWidth] = useState(0);
+  const maxStageHeight = Math.max(240, windowHeight * 0.42);
+  const [imageRatio, setImageRatio] = useState<{ uri: string; value: number } | null>(null);
+  const imageUri = artwork?.image_url ?? '';
+  useEffect(() => {
+    if (!imageUri) return;
+    let alive = true;
+    NativeImage.getSize(imageUri, (w, h) => { if (alive && w > 0 && h > 0) setImageRatio({ uri: imageUri, value: w / h }); }, () => {});
+    return () => { alive = false; };
+  }, [imageUri]);
+  const ratio = imageRatio?.uri === imageUri ? imageRatio.value : null;
+  const frame = ratio && stageWidth > 0
+    ? stageWidth / ratio <= maxStageHeight
+      ? { width: stageWidth, height: stageWidth / ratio }
+      : { width: maxStageHeight * ratio, height: maxStageHeight }
+    : { width: '100%' as const, height: '100%' as const };
+  const stageHeight = typeof frame.height === 'number' ? frame.height : maxStageHeight;
+
+  // 읽는 부분 따라가며 확대(켜고 끄기). 재생 중이고 지금 문장에 영역이 있을 때만 확대한다.
+  const [follow, setFollow] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const zoomScale = useSharedValue(1);
+  const zoomX = useSharedValue(0);
+  const zoomY = useSharedValue(0);
+  const followRegion = follow && (player.playing || player.preparing) && current?.region_index != null ? regions[current.region_index] : undefined;
+  const frameW = typeof frame.width === 'number' ? frame.width : 0;
+  const frameH = typeof frame.height === 'number' ? frame.height : 0;
+  // 따라 확대 목표(그리는 동안 계산하고, 효과에서는 움직이기만 한다).
+  let followScale = 1, followX = 0, followY = 0;
+  {
+    let scale = 1, tx = 0, ty = 0;
+    if (followRegion && frameW > 0 && frameH > 0) {
+      const [x, y, w, h] = followRegion.bbox;
+      // 영역이 화면의 85%쯤 차도록, 최대 3배까지.
+      // 영역 박스 전체가 화면 안에 들어오는 배율까지만 확대한다(가로·세로 모두 88% 이내, 최대 3배).
+      // 세로로 긴 영역처럼 거의 확대할 수 없으면 확대 없이 그쪽으로만 옮긴다(옮길 여유가 없으면 그대로).
+      scale = Math.max(1, Math.min(3, 0.88 / w, 0.88 / h));
+      const cx = (x + w / 2) * frameW;
+      const cy = (y + h / 2) * frameH;
+      const maxX = ((scale - 1) * frameW) / 2;
+      const maxY = ((scale - 1) * frameH) / 2;
+      tx = Math.max(-maxX, Math.min(maxX, (frameW / 2 - cx) * scale));
+      ty = Math.max(-maxY, Math.min(maxY, (frameH / 2 - cy) * scale));
+    }
+    followScale = scale; followX = tx; followY = ty;
+  }
+  useEffect(() => {
+    const move = (value: number) => (reduceMotion ? value : withTiming(value, { duration: 600, easing: Easing.inOut(Easing.cubic) }));
+    // 따라 확대가 꺼져 있으면 손으로 확대해 둔 상태를 건드리지 않는다.
+    if (!follow) {
+      // 따라 확대를 끄면 손으로 확대해 둔 게 아니라면 원래 크기로 돌아온다.
+      if (!zoomed) { zoomScale.set(move(1)); zoomX.set(move(0)); zoomY.set(move(0)); }
+      return;
+    }
+    zoomScale.set(move(followScale));
+    zoomX.set(move(followX));
+    zoomY.set(move(followY));
+  }, [follow, zoomed, followScale, followX, followY, reduceMotion, zoomScale, zoomX, zoomY]);
+
+  // 손으로 움직이기: 두 손가락으로 벌려 확대(최대 4배), 확대된 상태에서는 한 손가락으로 끌어 이동.
+  // 확대 전에는 한 손가락 끌기를 꺼 둬서 화면 스크롤과 부딪히지 않는다.
+  const clampX = (value: number, scale: number) => {
+    'worklet';
+    const max = ((scale - 1) * frameW) / 2;
+    return Math.max(-max, Math.min(max, value));
+  };
+  const clampY = (value: number, scale: number) => {
+    'worklet';
+    const max = ((scale - 1) * frameH) / 2;
+    return Math.max(-max, Math.min(max, value));
+  };
+  const pinch = usePinchGesture({
+    onUpdate: (e) => {
+      'worklet';
+      const next = Math.max(1, Math.min(4, zoomScale.get() * e.scaleChange));
+      zoomScale.set(next);
+      zoomX.set(clampX(zoomX.get(), next));
+      zoomY.set(clampY(zoomY.get(), next));
+    },
+    onFinalize: () => {
+      'worklet';
+      scheduleOnRN(setZoomed, zoomScale.get() > 1.01);
+    },
+  });
+  const pan = usePanGesture({
+    enabled: zoomed || (follow && followScale > 1.01),
+    minDistance: 6,
+    onUpdate: (e) => {
+      'worklet';
+      const scale = zoomScale.get();
+      zoomX.set(clampX(zoomX.get() + e.changeX, scale));
+      zoomY.set(clampY(zoomY.get() + e.changeY, scale));
+    },
+  });
+  const imageGestures = useSimultaneousGestures(pinch, pan);
+  const followStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: zoomX.get() }, { translateY: zoomY.get() }, { scale: zoomScale.get() }],
+  }));
+
+  const openZoom = () => {
+    if (!id) return;
+    router.push({ pathname: '/zoom/[id]', params: { id, original: showOriginal ? '1' : '0', strength: String(strength) } });
+  };
+
+  // 읽는 문장이 바뀌면 사용자가 보던 곳을 따른다.
+  // 그림이 화면에 보이고 있거나 따라 확대가 켜져 있으면 그림을 그대로 두고, 아래 문장 목록을 보고 있었으면 그 문장 카드로 스크롤한다.
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const rowY = useRef<number[]>([]);
+  const listY = useRef(0);
+  const scrollY = useRef(0);
+  useEffect(() => {
+    const y = rowY.current[player.index];
+    const lookingAtImage = follow || scrollY.current < stageHeight * 0.5;
+    if (player.playing && y !== undefined && !lookingAtImage) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, listY.current + y - 160), animated: !reduceMotion });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player.index, player.playing, reduceMotion]);
   const atFirst = player.index <= 0;
   const atLast = player.index >= total - 1;
 
@@ -114,52 +250,112 @@ export default function NarrationScreen() {
         {all.length > 0 ? (
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel="문장 목록과 듣는 범위"
+            accessibilityLabel="듣는 범위 고르기"
             onPress={() => setListOpen(true)}
             // 아이콘만 보이고 동그란 배경은 없다. 누르는 영역은 56×56 그대로, 누를 때만 옅은 배경이 생긴다.
             pressedScale={0.9}
             background={`${palette.background}00`}
             pressedBackground={palette.fill}
             style={styles.headerButton}>
-            <SymbolView name={{ ios: 'list.bullet', android: 'format_list_bulleted', web: 'format_list_bulleted' }} size={28} weight="semibold" tintColor={palette.text} />
+            <SymbolView name={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }} size={28} weight="semibold" tintColor={palette.text} />
           </PressableScale>
         ) : <View style={styles.headerSpacer} />}
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + 40 : bottomInset }]}>
+      <ScrollView ref={scrollRef} style={styles.body} scrollEventThrottle={64}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + 40 : bottomInset }]}>
       {/* 작품: 남는 공간을 모두 쓴다(최소 화면 높이의 40%). 글이 길면 화면 전체가 스크롤된다. */}
-      <View style={[styles.stage, { minHeight: Math.max(220, windowHeight * 0.4) }]}>
+      <View style={[styles.stage, { height: stageHeight }]}>
+        <View style={styles.stageArea} onLayout={(e) => setStageWidth(e.nativeEvent.layout.width)}>
         {artwork ? (
-          <CorrectionCanvas
-            source={corrected.source}
-            accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
-            correction={{ ...profile, strength }}
-            original={originalParam === '1'}
-            palette={palette}
-            style={styles.canvas}
-          />
+          // 테두리는 그림 비율에 맞춘다(잘리지 않게). 그림을 누르면 크게 보기, 영역 상자를 누르면 그 설명으로.
+          <Pressable accessibilityRole="button" accessibilityLabel={`${artwork.title} 크게 보기`} accessibilityHint="확대해서 볼 수 있어요"
+            onPress={openZoom} style={[styles.canvasWrap, frame]}>
+            {/* 따라가며 확대가 켜져 있으면 읽는 문장의 영역으로 그림과 상자를 함께 확대·이동한다. */}
+            <GestureDetector gesture={imageGestures}>
+            <Animated.View style={[styles.followLayer, followStyle]}>
+              <CorrectionCanvas
+                source={corrected.source}
+                accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
+                correction={{ ...profile, strength }}
+                original={showOriginal}
+                palette={palette}
+                style={styles.canvas}
+              />
+              {/* 작품 속 영역 상자: 누르면 그 부분을 설명하는 문장으로 재생 바가 옮겨 간다. */}
+              {regions.length > 0 && !!artwork.image_url && (
+                <RegionOverlay imageUri={artwork.image_url} regions={regions} usable={usableRegions}
+                  active={current?.region_index ?? null} palette={palette} onPressRegion={jumpToRegion} />
+              )}
+            </Animated.View>
+            </GestureDetector>
+          </Pressable>
         ) : <View style={[styles.canvas, styles.canvasPlaceholder, { backgroundColor: palette.surface, borderColor: palette.outline }]} />}
+        </View>
       </View>
 
-      {/* 지금 읽는 문장: 자막처럼 작품 바로 아래 */}
-      <View style={styles.captionWrap}>
-        {total > 0 && current ? (
-          <View accessibilityLiveRegion="polite" style={[styles.caption, cardSurface(palette)]}>
-            <View style={styles.captionTop}>
-              <View style={[styles.tag, { borderColor: palette.outline }]}>
-                <Text style={[styles.tagText, { color: palette.textSecondary }]}>{current.type === 'fact' ? '사실' : '해석'}</Text>
+      {/* 그림 아래 조작 줄: 따라 확대(아이폰식 스위치) · 크게 보기 */}
+      {!!artwork && (
+        <View style={styles.imageTools}>
+          {regions.length > 0 ? (
+            <Pressable accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
+              accessibilityState={{ checked: follow }} onPress={() => setFollow((v) => !v)} style={styles.followRow}>
+              <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
+              <View style={styles.switchBox}>
+                <Switch value={follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
+                  trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
               </View>
-              {player.playing && (
-                <SymbolView name={{ ios: 'speaker.wave.2.fill', android: 'volume_up', web: 'volume_up' }} size={18} tintColor={palette.highlight} />
-              )}
-              <Text accessibilityLabel={`${total}문장 중 ${player.index + 1}번째`} style={[styles.captionCount, { color: palette.textSecondary }]}>
-                {player.index + 1} / {total}
-              </Text>
-            </View>
-            <Text lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
+            </Pressable>
+          ) : <View />}
+          <View style={styles.toolButtons}>
+          <PressableScale accessibilityRole="switch" accessibilityLabel="원본 보기" accessibilityHint="보정하기 전 원래 그림과 비교해요"
+            accessibilityState={{ checked: showOriginal }} onPress={() => setShowOriginal((v) => !v)}
+            style={[styles.zoomButton, { backgroundColor: showOriginal ? palette.highlight : palette.fill }]}>
+            <SymbolView name={{ ios: 'circle.lefthalf.filled', android: 'contrast', web: 'contrast' }} size={18} weight="bold" tintColor={showOriginal ? palette.highlightText : palette.text} />
+            <Text style={[styles.zoomText, { color: showOriginal ? palette.highlightText : palette.text }]}>{showOriginal ? '원본' : '원본 보기'}</Text>
+          </PressableScale>
+          <PressableScale accessibilityRole="button" accessibilityLabel="작품 크게 보기" onPress={openZoom}
+            style={[styles.zoomButton, { backgroundColor: palette.fill }]}>
+            <SymbolView name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'open_in_full', web: 'open_in_full' }} size={18} weight="bold" tintColor={palette.text} />
+            <Text style={[styles.zoomText, { color: palette.text }]}>크게 보기</Text>
+          </PressableScale>
+          </View>
+        </View>
+      )}
+
+      {/* 해설 문장을 세로로 모두 보여 준다. 누르면 재생 바가 그 문장으로 옮겨 가며 거기서부터 읽는다. */}
+      <View style={styles.captionWrap} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>
+        {total > 0 ? (
+          <View style={styles.list}>
             {player.preparing && <Text accessibilityLiveRegion="polite" style={[styles.status, { color: palette.textSecondary }]}>음성을 준비하고 있어요…</Text>}
             {!!player.error && <Text accessibilityRole="alert" style={[styles.status, { color: palette.text }]}>{player.error}</Text>}
             {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>AI 생성 해설입니다.</Text>}
+            {segments.map((s, i) => {
+          const now = i === player.index;
+          const kind = s.type === 'fact' ? '사실' : '해석';
+          return (
+            <PressableScale
+              key={`${mode}-${i}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${i + 1}번째 문장, ${kind}. ${s.text}`}
+              accessibilityHint="이 문장부터 읽어요"
+              accessibilityState={{ selected: now }}
+              onLayout={(e) => { rowY.current[i] = e.nativeEvent.layout.y; }}
+              onPress={() => player.playFrom(i)}
+              pressedScale={0.98}
+              background={now ? palette.highlight : palette.background}
+              pressedBackground={now ? palette.highlight : palette.fill}
+              style={[styles.sentence, { borderColor: now ? palette.highlight : palette.outline }]}>
+              <View style={styles.sentenceTop}>
+                <Text style={[styles.sentenceNo, { color: now ? palette.highlightText : palette.textSecondary }]}>{i + 1}</Text>
+                <View style={[styles.tag, { borderColor: now ? palette.highlightText : palette.outline }]}>
+                  <Text style={[styles.tagText, { color: now ? palette.highlightText : palette.textSecondary }]}>{kind}</Text>
+                </View>
+              </View>
+              <Text lineBreakStrategyIOS="hangul-word" style={[styles.sentenceText, { color: now ? palette.highlightText : palette.text }]}>{s.text}</Text>
+            </PressableScale>
+          );
+            })}
           </View>
         ) : all.length > 0 ? (
           <Text style={[styles.note, { color: palette.textSecondary }]}>
@@ -189,9 +385,7 @@ export default function NarrationScreen() {
       {total > 0 && (
         <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight}>
         <View style={styles.panel}>
-          <View style={[styles.track, { backgroundColor: palette.fill }]}>
-            <View style={[styles.trackFill, { backgroundColor: palette.accent, width: `${((player.index + 1) / total) * 100}%` }]} />
-          </View>
+          <SeekBar total={total} index={player.index} palette={palette} onSeek={(i) => player.goTo(i)} />
 
           <View style={styles.transport}>
             <RoundButton
@@ -246,8 +440,7 @@ export default function NarrationScreen() {
         </BottomActionBar>
       )}
 
-      <BottomSheet visible={listOpen} title="문장 목록" palette={palette} onClose={() => setListOpen(false)}>
-        <Text style={[styles.sheetLabel, { color: palette.textSecondary }]}>듣는 범위</Text>
+      <BottomSheet visible={listOpen} title="듣는 범위" palette={palette} onClose={() => setListOpen(false)}>
         <SegmentedControl
           accessibilityLabel="듣는 범위"
           palette={palette}
@@ -255,38 +448,6 @@ export default function NarrationScreen() {
           onChange={(next) => { player.reset(); setMode(next); }}
           options={MODES.map((m) => ({ value: m.mode, label: m.label, accessibilityLabel: `${m.label} 듣기` }))}
         />
-        {total === 0 ? (
-          <Text style={[styles.note, { color: palette.textSecondary }]}>
-            {mode === 'facts' ? '사실 문장이 없어요' : '해석 문장이 없어요'}
-          </Text>
-        ) : segments.map((s, i) => {
-          const now = i === player.index;
-          const kind = s.type === 'fact' ? '사실' : '해석';
-          return (
-            <PressableScale
-              key={`${mode}-${i}`}
-              accessibilityRole="button"
-              accessibilityLabel={`${i + 1}번째 문장, ${kind}. ${s.text}`}
-              accessibilityHint="이 문장부터 읽어요"
-              accessibilityState={{ selected: now }}
-              onPress={() => {
-                setListOpen(false);
-                player.playFrom(i);
-              }}
-              pressedScale={0.98}
-              background={now ? palette.highlight : palette.background}
-              pressedBackground={now ? palette.highlight : palette.fill}
-              style={[styles.sentence, { borderColor: now ? palette.highlight : palette.outline }]}>
-              <View style={styles.sentenceTop}>
-                <Text style={[styles.sentenceNo, { color: now ? palette.highlightText : palette.textSecondary }]}>{i + 1}</Text>
-                <View style={[styles.tag, { borderColor: now ? palette.highlightText : palette.outline }]}>
-                  <Text style={[styles.tagText, { color: now ? palette.highlightText : palette.textSecondary }]}>{kind}</Text>
-                </View>
-              </View>
-              <Text lineBreakStrategyIOS="hangul-word" style={[styles.sentenceText, { color: now ? palette.highlightText : palette.text }]}>{s.text}</Text>
-            </PressableScale>
-          );
-        })}
         <View style={styles.sheetClose}>
           <BigButton label="닫기" selected={false} palette={palette} onPress={() => setListOpen(false)} />
         </View>
@@ -308,9 +469,6 @@ export default function NarrationScreen() {
   );
 }
 
-function cardSurface(palette: Palette) {
-  return { backgroundColor: palette.surface, borderColor: palette.outline };
-}
 
 type RoundButtonProps = {
   ios: SFSymbol;
@@ -398,7 +556,18 @@ const styles = StyleSheet.create({
   headerSpacer: { width: MinTouchTarget },
   body: { flex: 1 },
   bodyContent: { flexGrow: 1 },
-  stage: { flex: 1, paddingHorizontal: ScreenPadding },
+  stage: { paddingHorizontal: ScreenPadding },
+  stageArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  canvasWrap: { borderRadius: 20, overflow: 'hidden' },
+  followLayer: { width: '100%', height: '100%' },
+  imageTools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, paddingHorizontal: ScreenPadding, paddingTop: 12 },
+  followRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  followLabel: { fontSize: FontSize.label, lineHeight: 24, fontWeight: 700, includeFontPadding: false, textAlignVertical: 'center' },
+  switchBox: { height: MinTouchTarget, justifyContent: 'center' },
+  toolButtons: { flexDirection: 'row', gap: Spacing.two },
+  zoomButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 22 },
+  zoomText: { fontSize: 16, fontWeight: 800 },
+  list: { gap: 10 },
   canvas: { height: '100%', borderRadius: 20, borderWidth: 1.5 },
   canvasPlaceholder: { flex: 1 },
   captionWrap: { paddingHorizontal: ScreenPadding, paddingVertical: Spacing.three },
