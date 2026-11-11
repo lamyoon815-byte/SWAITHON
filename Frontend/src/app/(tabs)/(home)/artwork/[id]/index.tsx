@@ -144,6 +144,7 @@ export default function ArtworkScreen() {
               overlay={corrected.overlay}
               overlayAmount={corrected.overlayAmount}
               liveAmount={original ? undefined : liveStrength}
+              waiting={corrected.loading}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
               correction={{ ...profile, strength }}
               original={original}

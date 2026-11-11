@@ -33,6 +33,7 @@ import {
 import { useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
 import { BigButton } from '@/components/common/big-button';
+import { ChameleonLoading } from '@/components/common/chameleon-loading';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
 import { getSharpenEffect } from '@/lib/sharpen';
@@ -69,6 +70,8 @@ type Props = {
   overlayAmount?: number;
   /** 슬라이더를 끄는 동안의 비율. 주면 React 다시 그리기 없이 UI 스레드에서 바로 반영된다(overlayAmount·correction.strength 대신 사용) */
   liveAmount?: SharedValue<number>;
+  /** 보정본을 기다리는 중이면 원본 대신 카멜레온 로딩을 보여 주고, 도착하면 보정본을 바로 그린다 */
+  waiting?: boolean;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
   palette: Palette;
@@ -86,6 +89,7 @@ export function CorrectionCanvas({
   overlay,
   overlayAmount = 1,
   liveAmount,
+  waiting,
   zoomable = false,
   palette,
   style,
@@ -97,9 +101,13 @@ export function CorrectionCanvas({
   const overlayImage = useImage(overlay || null);
   // The corrected picture fades in over the original when it arrives (no blank box, no hard jump).
   const fade = useSharedValue(0);
+  // When the screen waits for the corrected picture, it appears at full strength at once (no original flash).
+  const waitsForOverlay = waiting !== undefined;
   useEffect(() => {
-    fade.set(overlayImage ? withTiming(1, { duration: 250 }) : 0);
-  }, [overlayImage, fade]);
+    fade.set(overlayImage ? (waitsForOverlay ? 1 : withTiming(1, { duration: 250 })) : 0);
+  }, [overlayImage, fade, waitsForOverlay]);
+  // Keep the chameleon until the corrected picture is decoded, not just downloaded.
+  const showLoader = !original && (!!waiting || (waitsForOverlay && !!overlay && !overlayImage));
   const failed = !!source && failedSource === source;
 
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -225,7 +233,9 @@ export function CorrectionCanvas({
       accessible
       accessibilityRole="image"
       accessibilityLabel={`${accessibilityLabel}${original ? ', 원본' : ', 보정본'}`}>
-      {note ? (
+      {showLoader ? (
+        <ChameleonLoading label="내 보정값을 적용하고 있어요" palette={palette} />
+      ) : note ? (
         <View style={styles.center}>
           <Text style={[styles.note, { color: palette.textSecondary }]}>{note}</Text>
         </View>
