@@ -9,6 +9,7 @@ import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
 import { correctionDisplayValue, formatCorrection, type CorrectionField } from '@/lib/profile-format';
 import { correctionDetent } from '@/lib/correction-detent';
+import { SliderScale } from '@/components/mypage/slider-scale';
 
 const THUMB_SIZE = 24;
 
@@ -29,11 +30,9 @@ type Props = {
 export function CorrectionSlider({ control: c, value, disabled, palette, onChange }: Props) {
   const slider = useRef<SliderRef & { setNativeProps?: (props: { value: number }) => void }>(null);
   const [sliderVersion, setSliderVersion] = useState(0);
-  const [trackWidth, setTrackWidth] = useState(0);
   const neutral = c.field === 'contrast' ? 1 : 0;
   const hasDetent = c.field !== 'sharpen';
   const detent = useRef({ raw: value, latched: value === neutral });
-  const zeroPosition = THUMB_SIZE / 2 + Math.max(0, trackWidth - THUMB_SIZE) * ((neutral - c.min) / (c.max - c.min));
   const feedback = () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync().catch(() => {});
   };
@@ -63,7 +62,7 @@ export function CorrectionSlider({ control: c, value, disabled, palette, onChang
       </View>
       <View style={styles.row}>
         <CorrectionStepButton kind="minus" label={`${c.label} 줄이기`} disabled={disabled || value <= c.min} palette={palette} onPress={() => step(-1)} />
-        <View style={styles.trackArea} onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}>
+        <View style={styles.trackArea}>
           <Slider
           key={sliderVersion}
           ref={slider}
@@ -88,17 +87,8 @@ export function CorrectionSlider({ control: c, value, disabled, palette, onChang
           accessibilityState={{ disabled }}
           accessibilityValue={{ min: correctionDisplayValue(c.field, c.min), max: correctionDisplayValue(c.field, c.max), now: correctionDisplayValue(c.field, value), text: formatCorrection(c.field, value) }}
           />
-          {hasDetent && <View pointerEvents="none" style={[styles.zeroTick, { left: zeroPosition, backgroundColor: palette.outline }]} />}
-          <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.scale, { marginHorizontal: THUMB_SIZE / 2 }]}>
-            {hasDetent ? (
-              <Text style={[styles.scaleText, styles.zeroLabel, { left: zeroPosition - THUMB_SIZE / 2, color: palette.textSecondary }]}>0</Text>
-            ) : (
-              <>
-                <Text style={[styles.scaleText, { color: palette.textSecondary }]}>0</Text>
-                <Text style={[styles.scaleText, { color: palette.textSecondary }]}>200</Text>
-              </>
-            )}
-          </View>
+          <SliderScale min={String(correctionDisplayValue(c.field, c.min))} max={String(correctionDisplayValue(c.field, c.max))} palette={palette}
+            neutralPosition={hasDetent ? (neutral - c.min) / (c.max - c.min) : undefined} />
         </View>
         <CorrectionStepButton kind="plus" label={`${c.label} 높이기`} disabled={disabled || value >= c.max} palette={palette} onPress={() => step(1)} />
       </View>
@@ -119,15 +109,11 @@ export function CorrectionStepButton({ kind, label, disabled, palette, onPress }
 const styles = StyleSheet.create({
   control: { paddingTop: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.three },
   disabled: { opacity: 0.4 },
-  heading: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
+  heading: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: Spacing.two },
   label: { fontSize: FontSize.body, fontWeight: 700 },
   value: { fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   trackArea: { flex: 1 },
   slider: { width: '100%', height: MinTouchTarget },
-  zeroTick: { position: 'absolute', top: MinTouchTarget / 2 + 4, width: 2, height: 10, marginLeft: -1 },
-  scale: { flexDirection: 'row', justifyContent: 'space-between', position: 'relative', minHeight: 24 },
-  scaleText: { fontSize: FontSize.label, fontVariant: ['tabular-nums'], transform: [{ translateY: -Spacing.one }] },
-  zeroLabel: { position: 'absolute', width: 40, marginLeft: -20, textAlign: 'center' },
   step: { width: MinTouchTarget, height: MinTouchTarget, borderRadius: MinTouchTarget / 2, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
 });

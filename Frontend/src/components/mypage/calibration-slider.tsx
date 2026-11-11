@@ -5,13 +5,14 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/common/text';
 import { CorrectionStepButton } from '@/components/mypage/correction-slider';
+import { SliderScale } from '@/components/mypage/slider-scale';
 import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
 
-type Props = { label: string; value: number; disabled: boolean; palette: Palette; onChange: (value: number) => void };
+type Props = { label: string; value: number; disabled: boolean; palette: Palette; onChange: (value: number) => void; onCommit?: () => void };
 
 /** 0~5 정수 단계를 사용하여 20% 간격의 이미지와 값을 일치시킨다. */
-export function CalibrationSlider({ label, value, disabled, palette, onChange }: Props) {
+export function CalibrationSlider({ label, value, disabled, palette, onChange, onCommit }: Props) {
   const index = Math.round(value * 5);
   const lastIndex = useRef(index);
   const change = (raw: number) => {
@@ -27,18 +28,15 @@ export function CalibrationSlider({ label, value, disabled, palette, onChange }:
       <Text style={[styles.label, { color: palette.text }]}>{index * 20}%</Text>
     </View>
     <View style={styles.row}>
-      <CorrectionStepButton kind="minus" label={`${label} 20% 줄이기`} palette={palette} disabled={disabled || index === 0} onPress={() => change(index - 1)} />
+      <CorrectionStepButton kind="minus" label={`${label} 20% 줄이기`} palette={palette} disabled={disabled || index === 0} onPress={() => { change(index - 1); onCommit?.(); }} />
       <View style={styles.track}>
         <Slider style={styles.slider} value={index} minimumValue={0} maximumValue={5} step={1} disabled={disabled}
-          onSlidingStart={() => { lastIndex.current = index; }} onValueChange={change} onSlidingComplete={change}
+          onSlidingStart={() => { lastIndex.current = index; }} onValueChange={change} onSlidingComplete={(raw) => { change(raw); onCommit?.(); }}
           minimumTrackTintColor={palette.highlight} maximumTrackTintColor={palette.outline} thumbTintColor={palette.highlight} thumbSize={24}
           accessibilityLabel={label} accessibilityState={{ disabled }} accessibilityValue={{ min: 0, max: 100, now: index * 20, text: `${index * 20}%` }} />
-        <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.scale}>
-          <View style={styles.ticks}>{[0, 1, 2, 3, 4, 5].map((step) => <View key={step} style={[styles.tick, { backgroundColor: palette.outline }]} />)}</View>
-          <View style={styles.endpoints}><Text style={[styles.scaleText, { color: palette.textSecondary }]}>0</Text><Text style={[styles.scaleText, { color: palette.textSecondary }]}>100%</Text></View>
-        </View>
+        <SliderScale min="0" max="100%" palette={palette} />
       </View>
-      <CorrectionStepButton kind="plus" label={`${label} 20% 높이기`} palette={palette} disabled={disabled || index === 5} onPress={() => change(index + 1)} />
+      <CorrectionStepButton kind="plus" label={`${label} 20% 높이기`} palette={palette} disabled={disabled || index === 5} onPress={() => { change(index + 1); onCommit?.(); }} />
     </View>
   </View>;
 }
@@ -51,9 +49,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   track: { flex: 1 },
   slider: { width: '100%', height: MinTouchTarget },
-  scale: { marginHorizontal: 12, marginTop: -Spacing.two },
-  ticks: { flexDirection: 'row', justifyContent: 'space-between' },
-  tick: { width: 2, height: 8 },
-  endpoints: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
-  scaleText: { fontSize: FontSize.label, fontVariant: ['tabular-nums'] },
 });

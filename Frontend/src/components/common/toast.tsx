@@ -50,12 +50,12 @@ function set(next: Toast | null) {
   listeners.forEach((l) => l());
 }
 
-export function showToast(text: string, kind: ToastKind = 'info') {
+export function showToast(text: string, kind: ToastKind = 'info', durationMs = Math.max(MIN_DURATION_MS, text.length * MS_PER_CHAR)) {
   clearTimeout(timer);
   // A new id remounts the pill, so a second message slides in again instead of swapping in place.
   set({ id: nextId++, text, kind });
   AccessibilityInfo.announceForAccessibility(text);
-  timer = setTimeout(() => set(null), Math.max(MIN_DURATION_MS, text.length * MS_PER_CHAR));
+  timer = setTimeout(() => set(null), durationMs);
 }
 
 function dismiss() {

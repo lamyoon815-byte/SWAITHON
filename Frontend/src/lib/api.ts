@@ -135,8 +135,8 @@ export async function getMuseums(): Promise<Museum[]> {
 const byNumber = (a: Artwork, b: Artwork) => a.number.localeCompare(b.number, undefined, { numeric: true });
 
 /** One page (up to 100) of a museum's artworks in number order, plus the museum's total. */
-export async function getMuseumArtworkPage(museumId: string, offset = 0): Promise<{ items: Artwork[]; total: number }> {
-  const page = await request<Page<Artwork>>(`/artworks?limit=100&offset=${offset}&museum_id=${encodeURIComponent(museumId)}`);
+export async function getMuseumArtworkPage(museumId: string, offset = 0, limit = 100): Promise<{ items: Artwork[]; total: number }> {
+  const page = await request<Page<Artwork>>(`/artworks?limit=${limit}&offset=${offset}&museum_id=${encodeURIComponent(museumId)}`);
   return { items: page.items.map(fromServer).sort(byNumber), total: page.total };
 }
 

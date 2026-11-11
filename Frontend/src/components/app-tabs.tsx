@@ -75,7 +75,8 @@ function useReduceTransparency() {
 }
 
 export default function AppTabs() {
-  const hideBar = /^\/artwork\/[^/]+\/narration\/?$/.test(usePathname());
+  const pathname = usePathname();
+  const hideBar = /^\/artwork\/[^/]+(?:\/|$)/.test(pathname) || pathname === '/search';
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottom = useTabBarBottom();
