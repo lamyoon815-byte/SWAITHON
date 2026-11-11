@@ -5,6 +5,7 @@
  * 바깥이나 안드로이드 뒤로가기는 취소와 같다.
  */
 
+import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, ReduceMotion, ZoomIn } from 'react-native-reanimated';
 
@@ -24,9 +25,11 @@ type Props = {
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** 설명과 버튼 사이에 넣을 내용(예: 말로 답하기 버튼) */
+  children?: ReactNode;
 };
 
-export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel = '취소', palette, busy, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel = '취소', palette, busy, onConfirm, onCancel, children }: Props) {
   const cancel = () => { if (!busy) onCancel(); };
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={cancel}>
@@ -38,6 +41,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
           style={[styles.dialog, { backgroundColor: palette.surface }]}>
           <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>{title}</Text>
           {!!message && <Text lineBreakStrategyIOS="hangul-word" style={[styles.message, { color: palette.text }]}>{message}</Text>}
+          {children}
           <View style={styles.actions}>
             <PressableScale accessibilityRole="button" accessibilityLabel={cancelLabel} accessibilityState={{ disabled: busy }} disabled={busy} onPress={cancel}
               style={[styles.button, { backgroundColor: palette.fill, opacity: busy ? 0.5 : 1 }]}>

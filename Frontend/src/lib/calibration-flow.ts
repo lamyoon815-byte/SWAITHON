@@ -48,9 +48,12 @@ export function advanceCalibration(state: CalibrationState, action: CalibrationA
     const plate = CALIBRATION.screening.plates[state.index];
     if (!plate?.choices.includes(action.value)) return state;
     const answers = [...state.answers, action.value];
-    return answers.length === CALIBRATION.screening.plates.length
-      ? { ...state, phase: 'manual', index: 0, answers }
-      : { ...state, index: state.index + 1, answers };
+    if (answers.length < CALIBRATION.screening.plates.length) return { ...state, index: state.index + 1, answers };
+    // 결과가 분명하면(다 맞힘·한 종류만 틀림 등) 고르는 화면 없이 바로 다음 단계로 간다.
+    // 애매할 때만 'manual'에서 보정한 그림을 비교해 고른다(색약이면 어떤 색이 어려운지 스스로 알기 어렵다).
+    const suggestion = screeningSuggestion(answers);
+    if (suggestion === null) return { ...state, phase: 'manual', index: 0, answers };
+    return next({ ...state, answers }, suggestion === 'normal' ? 'edge' : 'color', { color_type: suggestion, severity: 0 });
   }
   if (state.phase === 'color' && state.result.color_type !== 'normal') {
     const series = CALIBRATION.color[state.result.color_type];

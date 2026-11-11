@@ -584,3 +584,19 @@ test('generated narration is reused and a failed generation is never cached as p
   assert.equal(calls.length, 2);
   assert.equal(calls[0].init.method, 'POST');
 });
+
+test('clear screening results skip the picker; only ambiguous results ask to compare pictures', () => {
+  const plates = manifest.screening.plates;
+  const run = (wrongTypes) => plates.reduce((state, plate) => flow.advanceCalibration(state, {
+    type: 'answer', value: wrongTypes.includes(plate.color_type) ? manifest.screening.not_visible : plate.answer,
+  }), flow.initialCalibration());
+  let state = run([]);
+  assert.equal(state.phase, 'edge');
+  assert.equal(state.result.color_type, 'normal');
+  state = run(['protan']);
+  assert.equal(state.phase, 'color');
+  assert.equal(state.result.color_type, 'protan');
+  assert.equal(state.answers.length, plates.length);
+  state = run(['protan', 'deutan', 'tritan']);
+  assert.equal(state.phase, 'manual');
+});

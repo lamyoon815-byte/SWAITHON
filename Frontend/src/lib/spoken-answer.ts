@@ -44,3 +44,12 @@ export function matchSpokenChoice(text: string, choices: string[]): string | nul
   if (/안\s*보|모르|없|못\s*보|잘\s*모/.test(text)) return choices.find((choice) => !/^\d+$/.test(choice)) ?? null;
   return null;
 }
+
+/** 확인 질문("18라고 답하신 게 맞나요?")에 말로 한 대답. "아니요·틀려요"는 no, "네·맞아요·응"은 yes, 그 밖은 null. */
+export function spokenYesNo(text: string): 'yes' | 'no' | null {
+  const t = text.replace(/\s+/g, '');
+  // "아니에요"·"안 맞아요"를 먼저 본다("맞아요"가 들어 있어도 부정).
+  if (/아니|아냐|틀려|틀렸|안맞|노$/.test(t)) return 'no';
+  if (/^(네|넵|예|응|어|yes)|맞|그래|그렇|좋아/.test(t)) return 'yes';
+  return null;
+}
