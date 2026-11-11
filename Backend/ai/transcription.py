@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import re
+import time
 import secrets
 import urllib.error
 import urllib.request
@@ -84,6 +85,13 @@ class OpenAITranscriptionService:
     def __init__(self, data_dir: Path, post=_urllib_post):
         self.key = os.environ.get("OPENAI_API_KEY", "").strip()
         self.model = os.environ.get("OPENAI_STT_MODEL", "gpt-4o-mini-transcribe").strip()
+        # Each model has its own daily request limit, so try these in order and skip one for a while
+        # after it hits its limit. ("-" means only the primary model.)
+        extra = [m.strip() for m in (os.environ.get("OPENAI_STT_FALLBACK_MODELS") or "gpt-4o-transcribe,whisper-1").split(",")
+                 if m.strip() and m.strip() != "-"]
+        self.models = list(dict.fromkeys([self.model, *extra]))
+        self.pause = float(os.environ.get("OPENAI_STT_FALLBACK_PAUSE_SECONDS") or 1800)
+        self.blocked_until: dict[str, float] = {}
         self.post = post
         number = lambda key, default: float(os.environ.get(key) or default)
         # 음성 생성과 별도 장부. 짧은 답 1회는 입력 오디오 토큰 수백 개 수준이라 최대치를 넉넉히 잡는다.
@@ -100,10 +108,25 @@ class OpenAITranscriptionService:
     async def transcribe(self, audio: bytes, filename: str, content_type: str, prompt: str = PROMPT) -> str:
         if not self.key:
             raise HTTPException(503, "음성 인식이 아직 연결되지 않았어요. 버튼으로 골라 주세요.")
-        if not re.fullmatch(r"[a-zA-Z0-9.\-]+", self.model):
+        last = None
+        for model in self.models:
+            if time.monotonic() < self.blocked_until.get(model, 0):
+                continue
+            try:
+                return await self._transcribe(model, audio, filename, content_type, prompt)
+            except HTTPException as exc:
+                if exc.status_code != 429:
+                    raise
+                # This model's own daily/minute limit: pause it and try the next one.
+                self.blocked_until[model] = time.monotonic() + self.pause
+                last = exc
+        raise last or HTTPException(429, "지금은 음성을 알아듣지 못했어요. 버튼으로 골라 주세요.")
+
+    async def _transcribe(self, model: str, audio: bytes, filename: str, content_type: str, prompt: str) -> str:
+        if not re.fullmatch(r"[a-zA-Z0-9.\-]+", model):
             raise HTTPException(503, "음성 인식 모델 설정을 확인해 주세요.")
         body, boundary_type = _multipart(
-            {"model": self.model, "language": "ko", "prompt": prompt, "response_format": "json"},
+            {"model": model, "language": "ko", "prompt": prompt, "response_format": "json"},
             "file", filename, content_type, audio,
         )
         self.budget.reserve()

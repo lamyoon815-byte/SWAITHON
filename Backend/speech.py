@@ -39,9 +39,9 @@ INSTRUCTIONS = (
 
 
 class RealtimeRateLimited(HTTPException):
-    """Realtime request/rate limit only (not exhausted credit), so the speech endpoint may still work."""
-    def __init__(self):
-        super().__init__(429, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
+    """One model's request/rate limit only (not exhausted credit): the next candidate may still work."""
+    def __init__(self, detail: str = "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요."):
+        super().__init__(429, detail)
 
 
 def speech_api_error(status, error):
@@ -88,11 +88,18 @@ class OpenAISpeechService:
         self.key = os.environ.get("OPENAI_API_KEY", "").strip()
         self.model = os.environ.get("OPENAI_TTS_MODEL", "gpt-realtime-2.1-mini").strip()
         self.voice = os.environ.get("OPENAI_TTS_VOICE", "cedar").strip()
-        # When Realtime hits its request limit (e.g. 50 per day on a low usage tier), read with the
-        # plain speech endpoint instead, same voice and instructions, and skip Realtime for a while.
-        self.fallback_model = os.environ.get("OPENAI_TTS_FALLBACK_MODEL", "gpt-4o-mini-tts").strip()
-        self.fallback_pause = float(os.environ.get("OPENAI_TTS_FALLBACK_PAUSE_SECONDS") or 600)
-        self.realtime_blocked_until = 0.0
+        # Each OpenAI model has its own daily request limit (50 a day on a low usage tier), so try a list
+        # of candidates in order and skip one for a while after it hits its limit. The cache key stays on
+        # the primary model/voice, so whichever candidate made a sentence, it is reused next time.
+        # "-" means no extra candidates (only the primary model).
+        names = lambda key, default: [m.strip() for m in (os.environ.get(key) or default).split(",") if m.strip() and m.strip() != "-"]
+        self.realtime_models = list(dict.fromkeys([self.model, *names("OPENAI_TTS_REALTIME_MODELS", "gpt-realtime-2.1,gpt-realtime")]))
+        # gpt-4o-mini-tts shares its daily limit with gpt-4o-mini-transcribe (voice search), so it goes last.
+        self.speech_models = names("OPENAI_TTS_SPEECH_MODELS",
+                                   os.environ.get("OPENAI_TTS_FALLBACK_MODEL") or "tts-1-hd,tts-1,gpt-4o-mini-tts")
+        self.classic_voice = os.environ.get("OPENAI_TTS_CLASSIC_VOICE", "nova").strip()  # tts-1 voices lack cedar
+        self.fallback_pause = float(os.environ.get("OPENAI_TTS_FALLBACK_PAUSE_SECONDS") or 1800)
+        self.blocked_until: dict[str, float] = {}
         self.connector = connector
         self.slots = asyncio.Semaphore(2)
         self.pending = {}
@@ -131,18 +138,28 @@ class OpenAISpeechService:
         return key, await asyncio.shield(task)
 
     async def _generate_and_store(self, key, text):
-        if self.fallback_model and time.monotonic() < self.realtime_blocked_until:
-            audio = await self._fallback(text)
-        else:
+        candidates = [(self._generate, m) for m in self.realtime_models] + [(self._fallback, m) for m in self.speech_models]
+        last_error = None
+        for make, model in candidates:
+            if time.monotonic() < self.blocked_until.get(model, 0):
+                continue
             try:
-                audio = await self._generate(text)
-            except RealtimeRateLimited:
-                if not self.fallback_model:
+                audio = await make(text, model)
+            except RealtimeRateLimited as exc:
+                # This model's own limit is used up: skip it for a while and try the next one.
+                self.blocked_until[model] = time.monotonic() + self.fallback_pause
+                last_error = exc
+                continue
+            except HTTPException as exc:
+                # A rewritten/incomplete/broken result from one model: try the next one right away.
+                # Exhausted credit or a missing key/permission affects every model, so stop there.
+                if exc.status_code in {429, 503}:
                     raise
-                self.realtime_blocked_until = time.monotonic() + self.fallback_pause
-                audio = await self._fallback(text)
-        await run_in_threadpool(self.storage.put, "speech", key, audio)
-        return audio
+                last_error = exc
+                continue
+            await run_in_threadpool(self.storage.put, "speech", key, audio)
+            return audio
+        raise last_error or RealtimeRateLimited()
 
     def _complete(self, key, task):
         if self.pending.get(key) is task:
@@ -154,7 +171,8 @@ class OpenAISpeechService:
         while sum(len(item) for item in self.cache.values()) > 24 * 1024 * 1024 or len(self.cache) > 32:
             self.cache.popitem(last=False)
 
-    async def _generate(self, text):
+    async def _generate(self, text, model=None):
+        model = model or self.model
         if self.slots.locked():
             raise HTTPException(503, "음성을 만들고 있어요. 잠시 후 다시 시도해 주세요.", headers={"Retry-After": "2"})
         async with self.slots:
@@ -163,7 +181,7 @@ class OpenAISpeechService:
             try:
                 async with asyncio.timeout(45):
                     async with self.connector(
-                        f"wss://api.openai.com/v1/realtime?model={self.model}",
+                        f"wss://api.openai.com/v1/realtime?model={model}",
                         additional_headers={"Authorization": f"Bearer {self.key}"},
                         open_timeout=15, max_size=8 * 1024 * 1024,
                     ) as socket:
@@ -181,7 +199,7 @@ class OpenAISpeechService:
                                 raise HTTPException(429 if limited else 502, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
                             if kind == "session.created":
                                 await socket.send(json.dumps({"type": "session.update", "session": {
-                                    "type": "realtime", "model": self.model, "output_modalities": ["audio"],
+                                    "type": "realtime", "model": model, "output_modalities": ["audio"],
                                     "instructions": INSTRUCTIONS, "max_output_tokens": MAX_OUTPUT_TOKENS,
                                     "audio": {"input": {"turn_detection": None}, "output": {
                                         "format": {"type": "audio/pcm", "rate": 24000}, "voice": self.voice}},
@@ -232,15 +250,18 @@ class OpenAISpeechService:
                         self.budget.release()
 
 
-    async def _fallback(self, text):
-        """gpt-4o-mini-tts over /v1/audio/speech: 24 kHz 16-bit mono PCM, wrapped like Realtime audio."""
+    async def _fallback(self, text, model=None):
+        """/v1/audio/speech (tts-1, tts-1-hd, gpt-4o-mini-tts): 24 kHz 16-bit mono PCM, wrapped like Realtime audio."""
+        model = model or (self.speech_models[-1] if self.speech_models else "gpt-4o-mini-tts")
+        steerable = model.startswith("gpt-")  # Only gpt-4o-mini-tts takes instructions and the newer voices.
+        body = {"model": model, "voice": self.voice if steerable else self.classic_voice, "input": text, "response_format": "pcm"}
+        if steerable:
+            body["instructions"] = INSTRUCTIONS
         self.budget.reserve()
         try:
             async with httpx.AsyncClient(timeout=45) as client:
                 response = await client.post("https://api.openai.com/v1/audio/speech",
-                    headers={"Authorization": f"Bearer {self.key}"},
-                    json={"model": self.fallback_model, "voice": self.voice, "input": text,
-                          "instructions": INSTRUCTIONS, "response_format": "pcm"})
+                    headers={"Authorization": f"Bearer {self.key}"}, json=body)
         except httpx.HTTPError:
             self.budget.release()
             raise HTTPException(502, "음성 서버에 연결하지 못했어요. 다시 시도해 주세요.") from None
@@ -252,6 +273,9 @@ class OpenAISpeechService:
                     error = {}
             except (ValueError, AttributeError):
                 error = {}
+            if response.status_code == 429 and error.get("code") == "rate_limit_exceeded":
+                # This model only; the next candidate has its own limit. Keep the explained message.
+                raise RealtimeRateLimited(speech_api_error(response.status_code, error).detail)
             raise speech_api_error(response.status_code, error)
         self.budget.record(None)  # No token usage in this response: charge the reserved maximum.
         return pcm_wav(response.content)

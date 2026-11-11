@@ -72,6 +72,21 @@ class TranscriptionTests(unittest.TestCase):
     def test_rate_limited_upstream_is_429(self):
         self.assertEqual(self.send(self.client(status=429, payload={})).status_code, 429)
 
+    def test_limited_model_falls_back_to_the_next_and_is_paused(self):
+        def post(url, body, headers, timeout):
+            self.calls.append(body)
+            if b'name="model"\r\n\r\ngpt-4o-mini-transcribe' in body:
+                return 429, b"{}"
+            return 200, json.dumps({"text": "45"}).encode()
+        self.service = OpenAITranscriptionService(Path(self.temp.name), post)
+        app = FastAPI(); app.include_router(create_transcription_router(self.service))
+        client = TestClient(app)
+        self.assertEqual(self.send(client).json()["text"], "45")
+        self.assertEqual(self.send(client).json()["text"], "45")
+        models = [b.split(b'name="model"\r\n\r\n')[1].split(b"\r\n")[0].decode() for b in self.calls]
+        # The limited model is tried once, then skipped while paused.
+        self.assertEqual(models, ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "gpt-4o-transcribe"])
+
     def test_network_failure_is_502(self):
         self.assertEqual(self.send(self.client(raises=OSError("down"))).status_code, 502)
         self.assertEqual(self.service.budget.pending_krw, 0)

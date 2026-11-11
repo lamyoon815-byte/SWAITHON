@@ -42,7 +42,9 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.env = patch.dict("os.environ", {"OPENAI_API_KEY": "test-openai-key", "OPENAI_TTS_MODEL": "gpt-realtime-2.1-mini", "OPENAI_TTS_VOICE": "marin"})
+        # One realtime model and one speech model unless a test sets a longer candidate list.
+        self.env = patch.dict("os.environ", {"OPENAI_API_KEY": "test-openai-key", "OPENAI_TTS_MODEL": "gpt-realtime-2.1-mini", "OPENAI_TTS_VOICE": "marin",
+                                             "OPENAI_TTS_REALTIME_MODELS": "-", "OPENAI_TTS_SPEECH_MODELS": "-"})
         self.env.start(); self.addCleanup(self.env.stop)
 
     def service(self, socket):
@@ -95,7 +97,8 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(service.budget.pending_krw, 0)
 
     async def test_realtime_rate_limit_falls_back_to_speech_endpoint_and_pauses_realtime(self):
-        service = self.service(FakeSocket())
+        with patch.dict("os.environ", {"OPENAI_TTS_SPEECH_MODELS": "gpt-4o-mini-tts"}):
+            service = self.service(FakeSocket())
         fallback_audio = pcm_wav(b"\x00\x00" * 240)
         with patch.object(service, "_generate", side_effect=RealtimeRateLimited()) as realtime, \
                 patch.object(service, "_fallback", return_value=fallback_audio) as fallback:
@@ -105,13 +108,50 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(realtime.call_count, 1)  # Second sentence skips Realtime while it is paused.
         self.assertEqual(fallback.call_count, 2)
 
-    async def test_other_realtime_errors_do_not_fall_back(self):
-        service = self.service(FakeSocket())
-        with patch.object(service, "_generate", side_effect=HTTPException(502, "broken")), \
+    async def test_credit_or_permission_errors_stop_but_broken_results_try_the_next_model(self):
+        with patch.dict("os.environ", {"OPENAI_TTS_SPEECH_MODELS": "gpt-4o-mini-tts"}):
+            service = self.service(FakeSocket())
+        with patch.object(service, "_generate", side_effect=HTTPException(429, "credit")), \
                 patch.object(service, "_fallback") as fallback:
             with self.assertRaises(HTTPException):
                 await service.synthesize("붉은 꽃이 보여요.")
         fallback.assert_not_called()
+        audio = pcm_wav(b"\x00\x00" * 240)
+        with patch.object(service, "_generate", side_effect=HTTPException(502, "rewritten")), \
+                patch.object(service, "_fallback", return_value=audio) as fallback:
+            self.assertEqual((await service.synthesize("파란 하늘이 보여요."))[1], audio)
+        fallback.assert_called_once()
+
+    async def test_each_candidate_model_is_tried_and_paused_after_its_own_limit(self):
+        with patch.dict("os.environ", {"OPENAI_TTS_REALTIME_MODELS": "gpt-realtime-2.1", "OPENAI_TTS_SPEECH_MODELS": "tts-1-hd,tts-1"}):
+            service = self.service(FakeSocket())
+        self.assertEqual(service.realtime_models, ["gpt-realtime-2.1-mini", "gpt-realtime-2.1"])
+        audio = pcm_wav(b"\x00\x00" * 240)
+        def speech(text, model):
+            if model == "tts-1-hd":
+                raise RealtimeRateLimited()
+            return audio
+        with patch.object(service, "_generate", side_effect=RealtimeRateLimited()) as realtime, \
+                patch.object(service, "_fallback", side_effect=speech) as fallback:
+            self.assertEqual((await service.synthesize("붉은 꽃이 보여요."))[1], audio)
+            self.assertEqual([c.args[1] for c in realtime.call_args_list], ["gpt-realtime-2.1-mini", "gpt-realtime-2.1"])
+            self.assertEqual([c.args[1] for c in fallback.call_args_list], ["tts-1-hd", "tts-1"])
+            await service.synthesize("파란 하늘이 보여요.")
+        # Limited models are skipped while paused: the second sentence goes straight to tts-1.
+        self.assertEqual(realtime.call_count, 2)
+        self.assertEqual([c.args[1] for c in fallback.call_args_list], ["tts-1-hd", "tts-1", "tts-1"])
+
+    async def test_classic_tts_models_use_a_supported_voice_without_instructions(self):
+        service = self.service(FakeSocket())
+        seen = {}
+        def respond(request):
+            seen.update(json.loads(request.content))
+            return httpx.Response(200, content=b"\x00\x00" * 240)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        with patch("Backend.speech.httpx.AsyncClient", return_value=client):
+            await service._fallback("붉은 꽃이 보여요.", "tts-1-hd")
+        self.assertEqual((seen["model"], seen["voice"]), ("tts-1-hd", "nova"))
+        self.assertNotIn("instructions", seen)
 
     async def test_saved_audio_survives_restart_without_api_key_or_budget(self):
         service = self.service(FakeSocket())
