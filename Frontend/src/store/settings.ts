@@ -7,7 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type DeviceSettings = {
   color_name_guide: boolean;
-  music_autoplay: boolean;
+  /** 해설 배경 음악. 기본 켜짐. (예전 `music_autoplay`는 음악이 연결되기 전에 꺼짐으로 저장된 값이라 쓰지 않는다) */
+  background_music: boolean;
   font_scale: 'normal' | 'large' | 'xlarge';
   /** 최근 방문 미술관 (1-0). 다음 실행 때 홈 카드에 다시 보여 준다 */
   recent_museum_id: string | null;
@@ -19,7 +20,7 @@ const KEY = 'swaithon:settings:v1';
 
 export const DefaultSettings: DeviceSettings = {
   color_name_guide: true,
-  music_autoplay: false,
+  background_music: true,
   font_scale: 'normal',
   recent_museum_id: null,
   onboarding_completed: false,
