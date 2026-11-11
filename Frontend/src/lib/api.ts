@@ -103,7 +103,8 @@ export function getCorrectedImage(artworkId: string, profile: ViewingProfile, st
     });
     if (!res.ok) {
       if (res.status === 401 && getAccessToken() === token) await clearSession(token);
-      throw new ApiError(res.status);
+      const error = await res.json().catch(() => null) as { detail?: unknown } | null;
+      throw new ApiError(res.status, typeof error?.detail === 'string' ? error.detail : '보정본을 불러오지 못했어요. 다시 시도해 주세요.');
     }
     if (res.headers.get('X-Correction-Profile-Revision') !== profile.revision || epoch !== correctionEpoch) {
       throw new ApiError(409, '보정값이 변경되었어요. 다시 불러와 주세요.');

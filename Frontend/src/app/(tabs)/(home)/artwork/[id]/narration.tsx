@@ -70,12 +70,12 @@ export default function NarrationScreen() {
   const { bottom: bottomInset } = useSafeAreaInsets();
   const [playerBarHeight, setPlayerBarHeight] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
-  const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
-  const strength = correctionStrength(strengthParam !== undefined ? Number(strengthParam) : profile.strength);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  // 상세 화면의 임시 적용 비율 대신 계정에 저장한 보정값을 사용한다.
+  const strength = correctionStrength(profile.strength);
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
-  // 보정 전후 비교. 작품 화면에서 고른 상태로 시작한다.
-  const [showOriginal, setShowOriginal] = useState(originalParam === '1');
-  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, strength);
+  // 해설을 듣는 동안은 항상 사용자 설정의 보정본을 표시한다.
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), false, strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
@@ -220,7 +220,7 @@ export default function NarrationScreen() {
 
   const openZoom = () => {
     if (!id) return;
-    router.push({ pathname: '/zoom/[id]', params: { id, original: showOriginal ? '1' : '0', strength: String(strength) } });
+    router.push({ pathname: '/zoom/[id]', params: { id, original: '0', strength: String(strength) } });
   };
 
   // 읽는 문장이 바뀌면 사용자가 보던 곳을 따른다.
@@ -281,10 +281,10 @@ export default function NarrationScreen() {
             <GestureDetector gesture={imageGestures}>
             <Animated.View style={[styles.followLayer, followStyle]}>
               <CorrectionCanvas
-                source={corrected.source}
+                source={profileLoaded && !corrected.loading && !corrected.error ? corrected.source : ''}
                 accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
                 correction={{ ...profile, strength }}
-                original={showOriginal}
+                original={false}
                 palette={palette}
                 style={styles.canvas}
               />
@@ -299,6 +299,17 @@ export default function NarrationScreen() {
         ) : <View style={[styles.canvas, styles.canvasPlaceholder, { backgroundColor: palette.surface, borderColor: palette.outline }]} />}
         </View>
       </View>
+
+      {(!profileLoaded || corrected.loading || !!corrected.error) && (
+        <View style={styles.lengthWrap}>
+          <Text accessibilityLiveRegion="polite" style={[styles.lengthHint, { color: palette.textSecondary }]}>
+            {corrected.error ? corrected.error instanceof ApiError ? corrected.error.message : '저장된 보정본을 불러오지 못했어요. 다시 시도해 주세요.' : '저장된 보정값을 적용하고 있어요…'}
+          </Text>
+          {!!corrected.error && <View style={{ flexDirection: 'row' }}>
+            <BigButton label="보정본 다시 불러오기" selected={false} palette={palette} onPress={corrected.reload} />
+          </View>}
+        </View>
+      )}
 
       {/* 해설 길이: 간결하게(약 1분) · 상세하게(약 3분). 검수 해설이 없어 AI 해설을 들을 때만 고른다. */}
       {noReviewed && (
@@ -331,12 +342,6 @@ export default function NarrationScreen() {
             </Pressable>
           ) : <View />}
           <View style={styles.toolButtons}>
-          <PressableScale accessibilityRole="switch" accessibilityLabel="원본 보기" accessibilityHint="보정하기 전 원래 그림과 비교해요"
-            accessibilityState={{ checked: showOriginal }} onPress={() => setShowOriginal((v) => !v)}
-            style={[styles.zoomButton, { backgroundColor: showOriginal ? palette.highlight : palette.fill }]}>
-            <SymbolView name={{ ios: 'circle.lefthalf.filled', android: 'contrast', web: 'contrast' }} size={18} weight="bold" tintColor={showOriginal ? palette.highlightText : palette.text} />
-            <Text style={[styles.zoomText, { color: showOriginal ? palette.highlightText : palette.text }]}>{showOriginal ? '원본' : '원본 보기'}</Text>
-          </PressableScale>
           <PressableScale accessibilityRole="button" accessibilityLabel="작품 크게 보기" onPress={openZoom}
             style={[styles.zoomButton, { backgroundColor: palette.fill }]}>
             <SymbolView name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'open_in_full', web: 'open_in_full' }} size={18} weight="bold" tintColor={palette.text} />
