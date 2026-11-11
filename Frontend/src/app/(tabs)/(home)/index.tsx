@@ -180,6 +180,7 @@ export default function HomeScreen() {
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="크게 넘겨보기"
+                hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityHint="작품을 한 점씩 크게 보며 넘겨요"
                 onPress={() => router.push('/browse')}
                 style={({ pressed }) => [
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
   },
   wayLabel: {
     flexShrink: 1,
-    fontSize: 17,
+    fontSize: FontSize.label,
     fontWeight: 700,
   },
   listHeader: {
@@ -400,9 +401,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: Spacing.two,
   },
-  // 저시력 기준 최소 터치 크기(56). 글자는 작품 목록 제목보다 작게 둬서 주 버튼처럼 보이지 않게 한다.
+  // 보이는 높이는 48로 낮추되, 위아래 hitSlop으로 누르는 영역은 56을 지킨다.
   browse: {
-    minHeight: ButtonHeight,
+    minHeight: 48,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: ButtonRadius,
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: {
-    fontSize: 17,
+    fontSize: FontSize.label,
     fontWeight: 800,
   },
   skeletonList: {

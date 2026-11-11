@@ -81,10 +81,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 700,
   },
+  // 홈에서 가장 먼저 읽히는 정보라 제목급(26)으로. 긴 이름은 두 줄로 넘어간다.
   name: {
-    fontSize: FontSize.body,
+    fontSize: FontSize.heading,
     fontWeight: 800,
-    lineHeight: 26,
+    lineHeight: 34,
   },
   // Its own tap target ("변경"), so it gets the full 56 minimum.
   pill: {
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: {
-    fontSize: 17,
+    fontSize: FontSize.label,
     fontWeight: 800,
   },
 });
