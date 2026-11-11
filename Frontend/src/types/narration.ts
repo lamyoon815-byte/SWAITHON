@@ -1,4 +1,5 @@
 // BE `GET /artworks/{id}/narration` 응답 (README 6.2). 필드 이름은 BE 그대로 snake_case.
+import type { Description } from '@/types/artwork';
 
 export type NarrationMode = 'facts' | 'interpretations' | 'both';
 
@@ -21,6 +22,8 @@ export type Narration = {
 
 export type GeneratedNarration = Omit<Narration, 'review_status'> & {
   review_status: 'unreviewed';
+  /** 서버가 함께 주는 AI 해설 원문. regions로 작품 위 영역 상자를 그린다 */
+  description?: Description;
   warning: string;
   fallback: boolean;
 };
