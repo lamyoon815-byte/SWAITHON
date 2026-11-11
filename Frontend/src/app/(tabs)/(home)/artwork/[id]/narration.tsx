@@ -14,11 +14,12 @@ import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/common/text';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { PressableScale } from '@/components/common/pressable-scale';
@@ -32,12 +33,11 @@ import {
   getPalette,
   type Palette,
 } from '@/constants/a11y';
-import { ScreenPadding, Shadow, Spacing } from '@/constants/theme';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
-import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
 import type { NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
@@ -56,7 +56,8 @@ export default function NarrationScreen() {
   const mode = selectedMode ?? profile.narration_mode;
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
-  const bottomInset = useTabBarInset();
+  const { bottom: bottomInset } = useSafeAreaInsets();
+  const [playerBarHeight, setPlayerBarHeight] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
   const strength = strengthParam !== undefined && !Number.isNaN(Number(strengthParam)) ? Number(strengthParam) : profile.strength;
@@ -123,7 +124,7 @@ export default function NarrationScreen() {
         ) : <View style={styles.headerSpacer} />}
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? 0 : bottomInset }]}>
+      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + 40 : bottomInset }]}>
       {/* 작품: 남는 공간을 모두 쓴다(최소 화면 높이의 40%). 글이 길면 화면 전체가 스크롤된다. */}
       <View style={[styles.stage, { minHeight: Math.max(220, windowHeight * 0.4) }]}>
         {artwork ? (
@@ -187,7 +188,8 @@ export default function NarrationScreen() {
       </ScrollView>
 
       {total > 0 && (
-        <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.outline, paddingBottom: bottomInset + Spacing.two }]}>
+        <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight}>
+        <View style={styles.panel}>
           <View style={[styles.track, { backgroundColor: palette.fill }]}>
             <View style={[styles.trackFill, { backgroundColor: palette.accent, width: `${((player.index + 1) / total) * 100}%` }]} />
           </View>
@@ -242,6 +244,7 @@ export default function NarrationScreen() {
             </PressableScale>
           </View>
         </View>
+        </BottomActionBar>
       )}
 
       <BottomSheet visible={listOpen} title="문장 목록" palette={palette} onClose={() => setListOpen(false)}>
@@ -440,15 +443,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: { fontSize: 17, fontWeight: 800, textAlign: 'center' },
-  // Fixed at the bottom, above the floating tab bar (its inset is the bottom padding).
+  // 탭 바 없이 하단 안전 영역 바로 위에 고정한다.
   panel: {
     gap: Spacing.three,
-    paddingHorizontal: ScreenPadding,
-    paddingTop: Spacing.three,
-    borderTopWidth: 1.5,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    boxShadow: Shadow.floating,
+    paddingTop: Spacing.two,
   },
   track: { height: 6, borderRadius: 3, overflow: 'hidden' },
   trackFill: { height: 6, borderRadius: 3 },

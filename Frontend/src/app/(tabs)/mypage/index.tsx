@@ -24,13 +24,14 @@ import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { logout as apiLogout, updateNickname } from '@/lib/api';
+import { getFontScale } from '@/lib/font-scale';
 import type { DeviceSettings } from '@/store/settings';
 import type { NarrationMode } from '@/types/narration';
 
 const FONT_OPTIONS = [
-  { value: 'normal', label: '기본' },
-  { value: 'large', label: '크게' },
-  { value: 'xlarge', label: '아주 크게' },
+  { value: 'normal', label: '기본', previewScale: getFontScale('normal') },
+  { value: 'large', label: '크게', previewScale: getFontScale('large') },
+  { value: 'xlarge', label: '아주 크게', previewScale: getFontScale('xlarge') },
 ] as const;
 
 export default function MyPageScreen() {
@@ -214,7 +215,6 @@ export default function MyPageScreen() {
                   <>
                     <SegmentedControl accessibilityLabel="글씨 크기" palette={palette} value={settings.font_scale}
                       onChange={(next) => { void selectFont(next); }} options={FONT_OPTIONS} />
-                    <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>고르면 바로 앱 전체 글씨에 적용돼요.</Text>
                   </>
                 ) : shown === 'narration' ? (
                   <View style={styles.narrationOptions} accessibilityRole="radiogroup" accessibilityLabel="해설 방식 선택">

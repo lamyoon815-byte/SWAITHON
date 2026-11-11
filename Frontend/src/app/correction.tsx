@@ -17,7 +17,7 @@ import { showToast } from '@/components/common/toast';
 import { PressableScale } from '@/components/common/pressable-scale';
 import { CORRECTION_CONTROLS, CorrectionSlider } from '@/components/mypage/correction-slider';
 import { CalibrationSlider } from '@/components/mypage/calibration-slider';
-import { ButtonGap, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
+import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
 import { correctionPreview, correctionSettings, correctionSettingsChanged, type CorrectionPreview } from '@/lib/correction-settings';
@@ -116,7 +116,6 @@ export default function CorrectionScreen() {
         />
         <SegmentedControl accessibilityLabel="미리보기 항목" palette={palette} value={previewMode} onChange={setPreviewMode}
           options={[{ value: 'color', label: '색 보정' }, { value: 'edge', label: '윤곽선 강조' }] as const} />
-        <Text style={[styles.note, { color: palette.textSecondary }]}>색 보정과 윤곽선은 각각의 그림으로 확인해요.</Text>
         <SegmentedControl accessibilityLabel="보기 방식" palette={palette} value={original ? 'original' : 'corrected'} onChange={(next) => setOriginal(next === 'original')}
           options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본' }] as const} />
 
@@ -182,7 +181,6 @@ export default function CorrectionScreen() {
 
       <BottomActionBar background={palette.background} onHeight={setBarHeight}>
         <View style={styles.footerRow}>
-          <View style={styles.footerCancel}><BigButton label="취소" accessibilityLabel="변경 취소" selected={false} palette={palette} disabled={saving} onPress={cancel} /></View>
           <View style={styles.footerSave}><BigButton label={saving ? '저장 중…' : '변경사항 저장'} palette={palette} disabled={disabled} onPress={() => { void save(); }} /></View>
         </View>
       </BottomActionBar>
@@ -221,9 +219,8 @@ const styles = StyleSheet.create({
   linkRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12 },
   linkIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   linkLabel: { flex: 1, fontSize: FontSize.body, fontWeight: 700 },
-  footerRow: { flexDirection: 'row', gap: ButtonGap },
-  footerCancel: { flex: 1, flexDirection: 'row' },
-  footerSave: { flex: 2, flexDirection: 'row' },
+  footerRow: { flexDirection: 'row', minHeight: MinTouchTarget + Spacing.two },
+  footerSave: { flex: 1, flexDirection: 'row' },
   buttonRow: { flexDirection: 'row' },
   scrim: { flex: 1 },
   modalContent: { flexGrow: 1, justifyContent: 'center', padding: ScreenPadding },

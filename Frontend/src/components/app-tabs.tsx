@@ -11,6 +11,7 @@
  */
 
 import { BlurView } from 'expo-blur';
+import { usePathname } from 'expo-router';
 import { TabList, TabSlot, TabTrigger, Tabs, type TabTriggerSlotProps } from 'expo-router/ui';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
@@ -74,6 +75,7 @@ function useReduceTransparency() {
 }
 
 export default function AppTabs() {
+  const hideBar = /^\/artwork\/[^/]+\/narration\/?$/.test(usePathname());
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottom = useTabBarBottom();
@@ -97,11 +99,15 @@ export default function AppTabs() {
         <View
           accessibilityRole="tablist"
           accessibilityLabel="주 메뉴"
+          accessibilityElementsHidden={hideBar}
+          importantForAccessibility={hideBar ? 'no-hide-descendants' : 'auto'}
+          pointerEvents={hideBar ? 'none' : 'auto'}
           // TabList's slot rejects style arrays.
           style={StyleSheet.flatten([
             styles.bar,
             {
               bottom,
+              display: hideBar ? 'none' : 'flex',
               backgroundColor: solid ? palette.surface : withAlpha(palette.surface, BarOpacity),
               borderColor: palette.border,
             },

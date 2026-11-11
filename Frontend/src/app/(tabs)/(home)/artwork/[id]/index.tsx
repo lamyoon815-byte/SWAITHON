@@ -3,7 +3,7 @@ import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 // 와이어프레임 2 작품 감상 → 디자인 "저시력 미술관 앱"의 작품 상세
 /**
  * 위에서부터 큰 작품 이미지(보정 캔버스, 누르면 크게 보기) · 미술관과 번호 · 제목 · 작가 ·
- * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명(글자 크기 조절) · 이전/다음 작품.
+ * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명 · 이전/다음 작품.
  * 이미지나 "확대"를 누르면 탭 바 없는 전체 화면(`/zoom/[id]`)에서 핀치·버튼으로 확대한다.
  * 보정본일 때는 그 아래 보정 강도(0~100%)로 얼마나 보정할지 고른다. 크게 보기에도 같은 강도로 넘긴다.
  * TODO(B): 영역 터치(regions, P1).
@@ -41,8 +41,6 @@ import { ApiError, generateNarration, getArtwork, getMuseumArtworks, getMuseums 
 import { addRecent } from '@/store/recent';
 
 const HERO_HEIGHT = 380;
-/** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
-const DESC_SIZES = [18, 20, 23, 26];
 
 
 export default function ArtworkScreen() {
@@ -71,7 +69,6 @@ export default function ArtworkScreen() {
   const [original, setOriginal] = useState(false);
   const [chosenStrength, setStrength] = useState<number | null>(null);
   const strength = chosenStrength ?? profile.strength;
-  const [sizeStep, setSizeStep] = useState(1);
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), original, strength);
   useRecordViewing(artwork, profile, strength, original, profileLoaded && !profileError, !historyId);
 
@@ -89,7 +86,7 @@ export default function ArtworkScreen() {
     position >= 0 && siblings && position < siblings.length - 1
       ? siblings[position + 1]
       : undefined;
-  const descSize = DESC_SIZES[sizeStep];
+  const descSize = FontSize.body;
 
   const openNarration = () => {
     if (!artwork) return;
@@ -234,23 +231,6 @@ export default function ArtworkScreen() {
           <Text accessibilityRole="header" style={[styles.descTitle, { color: palette.text }]}>
             작품 설명
           </Text>
-          <View style={styles.sizeButtons}>
-            <SizeButton
-              label="가−"
-              a11yLabel="글자 작게"
-              small
-              disabled={sizeStep === 0}
-              palette={palette}
-              onPress={() => setSizeStep((s) => Math.max(0, s - 1))}
-            />
-            <SizeButton
-              label="가+"
-              a11yLabel="글자 크게"
-              disabled={sizeStep === DESC_SIZES.length - 1}
-              palette={palette}
-              onPress={() => setSizeStep((s) => Math.min(DESC_SIZES.length - 1, s + 1))}
-            />
-          </View>
         </View>
 
         <View style={styles.desc}>
@@ -354,28 +334,6 @@ type SmallButtonProps = {
   palette: Palette;
   onPress: () => void;
 };
-
-function SizeButton({ small, ...p }: SmallButtonProps & { small?: boolean }) {
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={p.a11yLabel}
-      accessibilityState={{ disabled: p.disabled }}
-      disabled={p.disabled}
-      onPress={p.onPress}
-      style={({ pressed }) => [
-        styles.size,
-        {
-          backgroundColor: p.palette.fill,
-          opacity: p.disabled ? 0.35 : pressed ? 0.7 : 1,
-        },
-      ]}>
-      <Text style={[styles.sizeText, { color: p.palette.text, fontSize: small ? 16 : 20 }]}>
-        {p.label}
-      </Text>
-    </PressableScale>
-  );
-}
 
 function SiblingButton({ direction, ...p }: SmallButtonProps & { direction: 'prev' | 'next' }) {
   const chevron = (
@@ -519,21 +477,6 @@ const styles = StyleSheet.create({
   },
   descTitle: {
     fontSize: FontSize.body,
-    fontWeight: 800,
-  },
-  sizeButtons: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  size: {
-    minWidth: MinTouchTarget,
-    minHeight: MinTouchTarget,
-    paddingHorizontal: 8,
-    borderRadius: MinTouchTarget / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sizeText: {
     fontWeight: 800,
   },
   desc: {
