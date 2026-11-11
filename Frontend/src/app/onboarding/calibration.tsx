@@ -24,6 +24,7 @@ import { useSpeech } from '@/hooks/use-speech';
 import { useVoiceAnswer } from '@/hooks/use-voice-answer';
 import { saveVoiceAnswer } from '@/lib/api';
 import { matchSpokenChoice } from '@/lib/spoken-answer';
+import { stopSpeaking } from '@/lib/speech';
 import { advanceCalibration, initialCalibration, screeningSuggestion, type CalibrationAction, type CalibrationPhase } from '@/lib/calibration-flow';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
 
@@ -141,10 +142,12 @@ export default function CalibrationScreen() {
     item: string;
   } | null>(null);
   const answerByVoice = () => {
-    if (!plate || disabled || !imageReady) return;
+    if (!plate || disabled || !imageReady || voice.state !== 'idle') return;
+    // 권한 확인·녹음 준비를 기다리기 전에 안내 재생부터 즉시 멈춘다.
+    stopSpeaking();
     const frame = state;
     setHeard(null);
-    voice.toggle({
+    voice.startHolding({
       onText: (text) => {
         const match = matchSpokenChoice(text, plate.choices);
         if (match) {
@@ -192,8 +195,8 @@ export default function CalibrationScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.guideContent}>
           <View style={styles.guideIntro}>
-            <Text accessibilityRole="header" style={[styles.guideHeading, { color: palette.text }]}>테스트 전에 확인해 주세요</Text>
-            <Text style={[styles.guideDescription, { color: palette.textSecondary }]}>간단한 문제를 통해 색상과 윤곽선, 대비를 내 눈에 편하게 맞춰요.</Text>
+            <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideHeading, { color: palette.text }]}>테스트 전에 확인해 주세요</Text>
+            <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideDescription, { color: palette.textSecondary }]}>{'간단한 문제를 통해 색상과 윤곽선, 대비를\n내 눈에 편하게 맞춰요.'}</Text>
           </View>
           <View style={styles.guideList}>
             {guides.map((guide) => <View key={guide.title} style={[styles.guideCard, { backgroundColor: palette.surface, borderColor: palette.outline }]}
@@ -202,13 +205,13 @@ export default function CalibrationScreen() {
                 <SymbolView name={{ ios: guide.ios, android: guide.android, web: guide.android }} size={26} tintColor={palette.highlight} />
               </View>
               <View style={styles.guideTexts}>
-                <Text style={[styles.guideTitle, { color: palette.text }]}>{guide.title}</Text>
-                <Text lineBreakStrategyIOS="hangul-word" style={[styles.guideBody, { color: palette.textSecondary }]}>{guide.body}</Text>
+                <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideTitle, { color: palette.text }]}>{guide.title}</Text>
+                <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideBody, { color: palette.textSecondary }]}>{guide.body}</Text>
               </View>
             </View>)}
           </View>
           <View style={styles.guideButton}><BigButton label="테스트 시작" palette={palette} disabled={disabled} onPress={() => { setStarted(true); scroll.current?.scrollTo({ y: 0, animated: false }); }} /></View>
-          <Text style={[styles.guideNote, { color: palette.textSecondary }]}>마이크 권한이 필요하며, 테스트 결과는 화면을 보기 편하게 조정하는 데 사용돼요.</Text>
+          <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideNote, { color: palette.textSecondary }]}>{'마이크 권한이 필요하며, 테스트 결과는 화면을 보기 편하게\n조정하는 데 사용돼요.'}</Text>
         </ScrollView>
       </SafeAreaView>
     );
@@ -264,10 +267,11 @@ export default function CalibrationScreen() {
         {phase === 'contrast' && <CorrectionCanvas source={CALIBRATION.contrast.image} accessibilityLabel="흰 옷을 입은 인물과 뒤의 흰 커튼, 대비 비교 그림" correction={{ contrast: CALIBRATION.contrast.levels[index], brightness: 0, sharpen: 0, strength: 1 }} palette={palette} style={styles.contrastPicture} />}
 
         {plate && <PressableScale accessibilityRole="button"
-          accessibilityLabel={voice.state === 'recording' ? '말하기 끝내기' : voice.state === 'thinking' ? '알아듣는 중' : '말로 답하기'}
-          accessibilityHint={voice.state === 'recording' ? '누르면 녹음을 멈추고 답을 확인해요' : `누른 뒤 보이는 숫자를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`}
+          accessibilityLabel={voice.state === 'recording' ? '듣고 있어요' : voice.state === 'thinking' ? '알아듣는 중' : '음성으로 답하기'}
+          accessibilityHint="누른 채로 보이는 숫자를 말하고, 다 말하면 손을 떼 주세요"
           accessibilityState={{ disabled: disabled || !imageReady || voice.state === 'thinking', busy: voice.state === 'thinking' }}
-          disabled={disabled || !imageReady || voice.state === 'thinking'} onPress={answerByVoice}
+          disabled={disabled || !imageReady || voice.state === 'thinking'}
+          onTouchStart={answerByVoice} onTouchEnd={voice.stopHolding} onTouchCancel={voice.stopHolding} onPressOut={voice.stopHolding}
           style={({ pressed }) => [styles.voice, voice.state === 'recording'
             ? { backgroundColor: palette.highlight, borderColor: palette.highlight }
             : { backgroundColor: 'transparent', borderColor: palette.border },
@@ -277,7 +281,7 @@ export default function CalibrationScreen() {
             : <SymbolView name={voice.state === 'recording' ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
               size={22} tintColor={voice.state === 'recording' ? palette.highlightText : palette.text} />}
           <Text style={[styles.voiceText, { color: voice.state === 'recording' ? palette.highlightText : palette.text }]}>
-            {voice.state === 'recording' ? '듣고 있어요 · 다 말했으면 누르세요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 답하기'}
+            {voice.state === 'recording' ? '듣고 있어요 · 다 말하면 손을 떼 주세요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 답하기'}
           </Text>
         </PressableScale>}
         {plate && heard?.frame === state && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.note, { color: palette.text }]}>{heard.message}</Text>}
