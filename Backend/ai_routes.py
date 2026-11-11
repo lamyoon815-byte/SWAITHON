@@ -1,6 +1,8 @@
 import asyncio
 from hashlib import sha256
 import json
+from pathlib import Path
+import re
 from typing import Annotated, Literal
 from io import BytesIO
 from importlib import import_module
@@ -86,15 +88,68 @@ class NarrationResult(BaseModel):
     review_status: Literal["reviewed"]
 
 
+class NarrationSource(BaseModel):
+    no: int
+    title: str = ""
+    url: str
+
+
 class GeneratedNarrationResult(AnalysisResult):
     artwork_id: str
     mode: Literal["both"] = "both"
     segments: list[NarrationSegment]
     text: str
+    length: Literal["brief", "detailed"] = Field(default="brief", description="brief=약 1분, detailed=약 3분 미술사 해설")
+    estimated_seconds: int | None = Field(default=None, description="공백 제외 글자 수 ÷ 5.5")
+    sources: list[NarrationSource] = Field(default=[], description="상세 해설의 근거 출처(구글 검색 근거 또는 검수 파일)")
 
 
 
 AI_WARNING = "AI 생성 해설입니다."
+
+# 지침대로 사람이 조사·검수한 상세 해설. 있으면 생성보다 우선한다.
+LONG_COMMENTARY_DIR = Path(__file__).resolve().parent.parent / "content" / "long-commentary"
+EMPTY_DESCRIPTION = {"facts": [], "interpretations": [], "regions": [], "mood_keywords": []}
+
+
+def sentences(text: str) -> list[str]:
+    """플레이어는 한 문장씩 읽으므로 문장 끝에서 나눈다."""
+    return [part.strip() for part in re.split(r"(?<=[.?!])\s+", text.strip()) if part.strip()]
+
+
+def long_segments(sections: list[dict]) -> list[dict]:
+    return [{"type": section["type"], "text": sentence, "region_index": None}
+            for section in sections for sentence in sentences(section["text"])]
+
+
+def spoken_seconds(text: str) -> int:
+    return round(len(re.sub(r"\s", "", text)) / 5.5)
+
+
+def narration_key(length: str, model: str, record: dict, content: bytes) -> str:
+    """API와 일괄 생성 스크립트가 같은 저장소 키를 쓴다. 프롬프트·형식을 바꾸면 버전을 올린다."""
+    return sha256(json.dumps(["narration-v2", length, model, record, sha256(content).hexdigest()],
+                             sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length: str) -> dict:
+    """작품 원본으로 간결(약 1분)·상세(약 3분) 해설을 만든다. 저장은 호출한 쪽이 한다."""
+    normalized = normalize_image(content)
+    if length == "detailed":
+        long = gemini.long_commentary(normalized.content, record)
+        segments = long_segments(long["sections"])
+        return {"artwork_id": artwork_id, "mode": "both", "description": EMPTY_DESCRIPTION, "segments": segments,
+                "text": "\n".join(segment["text"] for segment in segments), "review_status": "unreviewed",
+                "fallback": not segments, "warning": AI_WARNING, "length": "detailed",
+                "estimated_seconds": long["estimated_seconds"], "sources": long["sources"]}
+    description = gemini.describe(normalized.content, record, True)
+    fallback = getattr(description, "fallback", False)
+    segments = [] if fallback else narration_segments(description.model_dump())
+    text = "\n".join(segment["text"] for segment in segments)
+    return {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
+            "segments": segments, "text": text, "review_status": "unreviewed", "fallback": fallback,
+            "warning": AI_WARNING, "length": "brief", "estimated_seconds": spoken_seconds(text), "sources": []}
+
 
 def narration_segments(description: dict, mode: str = "both") -> list[dict]:
     segments = []
@@ -157,6 +212,9 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
     pending_narrations = {}
     ai_limiter = RateLimiter(attempts=5, window=60)
     photo_limiter = RateLimiter(attempts=60, window=60)
+    # 색 보정은 서버 안의 이미지 처리(유료 AI 호출 아님)라 AI 해설 한도(분당 5회)와 따로 센다.
+    # 작품을 넘길 때마다 요청하므로 넉넉하게 둔다.
+    correction_limiter = RateLimiter(attempts=120, window=60)
     # 대기열을 만들지 않는다. 정규화·품질 검사·추론·위치 추정 전체에 적용.
     photo_slot = BoundedSemaphore(1)
 
@@ -188,7 +246,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 "severity": saved.severity * strength if saved.color_type != "normal" else 0,
                 "edge": saved.edge * strength, "contrast": 1, "brightness": 0, "sharpness": 0,
             })
-            ai_limiter.check(client_key(request))
+            correction_limiter.check(client_key(request))
             if image is not None:
                 normalized = await read_upload(image)
             else:
@@ -312,15 +370,24 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                  tags=["작품 해설"], summary="등록 작품의 AI 해설 생성 (미검수)",
                  description="등록 원본과 카탈로그 메타데이터로 Gemini 해설을 생성합니다. 검수 완료로 저장하지 않습니다. "
                              "성공한 해설은 SQLite에 저장하고 같은 작품 요청에 재사용합니다. 생성 시 AI 호출 제한·예산을 적용합니다. fallback은 저장하지 않습니다.")
-    async def generate_narration(request: Request, response: Response, artwork_id: str):
+    async def generate_narration(request: Request, response: Response, artwork_id: str,
+                                 length: Annotated[Literal["brief", "detailed"], Query(
+                                     description="brief=간결하게(약 1분), detailed=상세하게(약 3분)")] = "brief"):
         response.headers["Cache-Control"] = "no-store"
         record = await run_in_threadpool(catalog.get, artwork_id)
         if record is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
+        curated = LONG_COMMENTARY_DIR / f"{artwork_id}.json"
+        if length == "detailed" and curated.is_file():
+            data = json.loads(await run_in_threadpool(curated.read_text, "utf-8"))
+            segments = long_segments(data["sections"])
+            text = "\n".join(segment["text"] for segment in segments)
+            return {"artwork_id": artwork_id, "mode": "both", "description": EMPTY_DESCRIPTION, "segments": segments,
+                    "text": text, "review_status": "unreviewed", "fallback": False, "warning": AI_WARNING,
+                    "length": "detailed", "estimated_seconds": data.get("estimated_seconds") or spoken_seconds(text),
+                    "sources": [{"no": s["no"], "title": s.get("title", ""), "url": s["url"]} for s in data.get("sources", [])]}
         content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
-        # Bump the version when the narration prompt/schema changes.
-        key = sha256(json.dumps(["narration-v1", getattr(gemini, "model", ""), record,
-                                 sha256(content).hexdigest()], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        key = narration_key(length, getattr(gemini, "model", ""), record, content)
         stored = await run_in_threadpool(narration_cache.get, "narration", key)
         if stored is not None:
             # Older saved results carry an older notice; always show the current one.
@@ -328,14 +395,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
 
         async def generate_and_store():
             ai_limiter.check(client_key(request))
-            normalized = await run_in_threadpool(normalize_image, content)
-            description = await run_in_threadpool(gemini.describe, normalized.content, record)
-            fallback = getattr(description, "fallback", False)
-            segments = [] if fallback else narration_segments(description.model_dump())
-            result = {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
-                      "segments": segments, "text": "\n".join(segment["text"] for segment in segments),
-                      "review_status": "unreviewed", "fallback": fallback,
-                      "warning": AI_WARNING}
+            result = await run_in_threadpool(make_narration, gemini, artwork_id, record, content, length)
+            fallback, segments = result["fallback"], result["segments"]
             if not fallback and segments:
                 await run_in_threadpool(narration_cache.put, "narration", key,
                                         json.dumps(result, ensure_ascii=False).encode())

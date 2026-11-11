@@ -247,7 +247,7 @@ class FixtureGemini:
     def read_placard(self, content):
         return self.placard
 
-    def describe(self, content, metadata=None):
+    def describe(self, content, metadata=None, brief=False):
         return Description.model_validate({"facts": ["사실"], "interpretations": [], "regions": [], "mood_keywords": []})
 
 

@@ -8,6 +8,8 @@ import unittest
 from unittest.mock import patch
 import wave
 
+import httpx
+
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
@@ -63,6 +65,33 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.sent[0]["session"]["audio"]["output"]["voice"], "marin")
         self.assertEqual(socket.sent[1]["response"]["input"][0]["content"][0]["text"], "붉은 꽃이 보여요.")
         self.assertEqual(service.budget.summary()["calls"], 1)
+        self.assertEqual(service.budget.pending_krw, 0)
+
+    async def test_daily_upstream_limit_is_explained_without_private_details(self):
+        service = self.service(FakeSocket())
+        response = httpx.Response(429, json={"error": {
+            "code": "rate_limit_exceeded", "type": "requests",
+            "message": "Rate limit reached in organization PRIVATE_ORG on requests per day (RPD): Limit 50, Used 50",
+        }})
+        client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: response))
+        with patch("Backend.speech.httpx.AsyncClient", return_value=client):
+            with self.assertRaises(HTTPException) as caught:
+                await service._fallback("붉은 꽃이 보여요.")
+        self.assertEqual(caught.exception.status_code, 429)
+        self.assertIn("오늘의", caught.exception.detail)
+        self.assertIn("저장된 음성", caught.exception.detail)
+        self.assertNotIn("PRIVATE_ORG", caught.exception.detail)
+        self.assertEqual(service.budget.pending_krw, 0)
+        self.assertEqual(service.budget.summary()["spent_krw"], 0)
+
+    async def test_fallback_credit_error_is_not_reported_as_a_retryable_delay(self):
+        service = self.service(FakeSocket())
+        response = httpx.Response(429, json={"error": {"code": "credit_balance_exhausted"}})
+        client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: response))
+        with patch("Backend.speech.httpx.AsyncClient", return_value=client):
+            with self.assertRaises(HTTPException) as caught:
+                await service._fallback("붉은 꽃이 보여요.")
+        self.assertIn("크레딧", caught.exception.detail)
         self.assertEqual(service.budget.pending_krw, 0)
 
     async def test_realtime_rate_limit_falls_back_to_speech_endpoint_and_pauses_realtime(self):

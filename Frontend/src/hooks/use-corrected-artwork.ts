@@ -9,6 +9,7 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
   const correction = serverCorrection(values, strength);
   const active = loaded && !profileError && !!id && !!source && !original && (correction.severity > 0 || correction.edge > 0);
   const key = active ? JSON.stringify([getAccessToken(), values.revision, id, source, correction]) : null;
+  const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ key: string; source?: string; error?: unknown } | null>(null);
   useEffect(() => {
     if (!key || !id) return;
@@ -27,7 +28,7 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
     return () => { alive = false; clearTimeout(timer); };
     // The key contains exactly the fields that affect the server image.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, attempt]);
   const current = state?.key === key ? state : null;
-  return { source: active && current?.source ? current.source : source ?? '', error: profileError || current?.error, loading: active && !current };
+  return { source: active && current?.source ? current.source : source ?? '', error: profileError || current?.error, loading: active && !current, reload: () => { if (profileError) void reloadProfile(); setState(null); setAttempt((value) => value + 1); } };
 }

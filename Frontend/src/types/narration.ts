@@ -3,6 +3,9 @@ import type { Description } from '@/types/artwork';
 
 export type NarrationMode = 'facts' | 'interpretations' | 'both';
 
+/** brief = 간결하게(약 1분), detailed = 상세하게(약 3분) */
+export type NarrationLength = 'brief' | 'detailed';
+
 export type NarrationSegment = {
   type: 'fact' | 'interpretation';
   /** 해석 문장은 BE가 앞에 "가능한 감정적 해석입니다."를 붙여 준다. FE에서 다시 붙이지 않는다. */
@@ -26,4 +29,9 @@ export type GeneratedNarration = Omit<Narration, 'review_status'> & {
   description?: Description;
   warning: string;
   fallback: boolean;
+  length?: NarrationLength;
+  /** 공백 제외 글자 수 ÷ 5.5 */
+  estimated_seconds?: number | null;
+  /** 상세 해설의 근거 출처 */
+  sources?: { no: number; title: string; url: string }[];
 };

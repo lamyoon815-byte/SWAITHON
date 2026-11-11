@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, NarrationMode, GeneratedNarration } from '@/types/narration';
+import type { Narration, NarrationMode, GeneratedNarration, NarrationLength } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
 import { clearSession, getAccessToken, updateSessionUser } from '@/store/auth';
 import { correctionStrength, serverCorrection, type ViewingProfile } from '@/lib/calibration';
@@ -103,7 +103,8 @@ export function getCorrectedImage(artworkId: string, profile: ViewingProfile, st
     });
     if (!res.ok) {
       if (res.status === 401 && getAccessToken() === token) await clearSession(token);
-      throw new ApiError(res.status);
+      const error = await res.json().catch(() => null) as { detail?: unknown } | null;
+      throw new ApiError(res.status, typeof error?.detail === 'string' ? error.detail : '보정본을 불러오지 못했어요. 다시 시도해 주세요.');
     }
     if (res.headers.get('X-Correction-Profile-Revision') !== profile.revision || epoch !== correctionEpoch) {
       throw new ApiError(409, '보정값이 변경되었어요. 다시 불러와 주세요.');
@@ -160,19 +161,21 @@ export async function getNarration(id: string, mode: NarrationMode = 'both'): Pr
 const generatedNarrations = new Map<string, GeneratedNarration>();
 const pendingNarrations = new Map<string, Promise<GeneratedNarration>>();
 
-/** Generated text stays unreviewed and is reused during this app session. */
-export function generateNarration(id: string): Promise<GeneratedNarration> {
-  const cached = generatedNarrations.get(id);
+/** Generated text stays unreviewed and is reused during this app session.
+ * brief = 간결하게(약 1분), detailed = 상세하게(약 3분, 미술사 정보와 출처). */
+export function generateNarration(id: string, length: NarrationLength = 'brief'): Promise<GeneratedNarration> {
+  const key = `${id}:${length}`;
+  const cached = generatedNarrations.get(key);
   if (cached) return Promise.resolve(cached);
-  const pending = pendingNarrations.get(id);
+  const pending = pendingNarrations.get(key);
   if (pending) return pending;
-  const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration`, { method: 'POST' })
+  const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration?length=${length}`, { method: 'POST' })
     .then((result) => {
       if (result.fallback || !result.segments.length) throw new ApiError(502, '해설을 준비하지 못했어요. 다시 시도해 주세요.');
-      generatedNarrations.set(id, result);
+      generatedNarrations.set(key, result);
       return result;
-    }).finally(() => pendingNarrations.delete(id));
-  pendingNarrations.set(id, task);
+    }).finally(() => pendingNarrations.delete(key));
+  pendingNarrations.set(key, task);
   return task;
 }
 

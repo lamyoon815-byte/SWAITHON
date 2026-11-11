@@ -44,6 +44,24 @@ class RealtimeRateLimited(HTTPException):
         super().__init__(429, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
 
 
+def speech_api_error(status, error):
+    """Return an actionable error without exposing upstream organization or key details."""
+    code = error.get("code", "")
+    kind = error.get("type", "")
+    message = str(error.get("message", "")).lower()
+    if code == "credit_balance_exhausted":
+        return HTTPException(429, "OpenAI API 크레딧이 부족해 음성을 만들 수 없어요. 관리자에게 충전을 요청해 주세요.")
+    if code in {"insufficient_quota", "billing_hard_limit_reached", "organization_usage_limit_exceeded", "project_spend_limit_exceeded"} or kind == "insufficient_quota":
+        return HTTPException(429, "OpenAI API 사용 예산이나 결제 한도에 도달했어요. 관리자에게 한도 확인을 요청해 주세요.")
+    if status == 429:
+        if "requests per day" in message or "tokens per day" in message:
+            return HTTPException(429, "오늘의 AI 음성 생성 한도에 도달했어요. 저장된 음성은 재생할 수 있으며, 새 음성은 한도가 풀린 뒤 생성할 수 있어요.")
+        return HTTPException(429, "AI 음성 생성 요청이 몰려 잠시 제한됐어요. 잠시 후 다시 시도해 주세요.")
+    if status in {401, 403}:
+        return HTTPException(503, "OpenAI 음성 연결 키 또는 프로젝트 권한을 확인해 주세요.")
+    return HTTPException(502, "OpenAI 음성을 만들지 못했어요. 잠시 후 다시 시도해 주세요.")
+
+
 class SpeechInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     text: str = Field(min_length=1, max_length=600)
@@ -228,7 +246,13 @@ class OpenAISpeechService:
             raise HTTPException(502, "음성 서버에 연결하지 못했어요. 다시 시도해 주세요.") from None
         if response.status_code != 200:
             self.budget.release()
-            raise HTTPException(429 if response.status_code == 429 else 502, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
+            try:
+                error = response.json().get("error", {})
+                if not isinstance(error, dict):
+                    error = {}
+            except (ValueError, AttributeError):
+                error = {}
+            raise speech_api_error(response.status_code, error)
         self.budget.record(None)  # No token usage in this response: charge the reserved maximum.
         return pcm_wav(response.content)
 
