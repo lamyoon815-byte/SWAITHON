@@ -12,6 +12,7 @@ export class NarrationEngine {
   private speaking = false;
   private audio: AudioPlayer | null = null;
   private subscription: { remove(): void } | null = null;
+  private audioModeReady = false;
 
   constructor(
     private onIndex: (i: number) => void,
@@ -21,7 +22,16 @@ export class NarrationEngine {
   ) {}
 
   configure(config: Config) {
+    const changed = config.sentences[0] !== this.config.sentences[0];
     this.config = config;
+    // Have the first sentence ready before the person presses play.
+    if (changed) this.prefetch(0);
+  }
+
+  /** Generate a sentence's audio in the background so it plays without a gap. Failures surface when it is played. */
+  private prefetch(i: number) {
+    const text = this.config.sentences[i];
+    if (text) void getSpeechAudio(text).catch(() => undefined);
   }
 
   private dispose() {
@@ -45,9 +55,14 @@ export class NarrationEngine {
       else if (i + 1 < this.config.sentences.length) this.speakAt(i + 1);
       else { this.stop(); this.current = 0; this.onIndex(0); }
     };
+    // While this sentence is prepared and read, the next one is generated (the server makes two at a time).
+    if (!this.config.repeat) this.prefetch(i + 1);
     try {
       stopSpeaking();
-      await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false, interruptionMode: 'duckOthers' });
+      if (!this.audioModeReady) {
+        await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false, interruptionMode: 'duckOthers' });
+        this.audioModeReady = true;
+      }
       if (mine !== this.token) return;
       const uri = await getSpeechAudio(text);
       if (mine !== this.token) return;

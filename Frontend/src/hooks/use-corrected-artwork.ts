@@ -11,13 +11,15 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
   const key = active ? JSON.stringify([getAccessToken(), values.revision, id, source, correction]) : null;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ key: string; source?: string; error?: unknown } | null>(null);
+  // Last corrected picture per artwork, kept on screen while another strength loads.
+  const [previous, setPrevious] = useState<{ id: string; source: string } | null>(null);
   useEffect(() => {
     if (!key || !id) return;
     let alive = true;
     // Sliders may move several times; request only the value the user settles on.
     const timer = setTimeout(() => {
       getCorrectedImage(id, values, strength).then(
-        (uri) => { if (alive) setState({ key, source: uri }); },
+        (uri) => { if (alive) { setState({ key, source: uri }); setPrevious({ id, source: uri }); } },
         (error) => {
           if (!alive) return;
           setState({ key, error });
@@ -34,6 +36,9 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
   const current = state?.key === key ? state : cached ? { key: key!, source: cached } : null;
   // While the first corrected image is on its way, show nothing rather than the uncorrected original,
   // so the picture never flips from "almost corrected" to corrected.
-  const shown = !active ? source ?? '' : current?.source ?? (current?.error ? source ?? '' : '');
+  // While a new strength is on its way, keep the previous corrected picture of the same artwork on screen
+  // (the slider must never flash to an empty "preparing" box). Only the very first load shows nothing.
+  const stale = active && id && previous?.id === id ? previous.source : '';
+  const shown = !active ? source ?? '' : current?.source ?? (current?.error ? source ?? '' : stale);
   return { source: shown, error: profileError || current?.error, loading: active && !current, reload: () => { if (profileError) void reloadProfile(); setState(null); setAttempt((value) => value + 1); } };
 }

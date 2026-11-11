@@ -80,12 +80,15 @@ test('skipping ignores a slow previous sentence and speed changes do not generat
     ? new Promise((resolve) => { finishFirst = resolve; }) : Promise.resolve('file://second.wav'));
   engine.play(); await tick();
   engine.goTo(1); await tick();
+  const before = requests.length;
   engine.changeRate(1.5);
   finishFirst('file://first.wav'); await tick();
   assert.equal(players.length, 1);
   assert.equal(players[0].uri, 'file://second.wav');
   assert.equal(players[0].rate, 1.5);
-  assert.equal(requests.length, 2);
+  // A speed change reuses the audio; only the two sentences were ever generated (the real cache dedupes repeats).
+  assert.equal(requests.length, before);
+  assert.deepEqual([...new Set(requests)].sort(), ['둘째 문장', '첫 문장'].sort());
   engine.stop();
 });
 
@@ -109,11 +112,23 @@ test('an OpenAI failure is visible and never silently falls back to the old voic
   assert.equal(device.length, 0);
 });
 
+test('narration prefetches the next sentence so it plays without a gap', async () => {
+  const { engine, requests, players } = setup();
+  assert.deepEqual(requests, ['첫 문장']);  // ready before play is pressed
+  engine.play(); await tick();
+  assert.ok(requests.includes('둘째 문장'));
+  players[0].finish(); await tick();
+  assert.equal(players[1].uri, 'file://둘째 문장.wav');
+  engine.stop();
+});
+
 test('narration always uses GPT audio and first stops any screen announcement', async () => {
   const { engine, requests, device, players, stops } = setup();
   engine.play(); await tick();
   assert.equal(stops(), 1);
-  assert.deepEqual(requests, ['첫 문장']);
+  // The first sentence is played and the next one is prepared in the background.
+  assert.equal(requests.at(-1), '첫 문장');
+  assert.ok(requests.includes('둘째 문장'));
   assert.equal(device.length, 0);
   assert.equal(players[0].plays, 1);
   engine.stop();
