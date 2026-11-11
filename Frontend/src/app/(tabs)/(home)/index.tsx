@@ -6,7 +6,7 @@
  * 목록은 불러오는 중 · 오류 · 빈 상태 · 결과 네 가지를 모두 그린다.
  */
 
-import { router } from 'expo-router';
+import { router, useScrollToTop } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -77,6 +77,7 @@ export default function HomeScreen() {
   const artworksRes = useResource(museumId ? `artworks:${museumId}:${page}` : null,
     () => getMuseumArtworkPage(museumId!, (page - 1) * ArtworkPageSize, ArtworkPageSize));
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  useScrollToTop(scroll);
   const listY = useRef(0);
 
   const museum = museumsRes.data?.find((m) => m.id === museumId);
