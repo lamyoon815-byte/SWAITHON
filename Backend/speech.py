@@ -1,5 +1,6 @@
 """Server-owned OpenAI Realtime synthesis; no API key or upstream socket reaches the app."""
 import asyncio
+from contextlib import asynccontextmanager
 import base64
 from collections import OrderedDict
 from hashlib import sha256
@@ -182,11 +183,22 @@ class OpenAISpeechService:
         while sum(len(item) for item in self.cache.values()) > 24 * 1024 * 1024 or len(self.cache) > 32:
             self.cache.popitem(last=False)
 
+    @asynccontextmanager
+    async def _slot(self):
+        """Wait for a free generation slot (a sentence takes a few seconds) instead of turning the request
+        away: several listeners and the app's look-ahead often ask at the same moment."""
+        try:
+            await asyncio.wait_for(self.slots.acquire(), timeout=30)
+        except TimeoutError:
+            raise HTTPException(503, "음성을 만들고 있어요. 잠시 후 다시 시도해 주세요.", headers={"Retry-After": "2"}) from None
+        try:
+            yield
+        finally:
+            self.slots.release()
+
     async def _generate(self, text, model=None):
         model = model or self.model
-        if self.slots.locked():
-            raise HTTPException(503, "음성을 만들고 있어요. 잠시 후 다시 시도해 주세요.", headers={"Retry-After": "2"})
-        async with self.slots:
+        async with self._slot():
             self.budget.reserve()
             settled, requested = False, False
             try:
