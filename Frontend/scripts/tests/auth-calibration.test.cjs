@@ -254,6 +254,34 @@ test('each slider level selects its matching bundled color and edge preview, wit
 });
 const flow = load('lib/calibration-flow.ts', { '@/assets/images/calibration': { CALIBRATION: manifest } });
 
+test('single-photo correction preview covers every color/edge combination with one stable original and no server request', () => {
+  const indexPath = path.join(__dirname, '../../assets/images/correction-preview/index.ts');
+  const js = ts.transpileModule(fs.readFileSync(indexPath, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const exports = {};
+  vm.runInNewContext(js, { exports, require(relative) {
+    const asset = path.resolve(path.dirname(indexPath), relative);
+    assert(fs.existsSync(asset), `Missing combined preview: ${relative}`);
+    return asset;
+  } });
+  const { combinedCorrectionPreview } = load('lib/combined-correction-preview.ts', { '@/assets/images/correction-preview': exports });
+  const original = combinedCorrectionPreview({ color_type: 'normal', severity: 0, edge: 0 }, true);
+  const unique = new Set();
+  for (const color_type of ['normal', 'protan', 'deutan', 'tritan']) {
+    for (let severity = 0; severity <= 5; severity++) {
+      for (let edge = 0; edge <= 5; edge++) {
+        const values = { color_type, severity: severity / 5, edge: edge / 5, contrast: 1.4, brightness: 0.3, sharpen: 1 };
+        const source = combinedCorrectionPreview(values);
+        unique.add(source);
+        assert.equal(combinedCorrectionPreview(values, true), original);
+        assert.equal(combinedCorrectionPreview({ ...values, contrast: 0.5, brightness: -0.5, sharpen: 0 }), source, 'Skia parameters must not be baked into the image');
+        if (color_type === 'normal' || severity === 0) assert.equal(source, combinedCorrectionPreview({ ...values, color_type: 'normal', severity: 0 }));
+        else assert(source.endsWith(`farmhouse-${color_type}-${severity * 20}-edge-${edge * 20}.jpg`));
+      }
+    }
+  }
+  assert.equal(unique.size, 96);
+});
+
 test('failed calibration steps never auto-select maximum correction', () => {
   let state = flow.advanceCalibration({ ...flow.initialCalibration(), phase: 'manual' }, { type: 'choose', value: 'deutan' });
   while (state.phase === 'color') {
@@ -344,6 +372,28 @@ function apiClient(respond, token = 'saved-token') {
   });
   return { api, calls, cleared: () => cleared };
 }
+
+test('home artwork pages request 20 at a time with correct offsets while other callers retain the 100-item default', async () => {
+  const works = Array.from({ length: 45 }, (_, index) => ({ id: `work-${index + 1}`, number: String(index + 1), museum_id: 'museum one' }));
+  const { api, calls } = apiClient((url) => {
+    const params = new URL(url).searchParams;
+    const offset = Number(params.get('offset'));
+    const limit = Number(params.get('limit'));
+    return { ok: true, status: 200, json: async () => ({ items: works.slice(offset, offset + limit).reverse(), total: works.length }) };
+  });
+  const pages = await Promise.all([0, 20, 40].map((offset) => api.getMuseumArtworkPage('museum one', offset, 20)));
+  assert.deepEqual(pages.map((page) => page.items.length), [20, 20, 5]);
+  assert.equal(new Set(pages.flatMap((page) => page.items.map((work) => work.id))).size, 45);
+  assert.deepEqual(pages.flatMap((page) => page.items.map((work) => Number(work.number))), Array.from({ length: 45 }, (_, index) => index + 1));
+  calls.forEach(({ url }, index) => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get('limit'), '20');
+    assert.equal(params.get('offset'), String(index * 20));
+    assert.equal(params.get('museum_id'), 'museum one');
+  });
+  await api.getMuseumArtworks('museum one');
+  assert.equal(new URL(calls.at(-1).url).searchParams.get('limit'), '100');
+});
 
 test('login sends credentials without an existing bearer token', async () => {
   const { api, calls } = apiClient(() => ({ ok: true, status: 200, json: async () => loginResult }));

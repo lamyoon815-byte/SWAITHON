@@ -52,6 +52,7 @@ const PressedScale = 0.96;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const SkeletonRows = 3;
+const ArtworkPageSize = 20;
 
 export default function HomeScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -71,8 +72,8 @@ export default function HomeScreen() {
   const { settings, loaded } = useSettings();
   const museumId = settings.recent_museum_id;
   const museumsRes = useResource('museums', getMuseums);
-  const artworksRes = useResource(museumId, () => getMuseumArtworkPage(museumId!));
-  // Large museums have thousands of works: show 100 at a time and append on request.
+  const artworksRes = useResource(museumId, () => getMuseumArtworkPage(museumId!, 0, ArtworkPageSize));
+  // 큰 미술관도 한 번에 20점씩 요청하고 더 보기를 누르면 다음 페이지를 추가한다.
   const [more, setMore] = useState<{ museumId: string | null; items: Artwork[] }>({ museumId: null, items: [] });
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -84,7 +85,7 @@ export default function HomeScreen() {
     if (!museumId || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await getMuseumArtworkPage(museumId, works.length);
+      const page = await getMuseumArtworkPage(museumId, works.length, ArtworkPageSize);
       setMore((previous) => ({ museumId, items: [...(previous.museumId === museumId ? previous.items : []), ...page.items] }));
     } catch {
       showToast('작품을 더 불러오지 못했어요', 'error');
@@ -332,6 +333,9 @@ function WayButton({ ios, android, label, hint, palette, onPress }: WayButtonPro
             />
           </View>
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
             style={[styles.wayLabel, { color: pressed ? palette.highlightText : palette.text }]}>
             {label}
           </Text>
@@ -411,23 +415,23 @@ const styles = StyleSheet.create({
     flexBasis: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     minHeight: MinTouchTarget + 8,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderWidth: 1.5,
     borderRadius: 20,
   },
   wayIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   wayLabel: {
     flexShrink: 1,
-    fontSize: FontSize.label,
+    fontSize: 16,
     fontWeight: 700,
   },
   listHeader: {

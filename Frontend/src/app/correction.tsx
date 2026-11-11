@@ -1,6 +1,5 @@
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -20,7 +19,8 @@ import { CalibrationSlider } from '@/components/mypage/calibration-slider';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
-import { correctionPreview, correctionSettings, correctionSettingsChanged, type CorrectionPreview } from '@/lib/correction-settings';
+import { correctionSettings, correctionSettingsChanged } from '@/lib/correction-settings';
+import { combinedCorrectionPreview } from '@/lib/combined-correction-preview';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
 import type { ViewingSettings } from '@/types/profile';
 
@@ -30,7 +30,6 @@ export default function CorrectionScreen() {
   const palette = getPalette('dark', profile.high_contrast);
   const [barHeight, setBarHeight] = useState(0);
   const [draft, setDraft] = useState<ViewingSettings | null>(null);
-  const [previewMode, setPreviewMode] = useState<CorrectionPreview>('color');
   const [original, setOriginal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -40,8 +39,7 @@ export default function CorrectionScreen() {
   const saved = correctionSettings(profile);
   const values = draft ?? saved;
   const dirty = correctionSettingsChanged(values, saved);
-  const preview = correctionPreview(values, previewMode, original);
-  const colorPlate = correctionPreview(values, 'color', original).plate;
+  const preview = combinedCorrectionPreview(values, original);
   const disabled = !loaded || error || saving;
 
   const disablePrevention = usePreventRemove((dirty || saving) && !leaving, ({ repeat }) => {
@@ -105,20 +103,20 @@ export default function CorrectionScreen() {
         <View style={styles.headerSpace} />
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: barHeight + 40 }]}>
+      <View style={styles.pinnedPreview}>
         <CorrectionCanvas
-          source={preview.artwork}
-          accessibilityLabel={preview.label}
+          source={preview}
+          accessibilityLabel="반 고흐의 프로방스의 농가, 색 보정과 윤곽선 강조를 함께 적용한 미리보기"
           correction={{ ...values, strength: 1 }}
           original={original}
           palette={palette}
           style={styles.preview}
         />
-        <SegmentedControl accessibilityLabel="미리보기 항목" palette={palette} value={previewMode} onChange={setPreviewMode}
-          options={[{ value: 'color', label: '색 보정' }, { value: 'edge', label: '윤곽선 강조' }] as const} />
         <SegmentedControl accessibilityLabel="보기 방식" palette={palette} value={original ? 'original' : 'corrected'} onChange={(next) => setOriginal(next === 'original')}
           options={[{ value: 'corrected', label: '보정본' }, { value: 'original', label: '원본' }] as const} />
+      </View>
 
+      <ScrollView style={styles.settingsScroll} contentContainerStyle={[styles.content, { paddingBottom: barHeight + 40 }]}>
         {(!loaded || error) && (
           <Text accessibilityLiveRegion="polite" style={[styles.note, { color: palette.textSecondary }]}>
             {error ? '저장된 보정값을 불러오지 못했어요.' : '보정값을 불러오는 중이에요.'}
@@ -133,7 +131,7 @@ export default function CorrectionScreen() {
               {(Object.keys(CALIBRATION_COLOR_LABELS) as CalibrationColorType[]).map((type) => {
                 const selected = values.color_type === type;
                 return <PressableScale key={type} accessibilityRole="radio" accessibilityLabel={CALIBRATION_COLOR_LABELS[type]} accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
-                  onPress={() => { setDraft({ ...values, color_type: type, severity: type === 'normal' ? 0 : values.severity }); setPreviewMode('color'); }}
+                  onPress={() => setDraft({ ...values, color_type: type, severity: type === 'normal' ? 0 : values.severity })}
                   style={({ pressed }) => [styles.colorChoice, { backgroundColor: selected ? palette.highlight : palette.fill, borderColor: selected ? palette.highlight : palette.border, opacity: disabled || original ? 0.4 : pressed ? 0.7 : 1 }]}>
                   <Text lineBreakStrategyIOS="hangul-word" style={[styles.colorChoiceLabel, { color: selected ? palette.highlightText : palette.text, fontWeight: selected ? 800 : 600 }]}>{CALIBRATION_COLOR_LABELS[type]}</Text>
                 </PressableScale>;
@@ -142,13 +140,12 @@ export default function CorrectionScreen() {
           </View>
           <View style={[styles.divider, { backgroundColor: palette.outline }]} />
           <CalibrationSlider label="색 보정 세기" value={values.severity} disabled={disabled || original || values.color_type === 'normal'} palette={palette}
-            onChange={(severity) => { setDraft({ ...values, severity }); setPreviewMode('color'); }} />
-          {values.color_type === 'normal' ? <Text style={[styles.cardNote, { color: palette.textSecondary }]}>색 보정 종류를 선택하면 세기를 조절할 수 있어요.</Text>
-            : <Image source={colorPlate} contentFit="contain" transition={0} recyclingKey={`${values.color_type}-${original ? 0 : values.severity}`} style={styles.plate} accessible accessibilityLabel={original ? '색 보정 전 숫자 그림' : `색 보정 ${Math.round(values.severity * 100)}% 숫자 그림`} />}
+            onChange={(severity) => setDraft({ ...values, severity })} />
+          {values.color_type === 'normal' && <Text style={[styles.cardNote, { color: palette.textSecondary }]}>색 보정 종류를 선택하면 세기를 조절할 수 있어요.</Text>}
         </View>
         <View style={[styles.controls, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
           <CalibrationSlider label="윤곽선 강조" value={values.edge} disabled={disabled || original} palette={palette}
-            onChange={(edge) => { setDraft({ ...values, edge }); setPreviewMode('edge'); }} />
+            onChange={(edge) => setDraft({ ...values, edge })} />
         </View>
 
         <View style={[styles.controls, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
@@ -204,6 +201,8 @@ const styles = StyleSheet.create({
   header: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   title: { flex: 1, fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center' },
   headerSpace: { width: MinTouchTarget },
+  pinnedPreview: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingBottom: Spacing.three, gap: Spacing.three },
+  settingsScroll: { flex: 1 },
   content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingBottom: Spacing.three, gap: Spacing.three },
   preview: { height: 210, borderRadius: 24 },
   controls: { paddingHorizontal: Spacing.three, borderWidth: 1.5, borderRadius: 24 },
@@ -213,7 +212,6 @@ const styles = StyleSheet.create({
   colorChoice: { flexBasis: '45%', flexGrow: 1, minHeight: MinTouchTarget, padding: Spacing.two, borderWidth: 2, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   colorChoiceLabel: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
   cardNote: { fontSize: FontSize.label, lineHeight: 27, paddingBottom: Spacing.three },
-  plate: { width: '100%', height: 160, marginBottom: Spacing.three },
   divider: { height: 1 },
   note: { fontSize: FontSize.label, lineHeight: 27 },
   linkRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12 },

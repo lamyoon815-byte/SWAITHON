@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Text, TextInput } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,7 +40,7 @@ export default function MyPageScreen() {
   const palette = getPalette('dark', false);
   const bottomInset = useTabBarInset();
   const { settings, loaded, updateSettings } = useSettings();
-  const [sheet, setSheet] = useState<'font' | 'narration' | 'photo' | null>(null);
+  const [sheet, setSheet] = useState<'font' | 'narration' | 'photo' | 'name' | null>(null);
   const { session } = useAuth();
   const user = session?.user ?? null;
   const { avatar, setAvatar, clearAvatar } = useAvatar(user?.id);
@@ -80,9 +80,9 @@ export default function MyPageScreen() {
     }
   };
 
-  const openProfile = () => {
+  const openName = () => {
     setNameDraft(user?.nickname ?? '');
-    openSheet('photo');
+    openSheet('name');
   };
   const saveName = async () => {
     const nickname = nameDraft.trim();
@@ -90,7 +90,8 @@ export default function MyPageScreen() {
     setSavingName(true);
     try {
       await updateNickname(nickname);
-      showToast('이름을 바꿨어요', 'success');
+      setSheet(null);
+      showToast('저장했어요.', 'success', 1750);
     } catch {
       showToast('이름을 바꾸지 못했어요. 다시 시도해 주세요', 'error');
     } finally {
@@ -139,25 +140,25 @@ export default function MyPageScreen() {
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + Spacing.four }]}>
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>마이페이지</Text>
-        {/* 프로필 카드 전체가 버튼: 누르면 이름과 사진을 바꾸는 시트가 열린다. */}
-        <PressableScale accessibilityRole="button" accessibilityLabel={user ? `${user.nickname}, ${user.email}. 프로필 수정` : '프로필 불러오는 중'}
-          accessibilityHint="이름과 프로필 사진을 바꿀 수 있어요" disabled={!user} onPress={openProfile}
-          pressedScale={0.98} background={palette.surface} pressedBackground={palette.fill}
-          style={[styles.card, { borderColor: palette.outline }, styles.profileCard]}>
+        <View style={[styles.card, card, styles.profileCard]}>
           <View style={styles.profileRow}>
-            <View>
+            <PressableScale accessibilityRole="button" accessibilityLabel="프로필 사진 변경" accessibilityHint="앨범에서 고르거나 사진을 찍어 프로필 사진을 바꿔요" disabled={!user}
+              onPress={() => openSheet('photo')} style={styles.avatarButton}>
               <Avatar uri={avatar} name={user?.nickname} palette={palette} />
               {user && <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.cameraBadge, { backgroundColor: palette.text, borderColor: palette.surface }]}>
-                <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={14} tintColor={palette.background} />
+                <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'photo_camera' }} size={14} tintColor={palette.background} />
               </View>}
-            </View>
+            </PressableScale>
+            <PressableScale accessibilityRole="button" accessibilityLabel={user ? `${user.nickname}, 이름 변경` : '프로필 불러오는 중'} accessibilityHint="이름만 변경해요" disabled={!user}
+              onPress={openName} pressedScale={0.98} background={palette.surface} pressedBackground={palette.fill} style={styles.nameButton}>
             <View style={styles.profileTexts}>
               <Text numberOfLines={1} style={[styles.profileName, { color: palette.text }]}>{user?.nickname ?? '불러오는 중'}</Text>
               {!!user && <Text numberOfLines={1} style={[styles.profileEmail, { color: palette.textSecondary }]}>{user.email}</Text>}
             </View>
             {!!user && <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={20} weight="semibold" tintColor={palette.text} />}
+            </PressableScale>
           </View>
-        </PressableScale>
+        </View>
         <View style={styles.section}>
           <Text accessibilityRole="header" style={[styles.sectionTitle, styles.settingsHeading, { color: palette.text }]}>내 화면 설정</Text>
           <View style={[styles.card, card]}>
@@ -172,6 +173,18 @@ export default function MyPageScreen() {
             <SettingRow label="글씨 크기" value={loaded ? fontLabel : '불러오는 중'} icon={{ ios: 'textformat.size', android: 'format_size' }} palette={palette} onPress={() => openSheet('font')} disabled={!loaded} />
             <View style={[styles.divider, { backgroundColor: palette.outline }]} />
             <SettingRow label="해설 방식" value={profileLoaded ? narrationLabel : '불러오는 중'} icon={{ ios: 'headphones', android: 'headphones' }} palette={palette} onPress={openNarration} disabled={!profileLoaded} />
+            <View style={[styles.divider, { backgroundColor: palette.outline }]} />
+            <View style={styles.row}>
+              <View accessible={false} importantForAccessibility="no-hide-descendants"><SymbolView name={{ ios: 'music.note', android: 'music_note', web: 'music_note' }} size={26} tintColor={palette.text} /></View>
+              <View style={styles.rowText}>
+                <Text style={[styles.label, { color: palette.text }]}>배경 음악</Text>
+                <Text style={[styles.description, { color: palette.textSecondary }]}>지정한 음원을 연결하면 재생돼요.</Text>
+              </View>
+              <Text style={[styles.value, { color: palette.textSecondary }]}>{settings.music_autoplay ? 'ON' : 'OFF'}</Text>
+              <Switch accessibilityLabel="배경 음악" accessibilityState={{ checked: settings.music_autoplay, disabled: !loaded }} disabled={!loaded} value={settings.music_autoplay}
+                trackColor={{ false: palette.outline, true: palette.highlight }} thumbColor={palette.text} ios_backgroundColor={palette.outline}
+                onValueChange={(music_autoplay) => { void updateSettings({ music_autoplay }); }} />
+            </View>
           </View>
           <View style={[styles.card, card]}>
             <SettingRow label="관람 기록" icon={{ ios: 'clock.arrow.circlepath', android: 'history' }} palette={palette} onPress={() => router.push('/history')} />
@@ -187,29 +200,25 @@ export default function MyPageScreen() {
             </PressableScale>
           </>
         )}
-        {/* 자주 쓰지 않아 설정 목록에서 빼고, 맨 아래 작은 글자 버튼으로만 둔다. */}
-        <View style={styles.introLink}>
-          <TextButton label="앱 소개 다시 보기" palette={palette} onPress={() => router.push('/onboarding')} />
-        </View>
       </ScrollView>
-      <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : '프로필 사진'} palette={palette} dismissible={!savingMode} onClose={() => setSheet(null)}>
+      <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : shown === 'name' ? '이름' : '프로필 사진'} palette={palette} dismissible={!savingMode && !savingName} onClose={() => setSheet(null)}>
                 {shown === 'photo' ? (
                   <>
-                    <View style={styles.photoPreview}><Avatar uri={avatar} name={nameDraft || user?.nickname} size={88} palette={palette} /></View>
-                    <Text style={[styles.fieldLabel, { color: palette.text }]}>이름</Text>
+                    <View style={styles.photoPreview}><Avatar uri={avatar} name={user?.nickname} size={88} palette={palette} /></View>
+                    <SheetRow label="앨범에서 고르기" icon={{ ios: 'photo.on.rectangle', android: 'photo_library' }} palette={palette} onPress={() => { void pickPhoto('library'); }} />
+                    <SheetRow label="사진 찍기" icon={{ ios: 'camera', android: 'photo_camera' }} palette={palette} onPress={() => { void pickPhoto('camera'); }} />
+                    {avatar && <SheetRow label="기본 이미지로" icon={{ ios: 'person.crop.circle', android: 'account_circle' }} palette={palette} onPress={() => { void resetPhoto(); }} />}
+                  </>
+                ) : shown === 'name' ? (
+                  <>
                     <View style={[styles.nameField, { backgroundColor: palette.background, borderColor: palette.border }]}>
                       <TextInput value={nameDraft} onChangeText={setNameDraft} maxLength={40} placeholder="앱에서 부를 이름" placeholderTextColor={palette.textSecondary}
-                        accessibilityLabel="이름" returnKeyType="done" onSubmitEditing={() => { void saveName(); }} style={[styles.nameInput, { color: palette.text }]} />
+                        accessibilityLabel="이름" editable={!savingName} returnKeyType="done" onSubmitEditing={() => { void saveName(); }} style={[styles.nameInput, { color: palette.text }]} />
                     </View>
                     <View style={styles.buttonRow}>
                       <BigButton label={savingName ? '저장 중…' : '이름 저장'} palette={palette}
                         disabled={savingName || !nameDraft.trim() || nameDraft.trim() === user?.nickname} onPress={() => { void saveName(); }} />
                     </View>
-                    <View style={[styles.sheetDivider, { backgroundColor: palette.outline }]} />
-                    <Text style={[styles.fieldLabel, { color: palette.text }]}>프로필 사진</Text>
-                    <SheetRow label="앨범에서 고르기" icon={{ ios: 'photo.on.rectangle', android: 'photo_library' }} palette={palette} onPress={() => { void pickPhoto('library'); }} />
-                    <SheetRow label="사진 찍기" icon={{ ios: 'camera', android: 'photo_camera' }} palette={palette} onPress={() => { void pickPhoto('camera'); }} />
-                    {avatar && <SheetRow label="기본 이미지로" icon={{ ios: 'person.crop.circle', android: 'account_circle' }} palette={palette} onPress={() => { void resetPhoto(); }} />}
                   </>
                 ) : shown === 'font' ? (
                   <>
@@ -265,8 +274,8 @@ export default function MyPageScreen() {
                     </View>
                     <Text style={[styles.closeLabel, { color: palette.textSecondary }]}>닫기</Text>
                   </Pressable>
-                ) : shown === 'photo' ? (
-                  <TextButton label="닫기" accessibilityLabel="프로필 수정 창 닫기" palette={palette} onPress={() => setSheet(null)} />
+                ) : shown === 'photo' || shown === 'name' ? (
+                  <TextButton label="닫기" accessibilityLabel={shown === 'name' ? '이름 변경 창 닫기' : '프로필 사진 창 닫기'} palette={palette} disabled={savingName} onPress={() => setSheet(null)} />
                 ) : (
                   <View style={styles.buttonRow}><BigButton label="닫기" palette={palette} onPress={() => setSheet(null)} /></View>
                 )}
@@ -331,7 +340,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.four },
   // 제목·소제목·로그아웃은 카드 안 내용(테두리 1.5 + 여백 16)과 같은 선에서 시작한다. 카드 모서리가 둥근 만큼 안쪽으로.
-  title: { fontSize: FontSize.heading, fontWeight: 700, paddingLeft: CardInset, marginBottom: Spacing.four },
+  title: { fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center', marginBottom: Spacing.four },
   section: { gap: 12 },
   sectionTitle: { fontSize: FontSize.heading, fontWeight: 700, marginBottom: Spacing.two },
   settingsHeading: { paddingLeft: CardInset },
@@ -346,18 +355,17 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: 'row' },
   profileCard: { padding: Spacing.three, gap: Spacing.three, marginBottom: Spacing.four },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  avatarButton: { minWidth: MinTouchTarget, minHeight: MinTouchTarget, alignItems: 'center', justifyContent: 'center' },
+  nameButton: { flex: 1, minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12 },
   profileTexts: { flex: 1, gap: Spacing.one },
   profileName: { fontSize: FontSize.heading, fontWeight: 700 },
   profileEmail: { fontSize: FontSize.label, lineHeight: 26 },
   cameraBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   photoPreview: { alignItems: 'center', paddingVertical: Spacing.two },
-  fieldLabel: { fontSize: FontSize.label, fontWeight: 700, paddingLeft: Spacing.one },
   nameField: { minHeight: MinTouchTarget, borderWidth: 1.5, borderRadius: 16, paddingHorizontal: Spacing.three, justifyContent: 'center' },
   nameInput: { fontSize: FontSize.body, paddingVertical: 10 },
-  sheetDivider: { height: 1, marginVertical: Spacing.two },
   sectionDivider: { height: 1, marginTop: Spacing.four, marginBottom: Spacing.two },
   logout: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: CardInset, borderRadius: 16 },
-  introLink: { alignItems: 'center', marginTop: Spacing.four },
   logoutText: { fontSize: FontSize.body, fontWeight: 600 },
   sheetRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 14 },
   sheetRowIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

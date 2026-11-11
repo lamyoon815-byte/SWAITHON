@@ -14,7 +14,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { StrengthControl } from '@/components/artwork/strength-control';
@@ -36,7 +36,6 @@ import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { useHistory } from '@/hooks/use-history';
 import { useRecordViewing } from '@/hooks/use-record-viewing';
-import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
 
@@ -48,7 +47,8 @@ export default function ArtworkScreen() {
   const { items: historyItems, loaded: historyLoaded, error: historyError } = useHistory();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
-  const bottomInset = useTabBarInset();
+  const { bottom } = useSafeAreaInsets();
+  const bottomInset = bottom + Spacing.three;
   const { id, history: historyId } = useLocalSearchParams<{ id: string; history?: string }>();
   const historyRecord = historyItems.find((item) => item.id === historyId && item.artwork.id === id);
   // 과거 기기 기록의 보정값이 현재 계정의 DB 설정과 섞이지 않게 한다.
@@ -145,9 +145,6 @@ export default function ArtworkScreen() {
               style={styles.heroCanvas}
             />
           </Pressable>
-          {(corrected.loading || corrected.error) ? <Text accessibilityLiveRegion="polite" style={[styles.message, { color: palette.text }]}>
-            {corrected.loading ? '색과 윤곽선을 보정하고 있어요' : '색 보정을 잠시 쓸 수 없어요. 앱의 밝기·대비 보정만 적용했어요.'}
-          </Text> : null}
           <View style={styles.heroBack}>
             <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
           </View>

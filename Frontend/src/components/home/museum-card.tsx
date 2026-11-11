@@ -13,28 +13,21 @@ type Props = {
 };
 
 /**
- * 홈 맨 위 "현재 미술관" 카드. 고른 미술관이 있으면 강조색 카드에 "변경" 버튼,
- * 없으면 카드 전체가 "미술관을 선택해 주세요 · 선택하기" 버튼이 된다.
+ * 홈 맨 위 "현재 미술관" 카드. 변경·선택하기 모양을 유지하며 카드 전체가 선택 화면을 연다.
  */
 export function MuseumCard({ museum, palette, onChange }: Props) {
   if (museum) {
     return (
-      <View style={[styles.card, { backgroundColor: palette.highlight }]}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={`현재 미술관 ${museum.name}, 변경`} accessibilityHint="미술관 선택 화면을 열어요" onPress={onChange}
+        style={({ pressed }) => [styles.card, { backgroundColor: palette.highlight, opacity: pressed ? 0.8 : 1 }]}>
         <View style={styles.texts}>
           <Text style={[styles.caption, { color: palette.highlightText }]}>현재 미술관</Text>
           <Text style={[styles.name, { color: palette.highlightText }]}>{museum.name}</Text>
         </View>
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={`현재 미술관 ${museum.name}, 변경`}
-          onPress={onChange}
-          style={({ pressed }) => [
-            styles.pill,
-            { backgroundColor: palette.highlightText, opacity: pressed ? 0.8 : 1 },
-          ]}>
+        <View style={[styles.pill, { backgroundColor: palette.highlightText }]}>
           <Text style={[styles.pillText, { color: palette.highlight }]}>변경</Text>
-        </PressableScale>
-      </View>
+        </View>
+      </PressableScale>
     );
   }
 
@@ -87,7 +80,7 @@ const styles = StyleSheet.create({
     fontWeight: 800,
     lineHeight: 34,
   },
-  // Its own tap target ("변경"), so it gets the full 56 minimum.
+  // 카드 안의 변경·선택하기 표시. 이 부분을 눌러도 카드와 같은 동작을 한다.
   pill: {
     minHeight: MinTouchTarget,
     minWidth: MinTouchTarget,

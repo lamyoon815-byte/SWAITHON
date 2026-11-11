@@ -41,7 +41,7 @@ export default function MuseumScreen() {
   const { next } = useLocalSearchParams<{ next?: MuseumNext }>();
   const { settings, updateSettings } = useSettings();
   const { data: museums } = useResource('museums-with-counts', async () =>
-    (await getMuseums()).map((m) => ({ ...m, count: m.artwork_count })),
+    (await getMuseums()).map((m) => ({ ...m, count: m.artwork_count })).sort((a, b) => a.name.localeCompare(b.name, 'ko-KR')),
   );
 
   const [picked, setPicked] = useState<string | null>(null);
