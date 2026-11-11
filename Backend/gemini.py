@@ -79,6 +79,7 @@ class GeminiService:
                 if self.budget is not None:
                     self.budget.reserve()
                 responded = False
+                settled = False  # 예약 금액을 record()로 정산했는지
                 try:
                     with urlopen(request, timeout=45) as response:
                         raw = response.read(2 * 1024 * 1024 + 1)
@@ -92,6 +93,7 @@ class GeminiService:
                         if self.budget is not None:
                             # 응답을 받았으면 청구되므로 형식이 잘못돼도 기록한다. 토큰 수를 모르면 최대 비용으로 기록한다.
                             self.budget.record(parsed.get("usageMetadata") if isinstance(parsed, dict) else None)
+                            settled = True
                     candidate = parsed["candidates"][0]
                     if candidate.get("finishReason") != "STOP":
                         raise HTTPException(502, "AI 분석 응답이 완료되지 않았습니다. 다시 시도해 주세요.")
@@ -110,6 +112,7 @@ class GeminiService:
                     if self.budget is not None and not responded:
                         # 응답을 못 받았어도 청구됐을 수 있으므로 최대 비용으로 기록한다.
                         self.budget.record(None)
+                        settled = True
                     raise HTTPException(504, "AI 분석 응답 시간이 초과되었습니다.") from None
                 except URLError:
                     raise HTTPException(502, "AI API에 연결할 수 없습니다.") from None
@@ -117,6 +120,10 @@ class GeminiService:
                     if attempt == 0:
                         continue
                     raise GeminiSchemaError() from None
+                finally:
+                    if self.budget is not None and not settled:
+                        # 응답을 받지 못한 실패(HTTP 오류, 연결 실패)는 청구되지 않으므로 예약만 돌려준다.
+                        self.budget.release()
         finally:
             self.slots.release()
 

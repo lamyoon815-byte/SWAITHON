@@ -239,9 +239,12 @@ def write_report(result, path):
     lines += ["", "- show_artwork: 바로 이동 / confirm_candidates: 후보 확인 / analyze: AI 해설 / retake: 다시 촬영", ""]
     if result.get("training"):
         training = result["training"]
-        lines += ["## 3. 과적합 점검 (파인튜닝)", "",
+        gap_text = ("이번 평가에서는 학습·검증 성능 격차가 관찰되지 않았습니다" if abs(training["gap"]) < 0.02
+                    else f"학습·검증 성능 격차 {training['gap'] * 100:+.1f}%p가 관찰됐습니다")
+        lines += ["## 3. 학습·검증 성능 격차 점검 (파인튜닝)", "",
                   f"- 학습 그림 {training['train_images']}점, 검증 그림 {training['val_images']}점 (그림 단위로 분리, 등록·평가 작품은 학습에서 제외)",
                   f"- 같은 조건에서 학습 Top-1 {pct(training['train_top1'])} vs 검증 Top-1 {pct(training['val_top1'])} (차이 {training['gap'] * 100:+.1f}%p)",
+                  f"- 해석: {gap_text}. 격차가 작다는 것만으로 과적합이 없다고 단정할 수는 없으므로, 실제 촬영본 결과(1번 표)와 함께 판단합니다.",
                   f"- 조기 종료: {training['best_epoch']}번째 epoch에서 검증 손실이 가장 낮아 그 시점 가중치를 사용",
                   "- 최종 성능은 학습에 한 번도 쓰지 않은 실제 촬영본(위 1번 표)으로 측정", ""]
     lines += ["## 4. 처리 시간 (서버와 같은 경로, 이 컴퓨터 CPU)", "",

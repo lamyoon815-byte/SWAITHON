@@ -2,6 +2,7 @@
 
 from io import BytesIO
 import os
+import warnings
 from pathlib import Path
 import re
 from tempfile import NamedTemporaryFile
@@ -117,6 +118,10 @@ class RecognitionService:
             catalog.data_dir / ADAPTER_FILENAME, getattr(self.encoder, "model_name", ""),
             getattr(self.encoder, "pretrained", ""),
             enabled=os.environ.get("CLIP_ADAPTER", "on").strip().lower() not in {"off", "0", "false"})
+        if self.adapter is None and os.environ.get("CLIP_ADAPTER", "").strip().lower() == "on" and self.match_threshold is not None:
+            # 기준값(CLIP_*_THRESHOLD)은 어댑터를 켠 상태로 평가한 값이다. 어댑터 없이 쓰면 평가와 다른 모델에 적용된다.
+            warnings.warn("CLIP_ADAPTER=on이고 기준값이 설정됐지만 data/clip-adapter.npz를 쓸 수 없어 원래 CLIP으로 동작합니다. "
+                          "학습한 clip-adapter.npz를 data 폴더에 넣고 build_index.py를 다시 실행해 주세요.")
         # 손·바닥 같은 '작품이 아닌 사진' 판별. 문장 임베딩을 만들 수 있는 인코더에서만 켠다.
         gate_value = os.environ.get("ARTWORK_GATE_THRESHOLD", "0.5").strip()
         self.gate = None

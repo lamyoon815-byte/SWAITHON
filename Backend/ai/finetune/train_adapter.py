@@ -199,7 +199,8 @@ def main():
     REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n선택: alpha {info['alpha']} · 검증 Top-1 {baseline['val']['top1']:.1%} → {info['val']['top1']:.1%}"
           f" · 여유 {baseline['val']['margin']:.3f} → {info['val']['margin']:.3f}")
-    print(f"과적합 점검: 학습 Top-1 {info['train']['top1']:.1%} vs 검증 Top-1 {info['val']['top1']:.1%} (차이 {gap:+.1%})")
+    print(f"학습·검증 격차: 학습 Top-1 {info['train']['top1']:.1%} vs 검증 Top-1 {info['val']['top1']:.1%} (차이 {gap:+.1%})"
+          " — 격차가 작다는 것만으로 과적합이 없다고 단정할 수는 없으며, 실제 촬영본 평가로 함께 판단합니다.")
     print(f"저장: {DATA_DIR / ADAPTER_FILENAME}\n보고서: {REPORT}")
     print("다음 단계: evaluation.py로 실제 촬영본에서 파인튜닝 전/후를 비교하세요.")
 

@@ -62,6 +62,46 @@ class BudgetTests(unittest.TestCase):
                 budget.reserve()
             self.assertEqual(caught.exception.status_code, 429)
 
+    def test_in_flight_calls_are_reserved(self):
+        # 리뷰에서 재현된 경우: 예산 = 호출 1회 최대 비용일 때, 첫 호출이 끝나기 전에 온 두 번째 호출은 막아야 한다.
+        with TemporaryDirectory() as directory:
+            budget = GeminiBudget(Path(directory) / "usage.json", budget_krw=1, input_usd_per_m=0, output_usd_per_m=1e6 / 4096,
+                                  krw_per_usd=1, max_input_tokens=0, daily_limit=0)
+            self.assertAlmostEqual(budget.worst_case_call_krw, 1.0)
+            budget.reserve()
+            with self.assertRaises(HTTPException) as caught:
+                budget.reserve()
+            self.assertEqual(caught.exception.status_code, 429)
+            self.assertAlmostEqual(budget.summary()["pending_krw"], 1.0)
+            budget.release()  # 청구되지 않은 실패면 예약을 돌려준다.
+            budget.reserve()
+            budget.record({"promptTokenCount": 0, "candidatesTokenCount": 0})
+            self.assertEqual(budget.summary()["pending_krw"], 0)
+            budget.reserve()  # 실제 사용액 0원이므로 다시 호출할 수 있다.
+
+    def test_concurrent_reservations_never_exceed_budget(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        with TemporaryDirectory() as directory:
+            budget = GeminiBudget(Path(directory) / "usage.json", budget_krw=3, input_usd_per_m=0, output_usd_per_m=1e6 / 4096,
+                                  krw_per_usd=1, max_input_tokens=0, daily_limit=0)
+            barrier = Barrier(8)
+
+            def call(_):
+                barrier.wait()
+                try:
+                    budget.reserve()
+                except HTTPException:
+                    return False
+                return True
+
+            with ThreadPoolExecutor(8) as pool:
+                allowed = sum(pool.map(call, range(8)))
+            self.assertEqual(allowed, 3)  # 1원짜리 호출 8개가 동시에 와도 3원 예산이면 3개만 통과
+            for _ in range(allowed):
+                budget.record(None)
+            self.assertLessEqual(budget.summary()["spent_krw"], 3)
+
     def test_daily_limit(self):
         with TemporaryDirectory() as directory:
             budget = GeminiBudget(Path(directory) / "usage.json", budget_krw=1000, daily_limit=1)
@@ -161,6 +201,43 @@ class GateAndServiceTests(unittest.TestCase):
             plain = RecognitionService(self.store, encoder=TextEncoder())
         self.assertIsNone(plain.adapter)
         self.assertIsNone(plain.gate)
+
+
+class GeminiBudgetSettlementTests(unittest.TestCase):
+    """reserve()한 금액이 모든 경로에서 record() 또는 release()로 정산되는지 확인한다."""
+
+    def setUp(self):
+        from Backend.gemini import GeminiService
+        self.temp = TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.service = GeminiService()
+        self.service.key, self.service.model = "test-key", "test-model"
+        self.service.budget = GeminiBudget(Path(self.temp.name) / "usage.json", budget_krw=1000, daily_limit=0)
+        self.content = png("red")
+
+    def reply(self):
+        data = {"facts": ["사실"], "interpretations": [], "regions": [], "mood_keywords": []}
+        return BytesIO(json.dumps({"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(data)}]}}],
+                                   "usageMetadata": {"promptTokenCount": 1000, "candidatesTokenCount": 100}}).encode())
+
+    def test_success_records_actual_cost(self):
+        with patch("Backend.gemini.urlopen", return_value=self.reply()):
+            self.service.describe(self.content)
+        summary = self.service.budget.summary()
+        self.assertEqual(summary["pending_krw"], 0)
+        self.assertGreater(summary["spent_krw"], 0)
+
+    def test_failures_without_response_release_reservation(self):
+        from urllib.error import HTTPError, URLError
+        with patch("Backend.gemini.urlopen", side_effect=URLError("down")):
+            with self.assertRaises(HTTPException):
+                self.service.describe(self.content)
+        error = HTTPError("https://example.invalid", 500, "error", {}, BytesIO(b""))
+        with patch("Backend.gemini.urlopen", side_effect=[error, self.reply()]):
+            self.service.describe(self.content)  # 500 뒤 재시도 성공
+        summary = self.service.budget.summary()
+        self.assertEqual(summary["pending_krw"], 0)
+        self.assertAlmostEqual(summary["spent_krw"], round(self.service.budget.cost_krw(1000, 100), 1), places=1)
 
 
 class FixtureGemini:
