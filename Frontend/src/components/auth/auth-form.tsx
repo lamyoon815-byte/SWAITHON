@@ -8,14 +8,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BigButton } from '@/components/common/big-button';
 import { FontSize, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ApiError, login, register } from '@/lib/api';
 import { saveSession } from '@/store/auth';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const signup = mode === 'register';
-  const dark = useColorScheme() === 'dark';
-  const palette = getPalette(dark ? 'dark' : 'light', false);
+  const palette = getPalette('dark', false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -69,9 +67,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           </View>
           <View style={styles.content}>
             <View style={styles.heading}>
-              <Text style={[styles.brand, { color: dark ? palette.highlight : palette.text }]}>MoMi · {signup ? '회원가입' : '로그인'}</Text>
+              <Text style={[styles.brand, { color: palette.highlight }]}>MoMi</Text>
               <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
-                {signup ? '나에게 맞춘,\n새로운 감상' : '나의 속도로,\n작품을 만나다'}
+                {signup ? '회원가입' : '로그인'}
               </Text>
               <Text style={[styles.copy, { color: palette.textSecondary }]}>
                 {signup ? '편하게 볼 수 있는 나만의 미술관을 시작해요.' : '내게 편한 보기 설정으로 감상을 이어가요.'}
@@ -148,7 +146,7 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 540, alignSelf: 'center', padding: ScreenPadding, gap: Spacing.four },
   heading: { alignItems: 'center', gap: 12, paddingVertical: Spacing.two },
   brand: { fontSize: 17, fontWeight: '800', letterSpacing: 1 },
-  title: { fontSize: 36, lineHeight: 46, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },
+  title: { fontSize: 30, lineHeight: 40, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },
   copy: { fontSize: 18, lineHeight: 28, textAlign: 'center' },
   fields: { gap: 14 }, field: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, borderWidth: 2, borderRadius: 24 },
   label: { fontSize: 17, fontWeight: '700' }, inputRow: { flexDirection: 'row', alignItems: 'center' },

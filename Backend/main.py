@@ -18,6 +18,7 @@ if __package__:
     from .gemini import GeminiService
     from .ai_routes import create_ai_router
     from .ai.budget import GeminiBudget
+    from .speech import OpenAISpeechService, create_speech_router
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
@@ -26,6 +27,7 @@ else:
     from gemini import GeminiService
     from ai_routes import create_ai_router
     from ai.budget import GeminiBudget
+    from speech import OpenAISpeechService, create_speech_router
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -74,10 +76,12 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     application.state.accounts = accounts
     application.state.catalog = store
     application.state.recognition = recognition
+    application.state.speech = OpenAISpeechService(store.data_dir)
+    application.include_router(create_speech_router(application.state.speech))
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"])
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After", "X-Voice-Cache-Key"])
 
     @application.middleware("http")
     async def private_cache_control(request: Request, call_next):

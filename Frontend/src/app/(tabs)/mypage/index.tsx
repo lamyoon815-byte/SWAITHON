@@ -95,6 +95,9 @@ export default function MyPageScreen() {
             <SettingRow label="방문한 미술관" icon={{ ios: 'building.columns', android: 'account_balance' }} palette={palette} onPress={() => setSheet('museum')} />
           </View>
         </View>
+        <View style={[styles.card, card]}>
+          <SettingRow label="앱 소개 다시 보기" icon={{ ios: 'sparkles', android: 'auto_awesome' }} palette={palette} onPress={() => router.push('/onboarding')} />
+        </View>
         <View style={styles.buttonRow}>
           <BigButton label={signingOut ? '로그아웃 중…' : '로그아웃'} selected={false} palette={palette} disabled={signingOut} onPress={signOut} />
         </View>

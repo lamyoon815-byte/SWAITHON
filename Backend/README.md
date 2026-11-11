@@ -225,3 +225,21 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 - Description의 `fact_region_indices`, `interpretation_region_indices`는 해당 문장 배열과 같은 길이의 0 기반 regions 인덱스/null 배열. 생략하면 null. Gemini 생성 및 import 시 길이·범위 검증 후 narration의 각 `region_index`로 전달. 기존 검수 해설의 누락 연결은 추측하지 않고 null.
 
 실측 범위·배포 검증은 [부하 기록](../docs/recognition-load.md), FE 전체 계약은 [API 명세](../docs/api-spec.md) 참고.
+
+## OpenAI 음성 해설
+
+Gemini는 해설 텍스트를 만들고, OpenAI는 그 문장을 음성으로 읽습니다. `Backend/.env`에 별도 OpenAI 키를 설정한 뒤 서버를 재시작합니다. 키는 앱·Git에 넣지 않습니다.
+
+```dotenv
+OPENAI_API_KEY=개인_API_키
+OPENAI_TTS_MODEL=gpt-realtime-2.1-mini
+OPENAI_TTS_VOICE=marin
+```
+
+2026-11-11 [공식 안내](https://developers.openai.com/api/docs/guides/text-to-speech)에 따라 신규 연동은 Realtime API를 사용합니다. 구형 Speech API 모델은 2027-01-06 종료 예정입니다. 목소리는 `.env`의 `OPENAI_TTS_VOICE`를 `cedar`로 바꿔 비교할 수 있습니다. 실제 한국어 음색과 지연은 해당 키로 청취·측정해야 합니다.
+
+- `POST /speech`: JSON `text`(1~600자), 성공은 `audio/wav`(24kHz mono PCM16 WAV). 앱이 문장별로 재생하며 출력 transcript가 원문과 다르면 재생용 음성을 반환하지 않습니다. 공백·구두점 차이만 무시합니다.
+- 입력 텍스트·API 키는 로그에 기록하지 않습니다. 동일 모델·목소리·문장 음성은 서버 메모리에 최대 32개/24MiB 캐시합니다. 앱은 캐시 파일로 재사용하고 속도는 기기에서 조절합니다.
+- `/speech`는 별도 IP당 분당 60회 제한, 동시 생성 2개, 45초 타임아웃을 적용합니다. Gemini 호출 제한과 독립적입니다. OpenAI 키 미설정은 503이며 화면에서 기기 음성을 직접 선택할 수 있습니다.
+- **OpenAI 비용은 Gemini 예산과 별도입니다.** `OPENAI_TTS_BUDGET_KRW`(기본 12,000원), `OPENAI_TTS_DAILY_LIMIT`(기본 300회)로 제한합니다. 사용액은 `data/openai-tts-usage.json`에 기록하며 단가·환율 추정치입니다. 출력 토큰 전체를 오디오 단가로 보수적으로 계산합니다. 캐시 적중은 외부 호출·생성 비용이 없습니다.
+- 재생 도중 화면을 벗어나면 멈추며, 늦게 도착한 음성이 자동 재생되지 않습니다. 이미 시작한 서버 생성은 최대 45초 안에 완료될 수 있으며 사용액은 정산합니다.

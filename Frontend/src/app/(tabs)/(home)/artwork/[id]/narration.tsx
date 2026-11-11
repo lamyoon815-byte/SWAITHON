@@ -35,6 +35,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, getArtwork, getNarration, generateNarration } from '@/lib/api';
 import type { NarrationMode, GeneratedNarration } from '@/types/narration';
+import type { NarrationVoice } from '@/lib/narration-engine';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
 const START_RATE = DEFAULT_PROFILE.speech_rate;
@@ -60,6 +61,7 @@ export default function NarrationScreen() {
   const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
   const generationLock = useRef(false);
   const [rate, setRate] = useState(START_RATE);
+  const [voice, setVoice] = useState<NarrationVoice>('openai');
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
 
@@ -73,6 +75,7 @@ export default function NarrationScreen() {
     segments.map((s) => s.text),
     rate,
     repeat,
+    voice,
   );
 
   // Follow the sentence being read.
@@ -149,9 +152,23 @@ export default function NarrationScreen() {
           </View>
         )}
 
-        {Platform.OS === 'ios' && <Text style={{ color: palette.textSecondary, fontSize: 16, lineHeight: 24 }}>
-          소리가 안 들리면 무음 모드를 해제하고 음량을 올려 주세요.
+        <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="해설 목소리">
+          {([{ value: 'openai', label: 'OpenAI 음성' }, { value: 'device', label: '기기 음성' }] as const).map((option) => (
+            <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ checked: voice === option.value }}
+              onPress={() => { if (voice !== option.value) { player.reset(); setVoice(option.value); } }}
+              style={[styles.mode, { backgroundColor: voice === option.value ? palette.highlight : palette.surface, borderColor: voice === option.value ? palette.highlight : palette.outline }]}>
+              <Text style={{ color: voice === option.value ? palette.highlightText : palette.text, fontSize: 18, fontWeight: '700' }}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={{ color: palette.textSecondary, fontSize: 16, lineHeight: 24 }}>
+          {voice === 'openai' ? 'OpenAI가 생성한 AI 음성이에요. 처음 재생할 때 잠시 준비가 필요해요.' : '휴대폰에 설치된 음성을 사용해요.'}
+        </Text>
+        {voice === 'device' && Platform.OS === 'ios' && <Text style={{ color: palette.textSecondary, fontSize: 16, lineHeight: 24 }}>
+          기기 음성이 안 들리면 무음 모드를 해제하고 음량을 올려 주세요.
         </Text>}
+        {player.preparing && <Text accessibilityLiveRegion="polite" style={{ color: palette.text, fontSize: 18 }}>음성을 준비하고 있어요…</Text>}
+        {!!player.error && <Text accessibilityRole="alert" style={{ color: palette.text, fontSize: 18, lineHeight: 28 }}>{player.error}</Text>}
         {ai && <Text accessibilityRole="alert" style={{ color: palette.textSecondary, fontSize: 18, lineHeight: 28 }}>
           {ai.warning}
         </Text>}

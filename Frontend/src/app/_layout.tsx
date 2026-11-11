@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -6,7 +6,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ToastHost } from '@/components/common/toast';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { useSettings } from '@/hooks/use-settings';
@@ -17,7 +18,6 @@ SplashScreen.preventAutoHideAsync();
 
 // 루트 Stack. 탭 화면은 (tabs) 안에, 탭 바 없이 전체 화면으로 띄우는 화면(1-0 미술관 선택 등)은 여기에 둔다.
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const { session, loaded } = useAuth();
   const profile = useProfile();
   const { loaded: settingsLoaded } = useSettings();
@@ -27,12 +27,13 @@ export default function RootLayout() {
   }, [session]);
   return (
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
+      <ThemeProvider value={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: Colors.dark.background, card: Colors.dark.backgroundElement } }}>
+        <StatusBar style="light" />
+        <AnimatedSplashOverlay ready={loaded && profile.loaded && settingsLoaded} />
         {!loaded || !profile.loaded || !settingsLoaded ? (
           <View style={styles.loading}><ActivityIndicator size="large" accessibilityLabel="설정 불러오는 중" /></View>
         ) : (
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.dark.background } }}>
             <Stack.Protected guard={!session}>
               <Stack.Screen name="auth" />
             </Stack.Protected>
@@ -57,4 +58,4 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({ loading: { flex: 1, alignItems: 'center', justifyContent: 'center' } });
+const styles = StyleSheet.create({ loading: { backgroundColor: Colors.dark.background, flex: 1, alignItems: 'center', justifyContent: 'center' } });
