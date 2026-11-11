@@ -109,7 +109,7 @@ export function ToastHost() {
             style={[styles.pill, { backgroundColor: pill }]}>
             <SymbolView
               name={{ ios: KINDS[toast.kind].ios, android: KINDS[toast.kind].android, web: KINDS[toast.kind].android }}
-              size={26}
+              size={30}
               tintColor={KINDS[toast.kind].color}
             />
             <Text style={styles.text}>{toast.text}</Text>
@@ -127,23 +127,24 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     alignItems: 'center',
   },
+  // 저시력 사용자가 한눈에 읽도록 본문 크기(20) 글자와 넉넉한 높이.
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 56,
-    paddingVertical: 12,
-    paddingLeft: 16,
-    paddingRight: 22,
-    borderRadius: 28,
+    gap: 12,
+    minHeight: 64,
+    paddingVertical: 14,
+    paddingLeft: 18,
+    paddingRight: 24,
+    borderRadius: 32,
     boxShadow: Shadow.toast,
   },
   // White on either pill color: about 10:1 on the dark one, 12:1 on charcoal.
   text: {
     flexShrink: 1,
     color: '#FFFFFF',
-    fontSize: FontSize.label,
+    fontSize: FontSize.body,
     fontWeight: 700,
-    lineHeight: 25,
+    lineHeight: 28,
   },
 });
