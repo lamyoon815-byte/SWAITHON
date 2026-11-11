@@ -23,10 +23,17 @@ export function getSpeechAudio(text: string): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 50000);
     try {
-      const response = await fetch(`${API_URL}/speech`, {
+      const send = () => fetch(`${API_URL}/speech`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ text }), signal: controller.signal,
       });
+      let response = await send();
+      // Every voice model can hit its per-minute limit at the same moment; they free up within seconds,
+      // so wait briefly and ask again instead of leaving the sentence silent.
+      for (let retry = 0; response.status === 429 && retry < 2; retry++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        response = await send();
+      }
       if (!response.ok) {
         const error = await response.json().catch(() => null) as { detail?: string } | null;
         throw new ApiError(response.status, error?.detail ?? '음성을 만들지 못했어요.');
