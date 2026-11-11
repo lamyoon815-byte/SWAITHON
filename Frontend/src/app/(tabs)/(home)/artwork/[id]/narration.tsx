@@ -294,7 +294,7 @@ export default function NarrationScreen() {
             <GestureDetector gesture={imageGestures}>
             <Animated.View style={[styles.followLayer, followStyle]}>
               <CorrectionCanvas
-                source={profileLoaded && !corrected.loading && !corrected.error ? corrected.source : ''}
+                source={corrected.source}
                 overlay={corrected.overlay}
                 overlayAmount={corrected.overlayAmount}
                 accessibilityLabel={`${artwork.title}, ${artwork.artist}`}

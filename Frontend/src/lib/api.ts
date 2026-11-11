@@ -80,21 +80,22 @@ const pendingCorrections = new Map<string, Promise<string>>();
 let correctionEpoch = 0;
 
 /** Already corrected image for exactly this account, profile revision and strength, without waiting. */
-export function cachedCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): string | undefined {
+export function cachedCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1, maxSide?: number): string | undefined {
   const token = getAccessToken();
   if (!token || !profile.revision) return undefined;
-  const key = JSON.stringify([API_URL, token, correctionEpoch, artworkId, profile.revision, serverCorrection(profile, correctionStrength(strength))]);
+  const key = JSON.stringify([API_URL, token, correctionEpoch, artworkId, profile.revision, serverCorrection(profile, correctionStrength(strength)), maxSide ?? null]);
   return correctedImages.get(key);
 }
 
-export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): Promise<string> {
+/** maxSide: screen-sized picture (smaller download); leave it out for the zoom screen's full resolution. */
+export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1, maxSide?: number): Promise<string> {
   strength = correctionStrength(strength);
   const token = getAccessToken();
   if (!token) return Promise.reject(new ApiError(401, '로그인이 필요해요.'));
   if (!profile.revision) return Promise.reject(new ApiError(409, '보정값을 다시 불러와 주세요.'));
   const epoch = correctionEpoch;
   const correction = serverCorrection(profile, strength);
-  const key = JSON.stringify([API_URL, token, epoch, artworkId, profile.revision, correction]);
+  const key = JSON.stringify([API_URL, token, epoch, artworkId, profile.revision, correction, maxSide ?? null]);
   const cached = correctedImages.get(key);
   if (cached) return Promise.resolve(cached);
   const pending = pendingCorrections.get(key);
@@ -106,6 +107,7 @@ export function getCorrectedImage(artworkId: string, profile: ViewingProfile, st
     // 개인 보정값을 전송하거나 덮어쓰지 않는다. 서버가 현재 계정 DB에서 직접 읽는다.
     body.append('strength', String(strength));
     body.append('profile_revision', profile.revision!);
+    if (maxSide) body.append('max_side', String(maxSide));
     const res = await fetch(`${API_URL}/correction`, {
       method: 'POST', body, headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });

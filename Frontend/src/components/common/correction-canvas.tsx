@@ -20,7 +20,7 @@ import {
   useImage,
   type DataSourceParam,
 } from '@shopify/react-native-skia';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '@/components/common/text';
 import {
@@ -30,7 +30,7 @@ import {
   useSimultaneousGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
-import { useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
 import { BigButton } from '@/components/common/big-button';
 import { FontSize, type Palette } from '@/constants/a11y';
@@ -67,6 +67,8 @@ type Props = {
   overlay?: DataSourceParam;
   /** 0~1. 보통 "내 보정값 적용 비율" */
   overlayAmount?: number;
+  /** 슬라이더를 끄는 동안의 비율. 주면 React 다시 그리기 없이 UI 스레드에서 바로 반영된다(overlayAmount·correction.strength 대신 사용) */
+  liveAmount?: SharedValue<number>;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
   palette: Palette;
@@ -83,6 +85,7 @@ export function CorrectionCanvas({
   original = false,
   overlay,
   overlayAmount = 1,
+  liveAmount,
   zoomable = false,
   palette,
   style,
@@ -92,7 +95,11 @@ export function CorrectionCanvas({
   const [failedSource, setFailedSource] = useState<DataSourceParam>(null);
   const image = useImage(source || null, () => setFailedSource(source));
   const overlayImage = useImage(overlay || null);
-  const overlayOpacity = original || !overlayImage ? 0 : clamp(Number.isFinite(overlayAmount) ? overlayAmount : 1, 0, 1);
+  // The corrected picture fades in over the original when it arrives (no blank box, no hard jump).
+  const fade = useSharedValue(0);
+  useEffect(() => {
+    fade.set(overlayImage ? withTiming(1, { duration: 250 }) : 0);
+  }, [overlayImage, fade]);
   const failed = !!source && failedSource === source;
 
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -106,12 +113,22 @@ export function CorrectionCanvas({
   };
 
   const { contrast, brightness, sharpen, strength } = correction;
-  const amount = original ? 0 : Number.isFinite(strength) ? clamp(strength, 0, 1) : 1;
-  const matrix = useMemo(
-    () => correctionMatrix(contrast, brightness, amount),
-    [contrast, brightness, amount],
-  );
-  const sharpenUniforms = useMemo(() => ({ amount: sharpen * amount }), [sharpen, amount]);
+  const staticAmount = Number.isFinite(strength) ? clamp(strength, 0, 1) : 1;
+  const staticOverlay = clamp(Number.isFinite(overlayAmount) ? overlayAmount : 1, 0, 1);
+  // Everything that depends on the strength is derived on the UI thread, so dragging the slider
+  // updates the picture every frame without re-rendering the screen.
+  const live = useDerivedValue(() => (liveAmount ? clamp(liveAmount.get(), 0, 1) : -1));
+  const matrix = useDerivedValue(() => {
+    const amount = original ? 0 : live.get() >= 0 ? live.get() : staticAmount;
+    return correctionMatrix(contrast, brightness, amount);
+  });
+  const sharpenUniforms = useDerivedValue(() => ({
+    amount: sharpen * (original ? 0 : live.get() >= 0 ? live.get() : staticAmount),
+  }));
+  const overlayOpacity = useDerivedValue(() => {
+    if (original || !overlayImage) return 0;
+    return fade.get() * (live.get() >= 0 ? live.get() : staticOverlay);
+  });
   const sharpenEffect = getSharpenEffect();
 
   const scale = useSharedValue(1);
@@ -226,7 +243,7 @@ export function CorrectionCanvas({
               <ColorMatrix matrix={matrix} />
               {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
             </Image>
-            {overlayOpacity > 0 && (
+            {!!overlayImage && !original && (
               <Image
                 image={overlayImage}
                 fit="contain"

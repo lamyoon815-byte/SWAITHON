@@ -6,7 +6,9 @@
 
 import Slider from '@react-native-community/slider';
 import { SymbolView } from 'expo-symbols';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 import { Text } from '@/components/common/text';
 import { PressableScale } from '@/components/common/pressable-scale';
 
@@ -21,14 +23,37 @@ type Props = {
   disabled: boolean;
   palette: Palette;
   onChange: (value: number) => void;
+  /** 끄는 동안 매 프레임 갱신할 값(그림은 이 값을 바로 따라간다). 손을 떼면 onChange로 저장한다 */
+  live?: SharedValue<number>;
 };
 
 function percent(v: number) {
   return `${Math.round(v * 100)}%`;
 }
 
-export function StrengthControl({ value, disabled, palette, onChange }: Props) {
-  const set = (v: number) => onChange(Math.round(Math.max(0, Math.min(1, v)) * 100) / 100);
+export function StrengthControl({ value, disabled, palette, onChange, live }: Props) {
+  // While dragging only this card re-renders (the percent label); the picture follows `live`.
+  const [shown, setShown] = useState(value);
+  // Follow a new value from the screen (step buttons, another screen) without an effect.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setShown(value);
+  }
+  useEffect(() => {
+    live?.set(value);
+  }, [value, live]);
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+  const set = (v: number) => {
+    const next = Math.round(clamp01(v) * 100) / 100;
+    live?.set(next);
+    setShown(next);
+    onChange(next);
+  };
+  const drag = (v: number) => {
+    live?.set(clamp01(v));
+    setShown(clamp01(v));
+  };
 
   return (
     <View
@@ -39,7 +64,7 @@ export function StrengthControl({ value, disabled, palette, onChange }: Props) {
       ]}>
       <View style={styles.header}>
         <Text style={[styles.label, { color: palette.text }]}>내 보정값 적용 비율</Text>
-        <Text style={[styles.value, { color: palette.text }]}>{percent(value)}</Text>
+        <Text style={[styles.value, { color: palette.text }]}>{percent(shown)}</Text>
       </View>
       {disabled && (
         <Text style={[styles.note, { color: palette.textSecondary }]}>
@@ -58,10 +83,11 @@ export function StrengthControl({ value, disabled, palette, onChange }: Props) {
           style={styles.slider}
           minimumValue={0}
           maximumValue={1}
-          step={0.05}
+          step={0}
           value={value}
           disabled={disabled}
-          onValueChange={set}
+          onValueChange={drag}
+          onSlidingComplete={set}
           minimumTrackTintColor={palette.highlight}
           maximumTrackTintColor={palette.outline}
           thumbTintColor={palette.highlight}
@@ -69,8 +95,8 @@ export function StrengthControl({ value, disabled, palette, onChange }: Props) {
           accessibilityValue={{
             min: 0,
             max: 100,
-            now: Math.round(value * 100),
-            text: percent(value),
+            now: Math.round(shown * 100),
+            text: percent(shown),
           }}
         />
         <StepButton

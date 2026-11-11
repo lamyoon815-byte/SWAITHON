@@ -196,6 +196,17 @@ async def read_upload(image: UploadFile):
         await image.close()
 
 
+def shrink_jpeg(content: bytes, max_side: int) -> bytes:
+    """화면에 띄울 보정본은 원본 해상도가 필요 없어 긴 변을 줄여 전송량을 줄인다."""
+    with Image.open(BytesIO(content)) as image:
+        if max(image.size) <= max_side:
+            return content
+        image.thumbnail((max_side, max_side), Image.LANCZOS)
+        output = BytesIO()
+        image.convert("RGB").save(output, format="JPEG", quality=85, optimize=True)
+        return output.getvalue()
+
+
 def correct_jpeg(content: bytes, profile: AIProfile, corrector=None):
     if corrector is None:
         module_name = f"{__package__}.ai.correction" if __package__ else "ai.correction"
@@ -247,6 +258,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
         artwork_id: Annotated[str | None, Form()] = None,
         strength: Annotated[float, Form(ge=0, le=1, description="DB 보정값의 적용 비율. 1도 저장 강도를 초과하지 않는다")] = 1,
         profile_revision: Annotated[str | None, Form(min_length=64, max_length=64)] = None,
+        max_side: Annotated[int | None, Form(ge=256, le=4096, description="화면용으로 긴 변을 이 크기 이하로 줄여 보낸다(전송 시간 단축)")] = None,
         profile: Annotated[str | None, Form(description="사용 불가: 개인 보정값은 DB에서만 조회한다")] = None,
     ):
         try:
@@ -274,6 +286,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
                 normalized = await run_in_threadpool(normalize_image, content)
             result = await run_in_threadpool(correct_jpeg, normalized.content, selected, corrector)
+            if max_side is not None:
+                result = await run_in_threadpool(shrink_jpeg, result, max_side)
             return Response(result, media_type="image/jpeg", headers={
                 "Cache-Control": "no-store", "X-Correction-Profile-Revision": viewing.revision,
             })

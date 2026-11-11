@@ -44,7 +44,8 @@ export default function ZoomScreen() {
   const showOriginal = original === '1';
   const rawStrength = Number(strength ?? profile.strength);
   const amount = Number.isFinite(rawStrength) ? Math.max(0, Math.min(1, rawStrength)) : 1;
-  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount);
+  // Zoom needs the full-resolution corrected picture (not the screen-sized one).
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount, undefined);
   // 해설 화면과 같은 키라서 이미 받아 둔 해설을 다시 받지 않는다.
   const mode = currentProfile.narration_mode;
   const narration = useResource(id ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));

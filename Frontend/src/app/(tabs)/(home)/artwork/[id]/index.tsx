@@ -9,6 +9,7 @@ import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
  * TODO(B): 영역 터치(regions, P1).
  */
 
+import { useSharedValue } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
@@ -70,6 +71,8 @@ export default function ArtworkScreen() {
   const [original, setOriginal] = useState(false);
   const [chosenStrength, setStrength] = useState<number | null>(null);
   const strength = chosenStrength ?? profile.strength;
+  // The slider writes here every frame; the picture reads it on the UI thread (smooth dragging).
+  const liveStrength = useSharedValue(strength);
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), original, strength);
   useRecordViewing(artwork, profile, strength, original, profileLoaded && !profileError, !historyId);
 
@@ -140,6 +143,7 @@ export default function ArtworkScreen() {
               source={corrected.source}
               overlay={corrected.overlay}
               overlayAmount={corrected.overlayAmount}
+              liveAmount={original ? undefined : liveStrength}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
               correction={{ ...profile, strength }}
               original={original}
@@ -203,6 +207,7 @@ export default function ArtworkScreen() {
             disabled={original}
             palette={palette}
             onChange={setStrength}
+            live={liveStrength}
           />
         </View>
 
