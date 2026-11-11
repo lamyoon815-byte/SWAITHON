@@ -43,12 +43,17 @@ import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
-import type { NarrationMode } from '@/types/narration';
+import type { NarrationLength, NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
 const START_RATE = DEFAULT_PROFILE.speech_rate;
+
+const LENGTHS: { value: NarrationLength; label: string; hint: string }[] = [
+  { value: 'brief', label: '간결하게', hint: '약 1분, 그림 위주' },
+  { value: 'detailed', label: '상세하게', hint: '약 3분, 화가와 시대 이야기까지' },
+];
 
 const MODES: { mode: NarrationMode; label: string }[] = [
   { mode: 'both', label: '전체' },
@@ -76,10 +81,11 @@ export default function NarrationScreen() {
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  const [length, setLength] = useState<NarrationLength>('brief');
 
   // 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만든다. 같은 작품은 앱·서버 모두 저장해 두어 다시 만들지 않는다.
   const noReviewed = narrationRes.error instanceof ApiError && narrationRes.error.status === 409;
-  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}` : null, () => generateNarration(id!));
+  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}:${length}` : null, () => generateNarration(id!, length));
   const ai = aiRes.data ?? null;
   const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
     ? '해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
@@ -294,6 +300,23 @@ export default function NarrationScreen() {
         </View>
       </View>
 
+      {/* 해설 길이: 간결하게(약 1분) · 상세하게(약 3분). 검수 해설이 없어 AI 해설을 들을 때만 고른다. */}
+      {noReviewed && (
+        <View style={styles.lengthWrap}>
+          <SegmentedControl
+            accessibilityLabel="해설 길이"
+            palette={palette}
+            value={length}
+            onChange={(next) => { player.reset(); setLength(next); }}
+            options={LENGTHS.map((l) => ({ value: l.value, label: l.label, accessibilityLabel: `${l.label}, ${l.hint}` }))}
+          />
+          <Text style={[styles.lengthHint, { color: palette.textSecondary }]}>
+            {LENGTHS.find((l) => l.value === length)!.hint}
+            {ai?.estimated_seconds ? ` · 지금 해설 ${Math.max(1, Math.round(ai.estimated_seconds / 60))}분` : ''}
+          </Text>
+        </View>
+      )}
+
       {/* 그림 아래 조작 줄: 따라 확대(아이폰식 스위치) · 크게 보기 */}
       {!!artwork && (
         <View style={styles.imageTools}>
@@ -368,7 +391,7 @@ export default function NarrationScreen() {
                 ? '해설을 불러오는 중이에요'
                 : failed
                   ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
-                  : aiError ? '해설을 준비하지 못했어요' : '해설을 준비하고 있어요…'}
+                  : aiError ? '해설을 준비하지 못했어요' : length === 'detailed' ? '상세 해설을 준비하고 있어요. 30초쯤 걸려요…' : '해설을 준비하고 있어요…'}
             </Text>
             {failed && <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />}
             {missing && <>
@@ -535,6 +558,8 @@ function PillButton({
 }
 
 const styles = StyleSheet.create({
+  lengthWrap: { gap: 6, paddingHorizontal: ScreenPadding, paddingTop: Spacing.three },
+  lengthHint: { fontSize: 15, textAlign: 'center' },
   screen: { flex: 1 },
   header: {
     flexDirection: 'row',
