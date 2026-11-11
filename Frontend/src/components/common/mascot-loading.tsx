@@ -63,10 +63,12 @@ export function MascotLoading({
 }
 
 const styles = StyleSheet.create({
-  root: { alignItems: 'center', justifyContent: 'center', gap: Spacing.three, paddingHorizontal: ScreenPadding, paddingVertical: Spacing.four },
+  // flexGrow: fills the box it is placed in, so the chameleon sits in the middle both ways.
+  root: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, paddingHorizontal: ScreenPadding, paddingVertical: Spacing.four },
   compactRoot: { paddingVertical: Spacing.two },
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 100, elevation: 100 },
-  visualRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
+  // The chameleon is centered and the spinner sits under it (side by side pushed the chameleon off center).
+  visualRow: { alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   mascot: { width: 190, height: 190 },
   compactMascot: { width: 132, height: 132 },
   copy: { alignItems: 'center', gap: Spacing.one },
