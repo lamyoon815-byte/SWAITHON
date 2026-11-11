@@ -5,8 +5,7 @@
  * 전체 문장과 듣는 범위(전체 · 사실 · 해석)는 오른쪽 위 "문장 목록" 시트에서 고른다. 문장을 누르면 거기서부터 읽는다.
  * 사실/해석은 색이 아니라 "사실"·"해석" 글자 표시로 구분한다.
  * 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만들어 바로 들을 수 있게 한다(서버가 결과를 저장해 다시 만들지 않는다).
- * 생성 결과는 미검수로 표시한다. 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
- * 목소리(OpenAI · 기기)도 문장 목록 시트에서 고른다.
+ * 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
  */
 
 import { useLocalSearchParams } from 'expo-router';
@@ -73,10 +72,10 @@ export default function NarrationScreen() {
   const aiRes = useResource(noReviewed && id ? `ai-narration:${id}` : null, () => generateNarration(id!));
   const ai = aiRes.data ?? null;
   const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
-    ? 'AI 해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
+    ? '해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
     : aiRes.error instanceof ApiError && aiRes.error.status === 503
-      ? 'AI 해설을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'
-      : 'AI 해설을 만들지 못했어요. 다시 시도해 주세요.') : null;
+      ? '해설을 지금 준비할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : '해설을 준비하지 못했어요. 다시 시도해 주세요.') : null;
   const all = ai?.segments ?? narrationRes.data?.segments ?? [];
   const segments = all.filter(
     (s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'),
@@ -157,7 +156,7 @@ export default function NarrationScreen() {
             <Text lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
             {player.preparing && <Text accessibilityLiveRegion="polite" style={[styles.status, { color: palette.textSecondary }]}>음성을 준비하고 있어요…</Text>}
             {!!player.error && <Text accessibilityRole="alert" style={[styles.status, { color: palette.text }]}>{player.error}</Text>}
-            {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>{ai.warning}</Text>}
+            {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>AI 생성 해설입니다.</Text>}
           </View>
         ) : all.length > 0 ? (
           <Text style={[styles.note, { color: palette.textSecondary }]}>
@@ -170,17 +169,14 @@ export default function NarrationScreen() {
                 ? '해설을 불러오는 중이에요'
                 : failed
                   ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
-                  : aiError ? '아직 검수된 해설이 없어요' : 'AI 해설을 만들고 있어요…'}
+                  : aiError ? '해설을 준비하지 못했어요' : '해설을 준비하고 있어요…'}
             </Text>
             {failed && <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />}
             {missing && <>
-              <Text lineBreakStrategyIOS="hangul-word" style={[styles.emptyText, { color: palette.textSecondary }]}>
-                작품 사진과 정보를 바탕으로 만든 해설이에요. 전문가가 검수하지 않았다는 표시를 함께 보여 드려요.
-              </Text>
               {aiError ? <>
                 <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{aiError}</Text>
                 <PillButton label="다시 만들기" palette={palette} onPress={aiRes.reload} />
-              </> : <ActivityIndicator color={palette.text} accessibilityLabel="AI 해설을 만드는 중" />}
+              </> : <ActivityIndicator color={palette.text} accessibilityLabel="해설을 준비하는 중" />}
             </>}
           </View>
         )}

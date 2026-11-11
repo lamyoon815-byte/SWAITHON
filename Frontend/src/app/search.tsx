@@ -30,7 +30,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRecent } from '@/hooks/use-recent';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
-import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { ApiError, getArtworkByNumber, getMuseumArtworks, getMuseums } from '@/lib/api';
 import type { Artwork } from '@/types/artwork';
 
 const BarHeight = 64;
@@ -70,7 +70,7 @@ export default function SearchScreen() {
     router.push({ pathname: '/capture', params: { mode } });
   const pickMuseum = () => router.push({ pathname: '/museum', params: { next: 'number' } });
 
-  const submit = () => {
+  const submit = async () => {
     if (!num) {
       showToast('작품 옆 명패의 번호를 먼저 입력해 주세요', 'warning');
       return;
@@ -78,7 +78,19 @@ export default function SearchScreen() {
     const exact = results.find((a) => Number(a.number) === Number(num));
     const target = exact ?? (results.length === 1 ? results[0] : undefined);
     if (target) openArtwork(target.id);
-    else if (results.length === 0)
+    else if (museumId) {
+      // Only the first 100 artworks are loaded here; ask the server for the exact number.
+      try {
+        const found = await getArtworkByNumber(museumId, num.padStart(2, '0'));
+        openArtwork(found.id);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404 && results.length > 1)
+          showToast(`${num}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
+        else if (error instanceof ApiError && error.status === 404)
+          showToast(`${num}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
+        else showToast('작품을 찾지 못했어요. 잠시 후 다시 시도해 주세요', 'error');
+      }
+    } else if (results.length === 0)
       showToast(`${num}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
     else
       showToast(`${num}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
@@ -112,7 +124,7 @@ export default function SearchScreen() {
               keyboardType="number-pad"
               returnKeyType={Platform.OS === 'android' ? 'none' : 'default'}
               submitBehavior="submit"
-              maxLength={3}
+              maxLength={5}
               value={num}
               onChangeText={(v) => setNum(v.replace(/\D/g, ''))}
               style={[styles.input, { color: palette.text }]}

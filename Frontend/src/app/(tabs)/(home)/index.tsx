@@ -8,6 +8,7 @@
 
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import Animated, {
@@ -39,9 +40,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { getArtworkByNumber, getMuseumArtworkPage, getMuseums } from '@/lib/api';
 import { spokenNumbers } from '@/lib/spoken-answer';
 import { useVoiceAnswer } from '@/hooks/use-voice-answer';
+import type { Artwork } from '@/types/artwork';
 import type { MuseumNext } from '@/types/museum';
 
 const SearchBarHeight = 64;
@@ -69,11 +71,27 @@ export default function HomeScreen() {
   const { settings, loaded } = useSettings();
   const museumId = settings.recent_museum_id;
   const museumsRes = useResource('museums', getMuseums);
-  const artworksRes = useResource(museumId, () => getMuseumArtworks(museumId!));
+  const artworksRes = useResource(museumId, () => getMuseumArtworkPage(museumId!));
+  // Large museums have thousands of works: show 100 at a time and append on request.
+  const [more, setMore] = useState<{ museumId: string | null; items: Artwork[] }>({ museumId: null, items: [] });
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const museum = museumsRes.data?.find((m) => m.id === museumId);
-  const artworks = artworksRes.data;
+  const artworks = artworksRes.data && [...artworksRes.data.items, ...(more.museumId === museumId ? more.items : [])];
   const works = artworks ?? [];
+  const total = artworksRes.data?.total ?? 0;
+  const loadMore = async () => {
+    if (!museumId || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await getMuseumArtworkPage(museumId, works.length);
+      setMore((previous) => ({ museumId, items: [...(previous.museumId === museumId ? previous.items : []), ...page.items] }));
+    } catch {
+      showToast('작품을 더 불러오지 못했어요', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const failed = !!museumsRes.error || !!artworksRes.error;
   const retry = () => {
     museumsRes.reload();
@@ -88,14 +106,23 @@ export default function HomeScreen() {
       return;
     }
     voice.toggle({
-      onText: (text) => {
+      onText: async (text) => {
         const numbers = spokenNumbers(text);
         const squash = (value: string) => value.replace(/[\s.,·:;'"!?()-]/g, '').toLowerCase();
         const said = squash(text);
         const byNumber = works.find((a) => a.number && numbers.includes(String(Number(a.number))));
         const byName = said.length >= 2 ? works.find((a) => [a.title, a.original_title, a.artist, a.original_artist]
           .some((name) => name && (squash(name).includes(said) || said.includes(squash(name))))) : undefined;
-        const found = byNumber ?? byName;
+        let found = byNumber ?? byName;
+        // Only the first pages are loaded; a spoken number may belong to a work further down.
+        for (const number of found ? [] : numbers) {
+          try {
+            found = await getArtworkByNumber(museum.id, number.padStart(2, '0'));
+            break;
+          } catch {
+            // Try the next number that was heard.
+          }
+        }
         if (found) {
           showToast(`"${found.title}" 작품을 열어요`, 'success');
           openArtwork(found.id);
@@ -172,7 +199,7 @@ export default function HomeScreen() {
               </Text>
               {!!museum && artworks && (
                 <Text style={[styles.count, { color: palette.textSecondary }]}>
-                  {works.length}점
+                  {total}점
                 </Text>
               )}
             </View>
@@ -240,6 +267,15 @@ export default function HomeScreen() {
                   <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
                 </View>
               ))}
+              {works.length < total && (
+                <View style={styles.moreRow}>
+                  <PillButton
+                    label={loadingMore ? '불러오는 중…' : `더 보기 (${works.length} / ${total})`}
+                    palette={palette}
+                    onPress={() => { void loadMore(); }}
+                  />
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -447,6 +483,10 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: FontSize.label,
     fontWeight: 800,
+  },
+  moreRow: {
+    alignItems: 'center',
+    paddingTop: Spacing.three,
   },
   skeletonList: {
     gap: Spacing.three,

@@ -107,9 +107,21 @@ export async function getMuseums(): Promise<Museum[]> {
   return (await request<Page<Museum>>('/museums?limit=100')).items;
 }
 
+const byNumber = (a: Artwork, b: Artwork) => a.number.localeCompare(b.number, undefined, { numeric: true });
+
+/** One page (up to 100) of a museum's artworks in number order, plus the museum's total. */
+export async function getMuseumArtworkPage(museumId: string, offset = 0): Promise<{ items: Artwork[]; total: number }> {
+  const page = await request<Page<Artwork>>(`/artworks?limit=100&offset=${offset}&museum_id=${encodeURIComponent(museumId)}`);
+  return { items: page.items.map(fromServer).sort(byNumber), total: page.total };
+}
+
+/** The first 100 artworks. Large museums have more: use getMuseumArtworkPage / getArtworkByNumber. */
 export async function getMuseumArtworks(museumId: string): Promise<Artwork[]> {
-  const page = await request<Page<Artwork>>(`/artworks?limit=100&museum_id=${encodeURIComponent(museumId)}`);
-  return page.items.map(fromServer).sort((a, b) => a.number.localeCompare(b.number));
+  return (await getMuseumArtworkPage(museumId)).items;
+}
+
+export async function getArtworkByNumber(museumId: string, number: string): Promise<Artwork> {
+  return fromServer(await request<Artwork>(`/artworks/by-number?number=${encodeURIComponent(number)}&museum_id=${encodeURIComponent(museumId)}`));
 }
 
 export async function getArtwork(id: string): Promise<Artwork> {
@@ -131,7 +143,7 @@ export function generateNarration(id: string): Promise<GeneratedNarration> {
   if (pending) return pending;
   const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration`, { method: 'POST' })
     .then((result) => {
-      if (result.fallback || !result.segments.length) throw new ApiError(502, 'AI 해설을 생성하지 못했어요. 다시 시도해 주세요.');
+      if (result.fallback || !result.segments.length) throw new ApiError(502, '해설을 준비하지 못했어요. 다시 시도해 주세요.');
       generatedNarrations.set(id, result);
       return result;
     }).finally(() => pendingNarrations.delete(id));

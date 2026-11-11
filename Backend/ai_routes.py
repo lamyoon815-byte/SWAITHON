@@ -93,6 +93,9 @@ class GeneratedNarrationResult(AnalysisResult):
     text: str
 
 
+
+AI_WARNING = "AI 생성 해설입니다."
+
 def narration_segments(description: dict, mode: str = "both") -> list[dict]:
     segments = []
     if mode in {"facts", "both"}:
@@ -292,7 +295,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
         description = await run_in_threadpool(gemini.describe, normalized.content)
         return {"description": description.model_dump(), "review_status": "unreviewed",
                 "fallback": getattr(description, "fallback", False),
-                "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
+                "warning": AI_WARNING}
 
     @router.post("/artworks/{artwork_id}/narration", response_model=GeneratedNarrationResult,
                  tags=["작품 해설"], summary="등록 작품의 AI 해설 생성 (미검수)",
@@ -309,7 +312,8 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                                  sha256(content).hexdigest()], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         stored = await run_in_threadpool(narration_cache.get, "narration", key)
         if stored is not None:
-            return json.loads(stored)
+            # Older saved results carry an older notice; always show the current one.
+            return {**json.loads(stored), "warning": AI_WARNING}
 
         async def generate_and_store():
             ai_limiter.check(client_key(request))
@@ -320,7 +324,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
             result = {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
                       "segments": segments, "text": "\n".join(segment["text"] for segment in segments),
                       "review_status": "unreviewed", "fallback": fallback,
-                      "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
+                      "warning": AI_WARNING}
             if not fallback and segments:
                 await run_in_threadpool(narration_cache.put, "narration", key,
                                         json.dumps(result, ensure_ascii=False).encode())

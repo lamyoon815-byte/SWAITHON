@@ -5,6 +5,8 @@ export type Museum = {
   name: string;
   /** "서울 종로구" */
   area: string;
+  /** 등록된 작품 수 */
+  artwork_count: number;
 };
 
 /** 1-0 미술관 선택 뒤 이어서 할 동작 (`/museum?next=`). */
