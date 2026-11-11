@@ -27,6 +27,9 @@ import { saveVoiceAnswer } from '@/lib/api';
 import { matchSpokenChoice, spokenNumbers, spokenYesNo } from '@/lib/spoken-answer';
 import { stopSpeaking } from '@/lib/speech';
 import { advanceCalibration, initialCalibration, type CalibrationAction } from '@/lib/calibration-flow';
+import { CALIBRATION_COLOR_LABELS } from '@/types/calibration';
+
+const FOUND_MASCOT = require('@/assets/images/mascot/found.png');
 
 /** 결과가 애매할 때 비교해 보여 줄 보정 종류(같은 순서로 그림 1·2·3). 이름 대신 그림으로 고른다. */
 const COMPARE_TYPES = ['protan', 'deutan', 'tritan'] as const;
@@ -245,7 +248,7 @@ export default function CalibrationScreen() {
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>색각 맞춤 테스트</Text>
         <View style={styles.headerSide} />
       </View>
-      <View style={styles.progressBar}>
+      {phase !== 'complete' && <View style={styles.progressBar}>
         <Text accessibilityRole="header" style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
         <View accessible accessibilityRole="progressbar" accessibilityLabel="색각 맞춤 테스트 진행률"
           accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: `${progressPercent}% 완료` }}
@@ -254,14 +257,14 @@ export default function CalibrationScreen() {
           <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: palette.highlight }]} />
         </View>
         <Text style={[styles.progressPercent, { color: palette.textSecondary }]}>{progressPercent}% 완료</Text>
-      </View>
+      </View>}
       {/* 위 진행 표시는 고정하고, 그 아래로 스크롤되는 내용은 점점 흐려지며 사라진다. */}
       <View style={styles.scrollArea}>
       <ScrollView ref={scroll} contentContainerStyle={[styles.content, { paddingBottom: (questionPhase ? barHeight : insets.bottom) + Spacing.four }]}>
-        <View style={styles.intro}>
+        {phase !== 'complete' && <View style={styles.intro}>
           <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={[styles.heading, { color: palette.highlight }]}>{question}</Text>
           <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>{description}</Text>
-        </View>
+        </View>}
 
         {source !== undefined && <View style={[styles.picture, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
           <Image key={`${phase}-${index}-${retry}`} source={source} recyclingKey={`${phase}-${index}-${retry}`} contentFit="contain" transition={0} style={styles.image}
@@ -310,8 +313,26 @@ export default function CalibrationScreen() {
           <View style={styles.buttonRow}><BigButton label="아직 잘 안 보여요" selected={false} palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'not-visible' })} /></View>
           {phase === 'contrast' && Platform.OS === 'web' && <Text style={[styles.note, { color: palette.textSecondary }]}>대비 맞추기는 휴대폰에서 진행해 주세요. 웹에서는 아래 「이 단계 건너뛰기」로 기본값을 사용할 수 있어요.</Text>}
         </View>}
+        {/* 결과 화면: 성격 유형 검사 결과처럼 캐릭터와 내 보기 설정을 크게 보여 준다. */}
+        {phase === 'complete' && <View style={styles.result}>
+          <Image source={FOUND_MASCOT} contentFit="contain" style={styles.resultMascot} accessible accessibilityLabel="돋보기를 든 카멜레온 캐릭터" />
+          <Text style={[styles.resultEyebrow, { color: palette.textSecondary }]}>나에게 맞는 보기 설정</Text>
+          <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={[styles.resultTitle, { color: palette.highlight }]}>{question}</Text>
+          <View style={styles.resultRows}>
+            {[
+              { name: '색 보정', value: result.color_type === 'normal' || result.severity === 0 ? '필요 없어요' : `${CALIBRATION_COLOR_LABELS[result.color_type]} ${Math.round(result.severity * 100)}%` },
+              { name: '윤곽선 강조', value: result.edge === 0 ? '그대로' : `${Math.round(result.edge * 100)}%` },
+              { name: '대비', value: result.contrast === 1 ? '그대로' : `${result.contrast.toFixed(1)}배` },
+            ].map((row) => (
+              <View key={row.name} accessible accessibilityLabel={`${row.name}, ${row.value}`} style={[styles.resultRow, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
+                <Text style={[styles.resultName, { color: palette.textSecondary }]}>{row.name}</Text>
+                <Text style={[styles.resultValue, { color: palette.text }]}>{row.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>}
         {phase === 'complete' && <View style={styles.manual}>
-          <Text style={[styles.note, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>
+          <Text style={[styles.resultNote, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>
           <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '보정값 확인하기'} palette={palette} disabled={disabled} onPress={() => { void finish(); }} /></View>
         </View>}
         {phase !== 'complete' && <TextButton label="이 단계 건너뛰기" accessibilityHint="지금 단계는 보정 없음으로 두고 다음 단계로 이동해요" palette={palette} disabled={disabled} onPress={() => act({ type: 'skip' })} />}
@@ -385,6 +406,15 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 4 },
   progressPercent: { marginTop: -Spacing.one, fontSize: 15, lineHeight: 22, fontWeight: 700, textAlign: 'right', fontVariant: ['tabular-nums'] },
   intro: { gap: Spacing.two, alignItems: 'center' },
+  result: { alignItems: 'center', gap: Spacing.two },
+  resultMascot: { width: '78%', maxWidth: 320, aspectRatio: 1 },
+  resultEyebrow: { fontSize: FontSize.label, fontWeight: 700 },
+  resultTitle: { fontSize: 34, lineHeight: 44, fontWeight: 800, textAlign: 'center' },
+  resultRows: { alignSelf: 'stretch', gap: 12, marginTop: Spacing.two },
+  resultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, minHeight: 72, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, borderWidth: 1.5, borderRadius: 20 },
+  resultName: { fontSize: FontSize.body, fontWeight: 700 },
+  resultValue: { flexShrink: 1, fontSize: FontSize.heading, fontWeight: 800, textAlign: 'right' },
+  resultNote: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
   heading: { fontSize: FontSize.heading, lineHeight: 36, fontWeight: 700, textAlign: 'center' },
   description: { fontSize: FontSize.body, lineHeight: 30, textAlign: 'center' },
   picture: { width: '100%', aspectRatio: 1, padding: Spacing.three, borderWidth: 1.5, borderRadius: 24, overflow: 'hidden' },
