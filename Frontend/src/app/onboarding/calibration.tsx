@@ -60,7 +60,7 @@ export default function CalibrationScreen() {
   const progress = phase === 'screening' ? `색각 확인 · 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
     : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
       : phase === 'edge' ? `윤곽선 · 문제 ${index + 1} / ${CALIBRATION.edge.levels.length}`
-        : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '색각 맞춤 테스트 완료';
+        : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '맞춤 보정 테스트 완료';
   const progressRatio = phase === 'screening' ? (index / CALIBRATION.screening.plates.length) * 0.25
     : phase === 'manual' ? 0.25
       : phase === 'color' ? 0.25 + (index / colorLevels.length) * 0.25
@@ -74,7 +74,7 @@ export default function CalibrationScreen() {
       ? `같은 그림에서 대비만 단계별로 높이고 있어요. 흰 옷과 뒤쪽 흰 커튼의 경계를 비교해 주세요. 현재 대비 ${CALIBRATION.contrast.levels[index].toFixed(1)}배예요.`
       : '설정을 확인하고 감상을 시작해 보세요.';
   const questionPhase = phase === 'screening' || phase === 'color' || phase === 'edge' || phase === 'contrast';
-  const introSpeech = '색각 맞춤 테스트를 시작하기 전에 안내해 드릴게요. 화면 밝기를 편하게 맞추고, 그림 속 숫자를 음성으로 답해 주세요. 숫자가 보이지 않으면 안 보여요라고 말하면 돼요.';
+  const introSpeech = '맞춤 보정 테스트를 시작하기 전에 안내해 드릴게요. 화면 밝기를 편하게 맞추고, 그림 속 숫자를 음성으로 답해 주세요. 숫자가 보이지 않으면 안 보여요라고 말하면 돼요.';
   useSpeech(started ? `${question} ${description}` : introSpeech);
 
   const leaveTest = () => {
@@ -213,7 +213,7 @@ export default function CalibrationScreen() {
         <StatusBar style="light" />
         <View style={styles.header}>
           <View style={styles.headerSide}><BackButton label="소개로" palette={palette} onPress={leaveTest} /></View>
-          <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>색각 맞춤 테스트</Text>
+          <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>맞춤 보정 테스트</Text>
           <View style={styles.headerSide} />
         </View>
         <ScrollView contentContainerStyle={styles.guideContent}>
@@ -245,12 +245,12 @@ export default function CalibrationScreen() {
       <StatusBar style="light" />
       <View style={styles.header}>
         <View style={styles.headerSide}><BackButton label="이전 화면으로" palette={palette} onPress={moveBack} /></View>
-        <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>색각 맞춤 테스트</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>맞춤 보정 테스트</Text>
         <View style={styles.headerSide} />
       </View>
       {phase !== 'complete' && <View style={styles.progressBar}>
         <Text accessibilityRole="header" style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
-        <View accessible accessibilityRole="progressbar" accessibilityLabel="색각 맞춤 테스트 진행률"
+        <View accessible accessibilityRole="progressbar" accessibilityLabel="맞춤 보정 테스트 진행률"
           accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: `${progressPercent}% 완료` }}
           style={[styles.progressTrack, { backgroundColor: palette.outline }]}
         >

@@ -94,7 +94,7 @@ export default function OnboardingScreen() {
         {!last && <View style={styles.pagination} accessibilityRole="progressbar" accessibilityLabel="소개 진행" accessibilityValue={{ min: 1, max: 4, now: page + 1, text: `${page + 1} / 4` }}>
           <View style={styles.dots}>{ONBOARDING_SLIDES.map((item, index) => <View key={item.artwork} style={[styles.dot, { backgroundColor: index === page ? palette.highlight : palette.outline }]} />)}</View>
         </View>}
-        <View style={styles.buttonRow}><BigButton label={busy ? '저장 중…' : last ? '색각 맞춤 테스트 시작' : '다음'} palette={palette} disabled={busy || !loaded} onPress={() => { if (last) void finish('correction'); else goTo(page + 1); }} /></View>
+        <View style={styles.buttonRow}><BigButton label={busy ? '저장 중…' : last ? '맞춤 보정 테스트 시작' : '다음'} palette={palette} disabled={busy || !loaded} onPress={() => { if (last) void finish('correction'); else goTo(page + 1); }} /></View>
         {last ? (
           <TextButton label="먼저 둘러보기" palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} />
         ) : (
