@@ -309,6 +309,7 @@ export default function NarrationScreen() {
                 source={corrected.source}
                 overlay={corrected.overlay}
                 overlayAmount={corrected.overlayAmount}
+                waiting={corrected.loading}
                 accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
                 correction={{ ...profile, strength }}
                 original={false}
