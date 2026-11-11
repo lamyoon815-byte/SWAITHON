@@ -68,8 +68,8 @@ export default function NarrationScreen() {
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
   const strength = correctionStrength(strengthParam !== undefined ? Number(strengthParam) : profile.strength);
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
-  // 보정 전후 비교. 작품 화면에서 고른 상태로 시작한다.
-  const [showOriginal, setShowOriginal] = useState(originalParam === '1');
+  // 원본/보정본은 작품 화면에서 고른 상태를 따른다.
+  const showOriginal = originalParam === '1';
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
   const [rate, setRate] = useState(START_RATE);
@@ -308,12 +308,6 @@ export default function NarrationScreen() {
             </Pressable>
           ) : <View />}
           <View style={styles.toolButtons}>
-          <PressableScale accessibilityRole="switch" accessibilityLabel="원본 보기" accessibilityHint="보정하기 전 원래 그림과 비교해요"
-            accessibilityState={{ checked: showOriginal }} onPress={() => setShowOriginal((v) => !v)}
-            style={[styles.zoomButton, { backgroundColor: showOriginal ? palette.highlight : palette.fill }]}>
-            <SymbolView name={{ ios: 'circle.lefthalf.filled', android: 'contrast', web: 'contrast' }} size={18} weight="bold" tintColor={showOriginal ? palette.highlightText : palette.text} />
-            <Text style={[styles.zoomText, { color: showOriginal ? palette.highlightText : palette.text }]}>{showOriginal ? '원본' : '원본 보기'}</Text>
-          </PressableScale>
           <PressableScale accessibilityRole="button" accessibilityLabel="작품 크게 보기" onPress={openZoom}
             style={[styles.zoomButton, { backgroundColor: palette.fill }]}>
             <SymbolView name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'open_in_full', web: 'open_in_full' }} size={18} weight="bold" tintColor={palette.text} />
