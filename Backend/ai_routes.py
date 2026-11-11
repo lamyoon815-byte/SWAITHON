@@ -1,3 +1,6 @@
+import asyncio
+from hashlib import sha256
+import json
 from typing import Annotated, Literal
 from io import BytesIO
 from importlib import import_module
@@ -9,6 +12,7 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ValidationError
 
 if __package__:
+    from .generated_cache import GeneratedCache
     from .accounts import RateLimiter
     from .images import MAX_UPLOAD_BYTES, normalize_image
     from .recognition import image_quality
@@ -17,6 +21,7 @@ if __package__:
     from .ai.profile import AIProfile
     from .ai.decision import decide
 else:
+    from generated_cache import GeneratedCache
     from accounts import RateLimiter
     from images import MAX_UPLOAD_BYTES, normalize_image
     from recognition import image_quality
@@ -145,6 +150,8 @@ def client_key(request: Request) -> str:
 def create_ai_router(catalog, accounts, current_user, recognition, gemini, corrector=None):
     # accounts·current_user는 회원 API 호환을 위해 받지만, 이 라우터의 API는 로그인을 요구하지 않는다.
     router = APIRouter()
+    narration_cache = GeneratedCache(catalog.data_dir)
+    pending_narrations = {}
     ai_limiter = RateLimiter(attempts=5, window=60)
     photo_limiter = RateLimiter(attempts=60, window=60)
     # 대기열을 만들지 않는다. 정규화·품질 검사·추론·위치 추정 전체에 적용.
@@ -290,22 +297,47 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
     @router.post("/artworks/{artwork_id}/narration", response_model=GeneratedNarrationResult,
                  tags=["작품 해설"], summary="등록 작품의 AI 해설 생성 (미검수)",
                  description="등록 원본과 카탈로그 메타데이터로 Gemini 해설을 생성합니다. 검수 완료로 저장하지 않습니다. "
-                             "AI 공통 호출 제한·예산을 적용합니다. fallback이면 segments는 비어 있으며 재생하지 않습니다.")
+                             "성공한 해설은 SQLite에 저장하고 같은 작품 요청에 재사용합니다. 생성 시 AI 호출 제한·예산을 적용합니다. fallback은 저장하지 않습니다.")
     async def generate_narration(request: Request, response: Response, artwork_id: str):
         response.headers["Cache-Control"] = "no-store"
         record = await run_in_threadpool(catalog.get, artwork_id)
         if record is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
-        ai_limiter.check(client_key(request))
         content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
-        normalized = await run_in_threadpool(normalize_image, content)
-        description = await run_in_threadpool(gemini.describe, normalized.content, record)
-        fallback = getattr(description, "fallback", False)
-        segments = [] if fallback else narration_segments(description.model_dump())
-        return {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
-                "segments": segments, "text": "\n".join(segment["text"] for segment in segments),
-                "review_status": "unreviewed", "fallback": fallback,
-                "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
+        # Bump the version when the narration prompt/schema changes.
+        key = sha256(json.dumps(["narration-v1", getattr(gemini, "model", ""), record,
+                                 sha256(content).hexdigest()], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        stored = await run_in_threadpool(narration_cache.get, "narration", key)
+        if stored is not None:
+            return json.loads(stored)
+
+        async def generate_and_store():
+            ai_limiter.check(client_key(request))
+            normalized = await run_in_threadpool(normalize_image, content)
+            description = await run_in_threadpool(gemini.describe, normalized.content, record)
+            fallback = getattr(description, "fallback", False)
+            segments = [] if fallback else narration_segments(description.model_dump())
+            result = {"artwork_id": artwork_id, "mode": "both", "description": description.model_dump(),
+                      "segments": segments, "text": "\n".join(segment["text"] for segment in segments),
+                      "review_status": "unreviewed", "fallback": fallback,
+                      "warning": "AI가 생성한 미검수 해설로 사실과 다른 내용이 포함될 수 있습니다."}
+            if not fallback and segments:
+                await run_in_threadpool(narration_cache.put, "narration", key,
+                                        json.dumps(result, ensure_ascii=False).encode())
+            return result
+
+        if key not in pending_narrations:
+            task = asyncio.create_task(generate_and_store())
+            pending_narrations[key] = task
+
+            def complete(done):
+                if pending_narrations.get(key) is done:
+                    del pending_narrations[key]
+                if not done.cancelled():
+                    done.exception()  # Observe failures even if every HTTP client disconnected.
+
+            task.add_done_callback(complete)
+        return await asyncio.shield(pending_narrations[key])
 
     @router.get("/artworks/{artwork_id}/narration", response_model=NarrationResult, tags=["작품 해설"], summary="감상 모드에 맞는 검수 해설 텍스트 조회",
                 description="로그인 불필요. mode는 기기에 저장한 감상 모드를 보내며 생략 시 both입니다. 반환된 text를 앱의 expo-speech로 재생합니다.")

@@ -65,6 +65,33 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(service.budget.summary()["calls"], 1)
         self.assertEqual(service.budget.pending_krw, 0)
 
+    async def test_saved_audio_survives_restart_without_api_key_or_budget(self):
+        service = self.service(FakeSocket())
+        expected = await service.synthesize("붉은 꽃이 보여요.")
+        def forbidden(*args, **kwargs):
+            raise AssertionError("cached audio must not open an upstream connection")
+        restarted = OpenAISpeechService(Path(self.temp.name), forbidden)
+        restarted.key = ""
+        with patch.object(restarted.budget, "reserve", side_effect=AssertionError("must not charge")):
+            self.assertEqual(await restarted.synthesize("붉은 꽃이 보여요."), expected)
+
+    async def test_voice_change_generates_a_separate_saved_audio(self):
+        service = self.service(FakeSocket())
+        first_key, _ = await service.synthesize("붉은 꽃이 보여요.")
+        other = self.service(FakeSocket())
+        other.voice = "cedar"
+        second_key, _ = await other.synthesize("붉은 꽃이 보여요.")
+        self.assertNotEqual(first_key, second_key)
+        self.assertEqual(len(self.connections), 1)
+
+    async def test_failed_audio_is_not_persisted(self):
+        service = self.service(FakeSocket(status="incomplete"))
+        with self.assertRaises(HTTPException):
+            await service.synthesize("붉은 꽃이 보여요.")
+        restarted = self.service(FakeSocket())
+        self.assertTrue((await restarted.synthesize("붉은 꽃이 보여요."))[1].startswith(b"RIFF"))
+        self.assertEqual(len(self.connections), 1)
+
     async def test_cancelled_listener_does_not_cancel_shared_generation(self):
         gate = asyncio.Event()
         service = self.service(FakeSocket(gate=gate))
@@ -96,6 +123,17 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.status_code, 503)
         self.assertEqual(self.connections, [])
         self.assertEqual(service.budget.summary()["calls"], 0)
+
+    async def test_exhausted_credits_reports_actionable_error_without_charging(self):
+        socket = FakeSocket()
+        socket.events = [{"type": "error", "error": {"type": "insufficient_quota", "code": "credit_balance_exhausted"}}]
+        service = self.service(socket)
+        with self.assertRaises(HTTPException) as error:
+            await service.synthesize("붉은 꽃이 보여요.")
+        self.assertEqual(error.exception.status_code, 429)
+        self.assertIn("크레딧", error.exception.detail)
+        self.assertEqual(service.budget.pending_krw, 0)
+        self.assertEqual(service.budget.summary()["spent_krw"], 0)
 
     async def test_connection_failure_releases_reservation(self):
         def broken(*args, **kwargs): raise OSError("secret upstream connection details")

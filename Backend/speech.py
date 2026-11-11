@@ -12,13 +12,16 @@ import wave
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field, ConfigDict
+from starlette.concurrency import run_in_threadpool
 from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus, WebSocketException
 
 if __package__:
+    from .generated_cache import GeneratedCache
     from .accounts import RateLimiter
     from .ai.budget import GeminiBudget
 else:
+    from generated_cache import GeneratedCache
     from accounts import RateLimiter
     from ai.budget import GeminiBudget
 
@@ -62,6 +65,7 @@ class OpenAISpeechService:
         self.slots = asyncio.Semaphore(2)
         self.pending = {}
         self.cache = OrderedDict()
+        self.storage = GeneratedCache(data_dir)
         # Reuse the existing reservation ledger with separate OpenAI settings and usage file.
         # Charge all output tokens at the audio price (a conservative estimate, including transcripts).
         number = lambda key, default: float(os.environ.get(key) or default)
@@ -76,20 +80,28 @@ class OpenAISpeechService:
         )
 
     async def synthesize(self, text):
-        if not self.key:
-            raise HTTPException(503, "OpenAI 음성이 아직 연결되지 않았어요. 기기 음성을 선택하거나 관리자에게 연결을 요청해 주세요.")
-        if not re.fullmatch(r"gpt-realtime[-a-zA-Z0-9.]*", self.model) or self.voice not in {"marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"}:
-            raise HTTPException(503, "OpenAI 음성의 모델·목소리 설정을 확인해 주세요.")
         key = sha256(json.dumps([self.model, self.voice, INSTRUCTIONS, text], ensure_ascii=False).encode()).hexdigest()
         if key in self.cache:
             self.cache.move_to_end(key)
             return key, self.cache[key]
+        stored = await run_in_threadpool(self.storage.get, "speech", key)
+        if stored is not None:
+            return key, stored
+        if not self.key:
+            raise HTTPException(503, "OpenAI 음성이 아직 연결되지 않았어요. 기기 음성을 선택하거나 관리자에게 연결을 요청해 주세요.")
+        if not re.fullmatch(r"gpt-realtime[-a-zA-Z0-9.]*", self.model) or self.voice not in {"marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"}:
+            raise HTTPException(503, "OpenAI 음성의 모델·목소리 설정을 확인해 주세요.")
         if key not in self.pending:
-            self.pending[key] = asyncio.create_task(self._generate(text))
+            self.pending[key] = asyncio.create_task(self._generate_and_store(key, text))
             self.pending[key].add_done_callback(lambda task: self._complete(key, task))
         task = self.pending[key]
         # One cancelled HTTP client must not cancel a shared generation for other listeners.
         return key, await asyncio.shield(task)
+
+    async def _generate_and_store(self, key, text):
+        audio = await self._generate(text)
+        await run_in_threadpool(self.storage.put, "speech", key, audio)
+        return audio
 
     def _complete(self, key, task):
         if self.pending.get(key) is task:
@@ -114,20 +126,24 @@ class OpenAISpeechService:
                         additional_headers={"Authorization": f"Bearer {self.key}"},
                         open_timeout=15, max_size=8 * 1024 * 1024,
                     ) as socket:
-                        await socket.send(json.dumps({"type": "session.update", "session": {
-                            "type": "realtime", "model": self.model, "output_modalities": ["audio"],
-                            "instructions": INSTRUCTIONS, "max_output_tokens": MAX_OUTPUT_TOKENS,
-                            "audio": {"input": {"turn_detection": None}, "output": {
-                                "format": {"type": "audio/pcm", "rate": 24000}, "voice": self.voice}},
-                        }}))
                         chunks, length, transcript = [], 0, ""
                         async for message in socket:
                             event = json.loads(message)
                             kind = event.get("type")
                             if kind == "error":
-                                limited = event.get("error", {}).get("code") in {"rate_limit_exceeded", "insufficient_quota"}
+                                upstream = event.get("error", {})
+                                if upstream.get("code") == "credit_balance_exhausted":
+                                    raise HTTPException(429, "OpenAI API 크레딧이 부족해 음성을 만들 수 없어요. 관리자에게 충전을 요청하거나 기기 음성을 선택해 주세요.")
+                                limited = upstream.get("code") in {"rate_limit_exceeded", "insufficient_quota"} or upstream.get("type") == "insufficient_quota"
                                 raise HTTPException(429 if limited else 502, "OpenAI 음성을 지금 만들 수 없어요. 잠시 후 다시 시도해 주세요.")
-                            if kind == "session.updated" and not requested:
+                            if kind == "session.created":
+                                await socket.send(json.dumps({"type": "session.update", "session": {
+                                    "type": "realtime", "model": self.model, "output_modalities": ["audio"],
+                                    "instructions": INSTRUCTIONS, "max_output_tokens": MAX_OUTPUT_TOKENS,
+                                    "audio": {"input": {"turn_detection": None}, "output": {
+                                        "format": {"type": "audio/pcm", "rate": 24000}, "voice": self.voice}},
+                                }}))
+                            elif kind == "session.updated" and not requested:
                                 requested = True
                                 await socket.send(json.dumps({"type": "response.create", "response": {
                                     "conversation": "none", "output_modalities": ["audio"],
