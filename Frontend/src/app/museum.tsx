@@ -6,6 +6,7 @@
  * 바로 넘어가면 무엇을 골랐는지 느낄 틈이 없어서다. 돌아간 화면에는 확인 토스트를 띄운다.
  */
 
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { AccessibilityInfo, ScrollView, StyleSheet, View } from 'react-native';
@@ -63,9 +64,13 @@ export default function MuseumScreen() {
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <BackButton label="뒤로" palette={palette} onPress={goBack} />
-        <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
-          미술관을 선택해 주세요
-        </Text>
+        <View style={styles.intro}>
+          <Image source={require('@/assets/images/mascot/viewing.png')} contentFit="contain"
+            style={styles.mascot} accessible={false} />
+          <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
+            미술관을 선택해 주세요
+          </Text>
+        </View>
         {next && NEXT_LABEL[next] && (
           <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
             선택하면 {NEXT_LABEL[next]} 화면으로 이어져요
@@ -161,8 +166,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
   },
+  intro: { alignItems: 'center', gap: 12, paddingTop: 8 },
+  mascot: { width: 180, height: 168 },
   title: {
-    marginTop: 20,
     fontSize: FontSize.heading,
     fontWeight: 800,
     lineHeight: 34,

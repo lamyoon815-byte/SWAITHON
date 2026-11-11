@@ -5,6 +5,7 @@
  * 카메라 권한은 버튼을 누를 때 묻는다 (탭을 열자마자 팝업이 뜨지 않게).
  */
 
+import { Image } from 'expo-image';
 import { useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
@@ -72,9 +73,13 @@ export default function CameraScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
-        <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
-          {'카메라로\n작품을 찾아요'}
-        </Text>
+        <View style={styles.header}>
+          <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
+            {'카메라로\n작품을 찾아요'}
+          </Text>
+          <Image source={require('@/assets/images/mascot/photography.png')} contentFit="contain"
+            style={styles.mascot} accessible={false} />
+        </View>
 
         <View style={styles.methods}>
           {METHODS.map((m) => (
@@ -130,7 +135,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: ScreenPadding,
     paddingTop: Spacing.four,
   },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mascot: { width: 112, height: 120 },
   heading: {
+    flex: 1,
     fontSize: 28,
     fontWeight: 800,
     lineHeight: 38,
