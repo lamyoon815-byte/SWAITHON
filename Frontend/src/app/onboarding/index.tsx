@@ -41,9 +41,13 @@ export default function OnboardingScreen() {
     if (busy || !loaded) return;
     setBusy(true);
     try {
-      await finishOnboarding();
-      if (destination === 'correction') router.replace({ pathname: '/correction', params: { from: 'onboarding' } });
-      else router.replace('/');
+      if (destination === 'correction') {
+        router.push('/onboarding/calibration');
+        setBusy(false);
+      } else {
+        await finishOnboarding();
+        router.replace('/');
+      }
     } catch {
       setBusy(false);
       showToast('설정을 저장하지 못했어요. 다시 시도해 주세요', 'error');
