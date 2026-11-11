@@ -280,7 +280,8 @@ export default function ArtworkScreen() {
             </>
           ) : (
             <>
-              {!!artwork.background && (
+              {/* 해외 작품의 background는 미술관 영어 설명문(해설 생성 참고용)이라 한국어일 때만 보여 준다. */}
+              {!!artwork.background && /[가-힣]/.test(artwork.background) && (
                 <Text
                   style={[
                     styles.descText,

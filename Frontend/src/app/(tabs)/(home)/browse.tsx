@@ -51,7 +51,9 @@ const SIDE_OPACITY = 0.45;
 
 /** 넘겨보기 카드 밑에 두 줄로 보여 줄 소개. 없으면 아무것도 보이지 않는다(작품에 들어가면 AI 해설이 나온다). */
 function summary(artwork: Artwork) {
-  return artwork.description?.facts[0] ?? artwork.background ?? null;
+  // background of overseas works is the museum's English text (only a source for the AI script): show it only in Korean.
+  const background = artwork.background && /[가-힣]/.test(artwork.background) ? artwork.background : null;
+  return artwork.description?.facts[0] ?? background;
 }
 
 export default function BrowseScreen() {
