@@ -5,15 +5,16 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 const ts = require('typescript');
 
-function setup(playing = true) {
+function setup(playing = true, landscape = false) {
   const calls = { play: 0, pause: 0, close: 0 };
   const player = { index: 1, playing, preparing: false, error: null,
     play: () => { calls.play++; }, pause: () => { calls.pause++; } };
   const mocks = {
     'react/jsx-runtime': require('react/jsx-runtime'),
-    'react-native': { View: 'View', StyleSheet: { create: (value) => value } },
+    'react-native': { View: 'View', StyleSheet: { create: (value) => value, absoluteFillObject: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 } },
+      useWindowDimensions: () => landscape ? ({ width: 844, height: 390 }) : ({ width: 390, height: 844 }) },
     'react-native-gesture-handler': { GestureHandlerRootView: 'GestureRoot' },
-    'react-native-safe-area-context': { SafeAreaView: 'SafeArea' },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeArea', useSafeAreaInsets: () => ({ left: 0, right: 0, bottom: 0 }) },
     'expo-symbols': { SymbolView: 'Symbol' },
     '@/components/common/text': { Text: 'Text' },
     '@/components/common/correction-canvas': { CorrectionCanvas: 'CorrectionCanvas' },
@@ -21,6 +22,7 @@ function setup(playing = true) {
     '@/constants/a11y': { getPalette: () => ({}), FontSize: { body: 20, label: 18 }, ButtonHeight: 56, ButtonRadius: 16 },
     '@/constants/theme': { ScreenPadding: 20, Spacing: { two: 8, three: 16 } },
     '@/hooks/use-corrected-artwork': { useCorrectedArtwork: () => ({ source: 'original', overlay: 'corrected', overlayAmount: 1 }) },
+    '@/hooks/use-zoom-orientation': { useZoomOrientation: () => landscape },
     '@/lib/calibration': { viewingFromProfile: (value) => value },
   };
   const source = fs.readFileSync(path.join(__dirname, '../../src/components/artwork/zoom-view.tsx'), 'utf8');
@@ -71,4 +73,17 @@ test('a paused narrator stays paused when enlarged and uses the same play callba
   assert.equal(calls.play, 0);
   button('이어서 듣기').props.onPress();
   assert.equal(calls.play, 1);
+});
+
+test('landscape fills the viewer without a title, caption or zoom button rows and keeps the same player', () => {
+  const { nodes, calls, button, player } = setup(true, true);
+  const canvas = nodes.find((node) => node.type === 'CorrectionCanvas');
+  assert.equal(canvas.props.showZoomControls, false);
+  assert.equal(canvas.props.zoomable, true);
+  assert.equal(canvas.props.containerStyle[1].position, 'absolute');
+  assert.ok(!nodes.some((node) => node.props.accessibilityRole === 'header'));
+  assert.ok(!nodes.some((node) => node.props.accessibilityLiveRegion === 'polite'));
+  assert.equal(button('해설 멈추기').props.onPress, player.pause);
+  button('닫기').props.onPress();
+  assert.deepEqual(calls, { play: 0, pause: 0, close: 1 });
 });

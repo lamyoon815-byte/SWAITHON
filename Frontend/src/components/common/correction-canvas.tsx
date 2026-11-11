@@ -85,6 +85,8 @@ type Props = {
   zoomable?: boolean;
   /** 따라 확대할 영역(그림 기준 0~1 비율 [x, y, w, h]). null이면 원래 크기로, 주지 않으면 확대 상태를 건드리지 않는다 */
   focus?: readonly [number, number, number, number] | null;
+  /** Hide buttons in the immersive landscape viewer; pinch and double-tap still work. */
+  showZoomControls?: boolean;
   palette: Palette;
   /** 캔버스 상자의 크기와 모양. 기본 높이 320 */
   style?: StyleProp<ViewStyle>;
@@ -104,6 +106,7 @@ export function CorrectionCanvas({
   waiting,
   zoomable = false,
   focus,
+  showZoomControls = true,
   palette,
   style,
   containerStyle,
@@ -327,7 +330,7 @@ export function CorrectionCanvas({
     <View style={[styles.wrapper, containerStyle]}>
       <GestureDetector gesture={gesture}>{box}</GestureDetector>
       {/* 확대·축소·원래 크기: 그림을 덜 가리게 오른쪽에 작은 동그라미로 세로로 둔다. */}
-      <View pointerEvents="box-none" style={styles.side}>
+      {showZoomControls && <View pointerEvents="box-none" style={styles.side}>
         {([
           { label: '확대', icon: { ios: 'plus', android: 'add', web: 'add' }, onPress: () => zoomBy(BUTTON_STEP) },
           { label: '축소', icon: { ios: 'minus', android: 'remove', web: 'remove' }, onPress: () => zoomBy(1 / BUTTON_STEP) },
@@ -339,7 +342,7 @@ export function CorrectionCanvas({
             <SymbolView name={button.icon} size={22} weight="bold" tintColor="#FFFFFF" />
           </PressableScale>
         ))}
-      </View>
+      </View>}
     </View>
   );
 }

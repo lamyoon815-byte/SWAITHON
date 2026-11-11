@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
 import { Text } from '@/components/common/text';
@@ -9,6 +9,7 @@ import { PressableScale } from '@/components/common/pressable-scale';
 import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
+import { useZoomOrientation } from '@/hooks/use-zoom-orientation';
 import type { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { viewingFromProfile } from '@/lib/calibration';
 import type { Artwork } from '@/types/artwork';
@@ -32,6 +33,10 @@ type Props = {
 export function ArtworkZoomView({ artwork, profile, original = false, strength: amount,
   player, sentences, narrationFailed = false, imageError, onClose, follow }: Props) {
   const palette = getPalette('dark', false);
+  const wideArtwork = useZoomOrientation(artwork?.image_url);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const landscape = wideArtwork && width > height;
   const showOriginal = original;
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount, undefined);
   const current = sentences[player.index];
@@ -44,7 +49,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
     // A full-screen modal is its own native window, so pinch needs its own gesture root here.
     <GestureHandlerRootView style={styles.screen}>
       <SafeAreaView style={styles.screen}>
-        <View style={styles.top}>
+        {!landscape && <View style={styles.top}>
           <Text
             accessibilityRole="header"
             numberOfLines={1}
@@ -62,7 +67,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
                 trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
             </Pressable>
           )}
-        </View>
+        </View>}
 
         {artwork ? (
           <CorrectionCanvas
@@ -75,8 +80,9 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             original={showOriginal}
             zoomable
             focus={follow?.on ? follow.region : undefined}
+            showZoomControls={!landscape}
             palette={palette}
-            containerStyle={styles.canvasArea}
+            containerStyle={[styles.canvasArea, landscape && styles.immersiveCanvas]}
             style={styles.canvas}
           />
         ) : (
@@ -89,7 +95,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
           </View>
         )}
 
-        {showCaption && (
+        {showCaption && !landscape && (
           <View accessibilityLiveRegion="polite" style={[styles.caption, { backgroundColor: palette.surface }]}>
             <Text style={[styles.captionCount, { color: palette.textSecondary }]}
               accessibilityLabel={`${sentences.length}문장 중 ${player.index + 1}번째`}>
@@ -100,7 +106,10 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
         )}
         {!!player.error && <Text accessibilityRole="alert" style={[styles.message, styles.error, { color: palette.text }]}>{player.error}</Text>}
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, landscape && styles.landscapeFooter, landscape && {
+          left: Math.max(ScreenPadding, insets.left), right: Math.max(ScreenPadding, insets.right),
+          bottom: insets.bottom + Spacing.two,
+        }]}>
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel="닫기"
@@ -109,6 +118,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             style={({ pressed }) => [
               styles.close,
               styles.closeSide,
+              landscape && styles.landscapeClose,
               { backgroundColor: palette.fill, opacity: pressed ? 0.8 : 1 },
             ]}>
             <Text style={[styles.closeText, { color: palette.text }]}>닫기</Text>
@@ -123,6 +133,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             style={({ pressed }) => [
               styles.close,
               styles.audio,
+              landscape && styles.landscapeAudio,
               { backgroundColor: palette.accent, opacity: audioDisabled ? 0.5 : pressed ? 0.8 : 1 },
             ]}>
             <SymbolView
@@ -172,6 +183,25 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     backgroundColor: '#000000',
   },
+  immersiveCanvas: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 0,
+  },
+  landscapeFooter: {
+    position: 'absolute',
+    bottom: Spacing.two,
+    left: ScreenPadding,
+    right: ScreenPadding,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'space-between',
+  },
+  landscapeClose: { flex: 0, minWidth: 80 },
+  landscapeAudio: { flex: 0, maxWidth: 240 },
   message: {
     fontSize: FontSize.label,
     fontWeight: 600,

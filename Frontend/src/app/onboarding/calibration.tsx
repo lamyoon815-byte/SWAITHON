@@ -57,7 +57,7 @@ export default function CalibrationScreen() {
   const source = plate?.image ?? (phase === 'edge' ? CALIBRATION.edge.images[index] : undefined);
   const imageReady = source === undefined || (readySource === source && failedSource !== source);
   const colorLevels = CALIBRATION.color[result.color_type === 'normal' ? 'protan' : result.color_type].levels;
-  const progress = phase === 'screening' ? `색각 확인 · 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
+  const progress = phase === 'screening' ? `색각 확인 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
     : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
       : phase === 'edge' ? `윤곽선 · 문제 ${index + 1} / ${CALIBRATION.edge.levels.length}`
         : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '맞춤 보정 테스트 완료';
@@ -249,7 +249,8 @@ export default function CalibrationScreen() {
         <View style={styles.headerSide} />
       </View>
       {phase !== 'complete' && <View style={styles.progressBar}>
-        <Text accessibilityRole="header" style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
+        <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality"
+          style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
         <View accessible accessibilityRole="progressbar" accessibilityLabel="맞춤 보정 테스트 진행률"
           accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: `${progressPercent}% 완료` }}
           style={[styles.progressTrack, { backgroundColor: palette.outline }]}
