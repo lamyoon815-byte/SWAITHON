@@ -103,8 +103,14 @@ class OpenAISpeechService:
         names = lambda key, default: [m.strip() for m in (os.environ.get(key) or default).split(",") if m.strip() and m.strip() != "-"]
         self.realtime_models = list(dict.fromkeys([self.model, *names("OPENAI_TTS_REALTIME_MODELS", "gpt-realtime-2.1,gpt-realtime")]))
         # gpt-4o-mini-tts shares its daily limit with gpt-4o-mini-transcribe (voice search), so it goes last.
+        # Every model below has its own daily bucket on a low usage tier (the dated *-1106 ones too).
         self.speech_models = names("OPENAI_TTS_SPEECH_MODELS",
-                                   os.environ.get("OPENAI_TTS_FALLBACK_MODEL") or "tts-1-hd,tts-1,gpt-4o-mini-tts")
+                                   os.environ.get("OPENAI_TTS_FALLBACK_MODEL") or "tts-1-hd,tts-1-hd-1106,tts-1,tts-1-1106,gpt-4o-mini-tts")
+        # Gemini voices: billed from Gemini credit with no small daily cap, tried after the realtime voices.
+        self.gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        self.gemini_models = names("GEMINI_TTS_MODELS",
+                                   "gemini-3.8-flash-tts,gemini-3.8-flash-lite-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts")
+        self.gemini_voice = os.environ.get("GEMINI_TTS_VOICE", "Kore").strip()
         self.classic_voice = os.environ.get("OPENAI_TTS_CLASSIC_VOICE", "nova").strip()  # tts-1 voices lack cedar
         self.fallback_pause = float(os.environ.get("OPENAI_TTS_FALLBACK_PAUSE_SECONDS") or 1800)
         self.blocked_until: dict[str, float] = {}
@@ -146,7 +152,9 @@ class OpenAISpeechService:
         return key, await asyncio.shield(task)
 
     async def _generate_and_store(self, key, text):
-        candidates = [(self._generate, m) for m in self.realtime_models] + [(self._fallback, m) for m in self.speech_models]
+        candidates = ([(self._generate, m) for m in self.realtime_models]
+                      + ([(self._gemini, m) for m in self.gemini_models] if self.gemini_key else [])
+                      + [(self._fallback, m) for m in self.speech_models])
         now = time.monotonic()
         ready = [c for c in candidates if now >= self.blocked_until.get(c[1], 0)]
         # Daily limits free up gradually over 24 hours, so when every model is resting, try them all
@@ -303,6 +311,40 @@ class OpenAISpeechService:
             raise speech_api_error(response.status_code, error)
         self.budget.record(None)  # No token usage in this response: charge the reserved maximum.
         return pcm_wav(response.content)
+
+
+    async def _gemini(self, text, model):
+        """Gemini TTS: returns 24 kHz 16-bit mono PCM (raw L16 or inside a WAV)."""
+        body = {"contents": [{"parts": [{"text": text}]}],
+                "generationConfig": {"responseModalities": ["AUDIO"],
+                                     "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": self.gemini_voice}}}}}
+        self.budget.reserve()
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                                             headers={"x-goog-api-key": self.gemini_key}, json=body)
+        except httpx.HTTPError:
+            self.budget.release()
+            raise HTTPException(502, "음성 서버에 연결하지 못했어요. 다시 시도해 주세요.") from None
+        if response.status_code != 200:
+            self.budget.release()
+            try:
+                message = str(response.json().get("error", {}).get("message", ""))
+            except ValueError:
+                message = ""
+            # Any Gemini refusal (rate limit, used-up credit, model unavailable) only skips this candidate,
+            # so the OpenAI voices after it are still tried.
+            raise RealtimeRateLimited(daily=response.status_code == 402 or is_daily_limit(message) or "quota" in message.lower())
+        self.budget.record(None)
+        try:
+            part = response.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+            raw = base64.b64decode(part["data"], validate=True)
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise HTTPException(502, "음성 데이터가 올바르지 않습니다. 다시 시도해 주세요.") from None
+        if "wav" in part.get("mimeType", "").lower():
+            with wave.open(BytesIO(raw)) as wav:
+                raw = wav.readframes(wav.getnframes())
+        return pcm_wav(raw)
 
 
 def create_speech_router(service):
