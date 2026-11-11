@@ -45,7 +45,8 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.temp.cleanup)
         # One realtime model and one speech model unless a test sets a longer candidate list.
         self.env = patch.dict("os.environ", {"OPENAI_API_KEY": "test-openai-key", "OPENAI_TTS_MODEL": "gpt-realtime-2.1-mini", "OPENAI_TTS_VOICE": "marin",
-                                             "OPENAI_TTS_REALTIME_MODELS": "-", "OPENAI_TTS_SPEECH_MODELS": "-"})
+                                             "OPENAI_TTS_REALTIME_MODELS": "-", "OPENAI_TTS_SPEECH_MODELS": "-",
+                                             "GEMINI_TTS_MODELS": "-"})
         self.env.start(); self.addCleanup(self.env.stop)
 
     def service(self, socket):
@@ -151,6 +152,24 @@ class SpeechTests(unittest.IsolatedAsyncioTestCase):
                 patch.object(service, "_fallback", return_value=audio) as fallback:
             self.assertEqual((await service.synthesize("붉은 꽃이 보여요."))[1], audio)  # not an instant 429
         fallback.assert_called_once()
+
+    async def test_gemini_voice_returns_wav_from_raw_or_wav_audio_and_skips_on_refusal(self):
+        service = self.service(FakeSocket())
+        service.gemini_key = "test-gemini-key"
+        pcm = b"\x01\x00" * 240
+        wav_bytes = pcm_wav(pcm)
+        for mime, data in (("audio/L16;codec=pcm;rate=24000", pcm), ("audio/wav", wav_bytes)):
+            payload = {"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode()}}]}}]}
+            client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request, p=payload: httpx.Response(200, json=p)))
+            with patch("Backend.speech.httpx.AsyncClient", return_value=client):
+                audio = await service._gemini("붉은 꽃이 보여요.", "gemini-3.8-flash-tts")
+            with wave.open(BytesIO(audio)) as wav:
+                self.assertEqual(wav.readframes(wav.getnframes()), pcm)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(402, json={"error": {"message": "credits depleted"}})))
+        with patch("Backend.speech.httpx.AsyncClient", return_value=client):
+            with self.assertRaises(RealtimeRateLimited) as caught:
+                await service._gemini("붉은 꽃이 보여요.", "gemini-3.8-flash-tts")
+        self.assertTrue(caught.exception.daily)  # a refusal only skips this candidate
 
     async def test_classic_tts_models_use_a_supported_voice_without_instructions(self):
         service = self.service(FakeSocket())

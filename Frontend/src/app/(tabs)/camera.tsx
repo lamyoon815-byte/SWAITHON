@@ -5,6 +5,7 @@
  * 카메라 권한은 버튼을 누를 때 묻는다 (탭을 열자마자 팝업이 뜨지 않게).
  */
 
+import { Image } from 'expo-image';
 import { useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
@@ -72,9 +73,13 @@ export default function CameraScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
-        <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
-          {'카메라로\n작품을 찾아요'}
-        </Text>
+        <View style={styles.header}>
+          <Text accessibilityRole="header" style={[styles.heading, { color: palette.text }]}>
+            {'카메라로\n작품을 찾아요'}
+          </Text>
+          <Image source={require('@/assets/images/mascot/photography.png')} contentFit="contain"
+            style={styles.mascot} accessible={false} />
+        </View>
 
         <View style={styles.methods}>
           {METHODS.map((m) => (
@@ -120,6 +125,11 @@ export default function CameraScreen() {
   );
 }
 
+/** 카멜레온 발이 QR 코드 상자 윗부분에 걸치는 깊이 */
+const MASCOT_PERCH = 22;
+/** 카멜레온만 위로 올리는 정도. 발바닥은 상자 안, 발등은 상자 윗선에 맞는다 */
+const MASCOT_LIFT = 12;
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -128,12 +138,21 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: Spacing.four,
     paddingHorizontal: ScreenPadding,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.two,
   },
+  // 카멜레온이 QR 코드 상자 위에 걸터앉도록 헤더를 상자 쪽으로 MASCOT_PERCH만큼 겹친다(아래 내용 전체가 그만큼 올라간다).
+  // zIndex로 카멜레온을 상자 앞에 그린다.
+  header: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, zIndex: 2, elevation: 2, marginBottom: -(Spacing.four + MASCOT_PERCH) },
+  // 그림 비율(1326×1187)에 맞춰 위아래 빈칸 없이 발이 상자 경계에 닿게 한다.
+  // 카멜레온만 살짝 올려 발등이 QR 상자 윗선에 맞게 한다(상자와 아래 내용 위치는 그대로).
+  mascot: { width: 124, height: 111, marginBottom: MASCOT_LIFT },
   heading: {
+    flex: 1,
     fontSize: 28,
     fontWeight: 800,
     lineHeight: 38,
+    // 제목은 상자에 가리지 않게 겹치는 만큼 위로 띄운다.
+    marginBottom: MASCOT_PERCH + Spacing.three,
   },
   methods: {
     gap: 12,

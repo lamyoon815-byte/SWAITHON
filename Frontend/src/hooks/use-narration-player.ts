@@ -10,8 +10,7 @@ export function useNarrationPlayer(sentences: string[], rate: number, repeat: bo
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState({ currentTime: 0, duration: 0 });
   const [engine] = useState(() => new NarrationEngine(
-    setIndex, setPlaying, setPreparing, setError,
-    setPaused,
+    setIndex, setPlaying, setPreparing, setError, setPaused,
     (currentTime, duration) => setPosition({ currentTime, duration }),
   ));
   useEffect(() => { engine.configure({ sentences, rate, repeat }); });

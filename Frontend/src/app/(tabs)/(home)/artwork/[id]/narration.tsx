@@ -115,8 +115,7 @@ export default function NarrationScreen() {
     () => getNarrationMood(all.map((s) => s.text).join(' '), id, (ai?.description ?? artwork?.description)?.mood_keywords ?? []));
   const mood = moodRes.data ?? null;
   useBackgroundMusic(mood?.music_url ?? null, player.playing || player.preparing, musicOn, player.paused);
-  const musicNote = !musicOn ? '해설 뒤에 분위기에 맞는 음악을 작게 깔아요'
-    : mood ? `${mood.name} 분위기` : moodRes.error ? '음악을 고르지 못했어요' : '분위기에 맞는 음악을 고르는 중이에요…';
+
 
   const err = narrationRes.error;
   const missing = !ai && noReviewed;
@@ -318,6 +317,7 @@ export default function NarrationScreen() {
                 source={corrected.source}
                 overlay={corrected.overlay}
                 overlayAmount={corrected.overlayAmount}
+                waiting={corrected.loading}
                 accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
                 correction={{ ...profile, strength }}
                 original={false}
@@ -325,7 +325,7 @@ export default function NarrationScreen() {
                 style={styles.canvas}
               />
               {/* 작품 속 영역 상자: 누르면 그 부분을 설명하는 문장으로 재생 바가 옮겨 간다. */}
-              {regions.length > 0 && !!artwork.image_url && (
+              {followRegion && !!artwork.image_url && (
                 <RegionOverlay imageUri={artwork.image_url} regions={regions} usable={usableRegions}
                   active={current?.region_index ?? null} palette={palette} onPressRegion={jumpToRegion} />
               )}
@@ -382,10 +382,10 @@ export default function NarrationScreen() {
         </View>
       )}
 
-      {/* 배경 음악 켜고 끄기(마이페이지 설정과 같은 값). 출처 표시가 필요한 곡이면 출처를 함께 보여 준다. */}
+      {/* 배경 음악 켜고 끄기(마이페이지 설정과 같은 값). */}
       {all.length > 0 && (
         <View style={styles.musicWrap}>
-          <Pressable accessibilityRole="switch" accessibilityLabel={`배경 음악, ${musicNote}`}
+          <Pressable accessibilityRole="switch" accessibilityLabel="배경 음악"
             accessibilityState={{ checked: musicOn, disabled: !settingsLoaded }} disabled={!settingsLoaded}
             onPress={() => { void updateSettings({ background_music: !musicOn }); }} style={styles.followRow}>
             <View accessible={false} importantForAccessibility="no-hide-descendants">
@@ -393,7 +393,6 @@ export default function NarrationScreen() {
             </View>
             <View style={styles.musicTexts}>
               <Text style={[styles.followLabel, { color: palette.text }]}>배경 음악</Text>
-              <Text style={[styles.musicNote, { color: palette.textSecondary }]}>{musicNote}</Text>
             </View>
             <View style={styles.switchBox}>
               <Switch value={musicOn} disabled={!settingsLoaded} accessible={false} importantForAccessibility="no"
@@ -401,9 +400,7 @@ export default function NarrationScreen() {
                 trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
             </View>
           </Pressable>
-          {musicOn && !!mood?.credit && (
-            <Text style={[styles.musicNote, { color: palette.textSecondary }]}>음악 출처: {mood.credit}</Text>
-          )}
+
         </View>
       )}
 
@@ -671,7 +668,6 @@ const styles = StyleSheet.create({
   toolButtons: { flexDirection: 'row', gap: Spacing.two },
   musicWrap: { gap: 4, paddingHorizontal: ScreenPadding, paddingTop: 4 },
   musicTexts: { flex: 1, gap: 2 },
-  musicNote: { fontSize: 15, lineHeight: 21, fontWeight: 600 },
   zoomButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 22 },
   zoomText: { fontSize: 16, fontWeight: 800 },
   list: { gap: 10 },

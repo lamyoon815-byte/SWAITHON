@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center', marginBottom: Spacing.four },
   section: { gap: 12 },
   sectionTitle: { fontSize: FontSize.heading, fontWeight: 700, marginBottom: Spacing.two },
-  settingsHeading: { paddingLeft: CardInset },
+  settingsHeading: { paddingLeft: CardInset - Spacing.two, fontSize: FontSize.button },
   card: { borderWidth: 1.5, borderRadius: 24, overflow: 'hidden' },
   row: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
   rowText: { flex: 1, gap: Spacing.two },
