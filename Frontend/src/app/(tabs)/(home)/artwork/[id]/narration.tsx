@@ -330,7 +330,7 @@ export default function NarrationScreen() {
               {/* 작품 속 영역 상자: 누르면 그 부분을 설명하는 문장으로 재생 바가 옮겨 간다. */}
               {followRegion && !!artwork.image_url && (
                 <RegionOverlay imageUri={artwork.image_url} regions={regions} usable={usableRegions}
-                  active={current?.region_index ?? null} palette={palette} onPressRegion={jumpToRegion} />
+                  active={current?.region_index ?? null} inset={0} palette={palette} onPressRegion={jumpToRegion} />
               )}
             </Animated.View>
             </GestureDetector>
@@ -679,7 +679,8 @@ const styles = StyleSheet.create({
   zoomButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 22 },
   zoomText: { fontSize: 16, fontWeight: 800 },
   list: { gap: 10 },
-  canvas: { height: '100%', borderRadius: 20, borderWidth: 1.5 },
+  // 상자가 그림 비율과 같으므로 테두리·바탕 없이 그림 가장자리까지 꽉 채운다(가장자리 띠가 생기지 않게).
+  canvas: { height: '100%', borderRadius: 20, borderWidth: 0, backgroundColor: 'transparent' },
   canvasPlaceholder: { flex: 1 },
   captionWrap: { paddingHorizontal: ScreenPadding, paddingVertical: Spacing.three },
   caption: { gap: 10, paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1.5, borderRadius: 20 },
