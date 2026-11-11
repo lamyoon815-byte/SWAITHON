@@ -34,7 +34,7 @@ export default function RootLayout() {
         {!loaded || !profile.loaded || !settingsLoaded ? (
           <View style={styles.loading}><ActivityIndicator size="large" accessibilityLabel="설정 불러오는 중" /></View>
         ) : (
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.dark.background } }}>
+          <Stack screenOptions={{ headerShown: false, orientation: 'portrait', contentStyle: { backgroundColor: Colors.dark.background } }}>
             <Stack.Protected guard={!session}>
               <Stack.Screen name="auth" />
             </Stack.Protected>

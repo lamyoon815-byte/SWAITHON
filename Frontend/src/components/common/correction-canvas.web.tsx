@@ -19,6 +19,7 @@ type Props = {
   colorSeverities?: ColorSeverities;
   original?: boolean;
   zoomable?: boolean;
+  showZoomControls?: boolean;
   palette: Palette;
   style?: StyleProp<ViewStyle>;
   containerStyle?: StyleProp<ViewStyle>;

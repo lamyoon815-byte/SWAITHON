@@ -78,6 +78,8 @@ type Props = {
   waiting?: boolean;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
+  /** Hide buttons in the immersive landscape viewer; pinch and double-tap still work. */
+  showZoomControls?: boolean;
   palette: Palette;
   /** 캔버스 상자의 크기와 모양. 기본 높이 320 */
   style?: StyleProp<ViewStyle>;
@@ -96,6 +98,7 @@ export function CorrectionCanvas({
   liveAmount,
   waiting,
   zoomable = false,
+  showZoomControls = true,
   palette,
   style,
   containerStyle,
@@ -293,11 +296,11 @@ export function CorrectionCanvas({
   return (
     <View style={[styles.wrapper, containerStyle]}>
       <GestureDetector gesture={gesture}>{box}</GestureDetector>
-      <View style={styles.row}>
+      {showZoomControls && <View style={styles.row}>
         <BigButton label="확대 +" onPress={() => zoomBy(BUTTON_STEP)} palette={palette} disabled={!image} />
         <BigButton label="축소 −" onPress={() => zoomBy(1 / BUTTON_STEP)} palette={palette} disabled={!image} />
         <BigButton label="원래 크기" onPress={resetZoom} palette={palette} selected={false} disabled={!image} />
-      </View>
+      </View>}
     </View>
   );
 }
