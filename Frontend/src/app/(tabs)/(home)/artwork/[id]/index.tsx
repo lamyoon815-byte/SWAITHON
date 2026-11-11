@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   aiLoading: { minHeight: 280, justifyContent: 'center', backgroundColor: Colors.dark.background, borderRadius: 20, overflow: 'hidden' },
   descLabel: {
     marginTop: Spacing.two,
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 800,
   },
   aiBadge: {
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   aiBadgeText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 700,
   },
   aiRetry: {

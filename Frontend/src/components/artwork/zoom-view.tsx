@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -6,7 +6,7 @@ import { SymbolView } from 'expo-symbols';
 import { Text } from '@/components/common/text';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { PressableScale } from '@/components/common/pressable-scale';
-import { ButtonHeight, ButtonRadius, FontSize, getPalette } from '@/constants/a11y';
+import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 import type { useNarrationPlayer } from '@/hooks/use-narration-player';
@@ -24,11 +24,13 @@ type Props = {
   narrationFailed?: boolean;
   imageError?: string;
   onClose: () => void;
+  /** 따라 확대(해설 화면과 같은 설정). 영역 정보가 없는 작품이면 주지 않는다 */
+  follow?: { on: boolean; onChange: (on: boolean) => void; region: readonly [number, number, number, number] | null };
 };
 
 /** Presentation only: the caller owns the audio player, so enlarging an image never restarts audio. */
 export function ArtworkZoomView({ artwork, profile, original = false, strength: amount,
-  player, sentences, narrationFailed = false, imageError, onClose }: Props) {
+  player, sentences, narrationFailed = false, imageError, onClose, follow }: Props) {
   const palette = getPalette('dark', false);
   const showOriginal = original;
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), showOriginal, amount, undefined);
@@ -50,8 +52,16 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             {artwork?.title ?? ''}
           </Text>
           <Text style={[styles.hint, { color: palette.textSecondary }]}>
-            {showOriginal ? '원본 · ' : '보정본 · '}두 손가락으로 벌리거나 아래 버튼으로 확대해요
+            {showOriginal ? '원본 · ' : '보정본 · '}두 손가락으로 벌리거나 오른쪽 버튼으로 확대해요
           </Text>
+          {follow && (
+            <Pressable accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
+              accessibilityState={{ checked: follow.on }} onPress={() => follow.onChange(!follow.on)} style={styles.followRow}>
+              <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
+              <Switch value={follow.on} onValueChange={follow.onChange} accessible={false} importantForAccessibility="no"
+                trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
+            </Pressable>
+          )}
         </View>
 
         {artwork ? (
@@ -64,6 +74,7 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             correction={{ ...profile, strength: amount }}
             original={showOriginal}
             zoomable
+            focus={follow?.on ? follow.region : undefined}
             palette={palette}
             containerStyle={styles.canvasArea}
             style={styles.canvas}
@@ -147,6 +158,8 @@ const styles = StyleSheet.create({
     fontWeight: 600,
     textAlign: 'center',
   },
+  followRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  followLabel: { fontSize: FontSize.label, fontWeight: 700 },
   canvasArea: {
     flex: 1,
     justifyContent: 'center',
@@ -173,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   captionCount: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 700,
     fontVariant: ['tabular-nums'],
   },

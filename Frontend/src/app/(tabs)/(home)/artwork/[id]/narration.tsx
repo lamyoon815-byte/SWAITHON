@@ -54,6 +54,8 @@ import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
 const START_RATE = DEFAULT_PROFILE.speech_rate;
+// 재생판 위 페이드. 기본(40)의 1/3쯤으로 짧게 두어 문장 목록을 덜 가린다.
+const PLAYER_FADE = 14;
 
 const LENGTHS: { value: NarrationLength; label: string; hint: string }[] = [
   { value: 'brief', label: '간결하게', hint: '약 1분, 그림 위주' },
@@ -303,7 +305,7 @@ export default function NarrationScreen() {
       </View>
 
       <ScrollView ref={scrollRef} style={styles.body} scrollEventThrottle={64}
-        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + 40 : bottomInset }]}>
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + PLAYER_FADE : bottomInset }]}>
       {/* 작품: 남는 공간을 모두 쓴다(최소 화면 높이의 40%). 글이 길면 화면 전체가 스크롤된다. */}
       <View style={[styles.stage, { height: stageHeight }]}>
         <View style={styles.stageArea} onLayout={(e) => setStageWidth(e.nativeEvent.layout.width)}>
@@ -461,10 +463,14 @@ export default function NarrationScreen() {
           </View>
         )}
       </View>
+      {/* 배경 음악 출처는 감상을 방해하지 않게 해설 목록 맨 아래에 작게 둔다. */}
+      {musicOn && !!mood?.credit && (
+        <Text lineBreakStrategyIOS="hangul-word" style={[styles.credit, { color: palette.textSecondary }]}>배경 음악 출처: {mood.credit}</Text>
+      )}
       </ScrollView>
 
       {total > 0 && (
-        <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight}>
+        <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight} fadeHeight={PLAYER_FADE}>
         <View style={styles.panel}>
           <SeekBar total={total} index={player.index} elapsedSeconds={elapsedSeconds} totalSeconds={totalSeconds}
             palette={palette} onSeek={(i) => player.goTo(i)} />
@@ -559,6 +565,7 @@ export default function NarrationScreen() {
           sentences={segments.map((segment) => segment.text)}
           narrationFailed={failed || !!aiError}
           onClose={() => setZoomOpen(false)}
+          follow={regions.length > 0 ? { on: follow, onChange: setFollow, region: followRegion?.bbox ?? null } : undefined}
         />
       </Animated.View>}
 
@@ -678,6 +685,7 @@ const styles = StyleSheet.create({
   caption: { gap: 10, paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1.5, borderRadius: 20 },
   captionTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   captionCount: { marginLeft: 'auto', fontSize: 16, fontWeight: 700, fontVariant: ['tabular-nums'] },
+  credit: { paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, fontSize: 16, lineHeight: 24, fontWeight: 600, textAlign: 'center' },
   captionText: { fontSize: FontSize.body, fontWeight: 600, lineHeight: 32 },
   status: { fontSize: FontSize.label, lineHeight: 26, fontWeight: 600 },
   sheetLabel: { fontSize: 16, fontWeight: 700 },

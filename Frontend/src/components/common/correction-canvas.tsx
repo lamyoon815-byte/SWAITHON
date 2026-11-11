@@ -30,9 +30,11 @@ import {
   useSimultaneousGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
-import { useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Easing, useDerivedValue, useReducedMotion, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
-import { BigButton } from '@/components/common/big-button';
+import { SymbolView } from 'expo-symbols';
+
+import { PressableScale } from '@/components/common/pressable-scale';
 import { MascotLoading } from '@/components/common/mascot-loading';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
@@ -45,6 +47,9 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 const DOUBLE_TAP_SCALE = 3;
 const BUTTON_STEP = 1.5;
+/** 따라 확대: 영역이 화면의 88% 안에 들어오는 배율까지, 최대 3배 (해설 화면과 같은 규칙) */
+const FOCUS_FILL = 0.88;
+const FOCUS_MAX = 3;
 
 function clamp(v: number, lo: number, hi: number) {
   'worklet';
@@ -78,6 +83,8 @@ type Props = {
   waiting?: boolean;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
+  /** 따라 확대할 영역(그림 기준 0~1 비율 [x, y, w, h]). null이면 원래 크기로, 주지 않으면 확대 상태를 건드리지 않는다 */
+  focus?: readonly [number, number, number, number] | null;
   palette: Palette;
   /** 캔버스 상자의 크기와 모양. 기본 높이 320 */
   style?: StyleProp<ViewStyle>;
@@ -96,6 +103,7 @@ export function CorrectionCanvas({
   liveAmount,
   waiting,
   zoomable = false,
+  focus,
   palette,
   style,
   containerStyle,
@@ -210,6 +218,31 @@ export function CorrectionCanvas({
 
   const gesture = useSimultaneousGestures(pinch, pan, doubleTap);
 
+  // 따라 확대: 읽는 문장의 영역으로 부드럽게 확대·이동한다(동작 줄이기면 바로 옮긴다).
+  const reduceMotion = useReducedMotion();
+  const fx = focus?.[0], fy = focus?.[1], fw = focus?.[2], fh = focus?.[3];
+  const imageW = image?.width() ?? 0;
+  const imageH = image?.height() ?? 0;
+  useEffect(() => {
+    if (focus === undefined) return;
+    const move = (value: number) => (reduceMotion ? value : withTiming(value, { duration: 600, easing: Easing.inOut(Easing.cubic) }));
+    const W = size.width, H = size.height;
+    if (fx === undefined || fy === undefined || fw === undefined || fh === undefined || !W || !H || !imageW || !imageH) {
+      scale.set(move(1)); tx.set(move(0)); ty.set(move(0));
+      return;
+    }
+    // 그림은 상자 안에 contain으로 그려지므로 실제 그림 자리를 기준으로 영역을 잡는다.
+    const r = Math.min(W / imageW, H / imageH);
+    const pw = imageW * r, ph = imageH * r;
+    const ox = (W - pw) / 2, oy = (H - ph) / 2;
+    const s = clamp(Math.min(FOCUS_MAX, (FOCUS_FILL * W) / Math.max(1, fw * pw), (FOCUS_FILL * H) / Math.max(1, fh * ph)), MIN_SCALE, MAX_SCALE);
+    const cx = ox + (fx + fw / 2) * pw;
+    const cy = oy + (fy + fh / 2) * ph;
+    scale.set(move(s));
+    tx.set(move(clampTranslate(W / 2 - cx * s, W, s)));
+    ty.set(move(clampTranslate(H / 2 - cy * s, H, s)));
+  }, [focus === undefined, fx, fy, fw, fh, size.width, size.height, imageW, imageH, reduceMotion, scale, tx, ty]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Buttons are the only way to zoom while VoiceOver/TalkBack is on (screen readers swallow pinch).
   const zoomBy = (factor: number) => {
     const s0 = scale.get();
@@ -293,10 +326,19 @@ export function CorrectionCanvas({
   return (
     <View style={[styles.wrapper, containerStyle]}>
       <GestureDetector gesture={gesture}>{box}</GestureDetector>
-      <View style={styles.row}>
-        <BigButton label="확대 +" onPress={() => zoomBy(BUTTON_STEP)} palette={palette} disabled={!image} />
-        <BigButton label="축소 −" onPress={() => zoomBy(1 / BUTTON_STEP)} palette={palette} disabled={!image} />
-        <BigButton label="원래 크기" onPress={resetZoom} palette={palette} selected={false} disabled={!image} />
+      {/* 확대·축소·원래 크기: 그림을 덜 가리게 오른쪽에 작은 동그라미로 세로로 둔다. */}
+      <View pointerEvents="box-none" style={styles.side}>
+        {([
+          { label: '확대', icon: { ios: 'plus', android: 'add', web: 'add' }, onPress: () => zoomBy(BUTTON_STEP) },
+          { label: '축소', icon: { ios: 'minus', android: 'remove', web: 'remove' }, onPress: () => zoomBy(1 / BUTTON_STEP) },
+          { label: '원래 크기', icon: { ios: 'arrow.counterclockwise', android: 'restart_alt', web: 'restart_alt' }, onPress: resetZoom },
+        ] as const).map((button) => (
+          <PressableScale key={button.label} accessibilityRole="button" accessibilityLabel={button.label}
+            accessibilityState={{ disabled: !image }} disabled={!image} onPress={button.onPress}
+            style={({ pressed }) => [styles.sideButton, { borderColor: palette.border, opacity: !image ? 0.4 : pressed ? 0.7 : 1 }]}>
+            <SymbolView name={button.icon} size={22} weight="bold" tintColor="#FFFFFF" />
+          </PressableScale>
+        ))}
       </View>
     </View>
   );
@@ -321,8 +363,22 @@ const styles = StyleSheet.create({
     fontSize: FontSize.label,
     fontWeight: 600,
   },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
+  side: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 12,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  sideButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 밝은 그림 위에서도 보이게 반투명 검정 바탕
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
 });
