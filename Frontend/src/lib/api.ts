@@ -79,6 +79,14 @@ const correctedImages = new Map<string, string>();
 const pendingCorrections = new Map<string, Promise<string>>();
 let correctionEpoch = 0;
 
+/** Already corrected image for exactly this account, profile revision and strength, without waiting. */
+export function cachedCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): string | undefined {
+  const token = getAccessToken();
+  if (!token || !profile.revision) return undefined;
+  const key = JSON.stringify([API_URL, token, correctionEpoch, artworkId, profile.revision, serverCorrection(profile, correctionStrength(strength))]);
+  return correctedImages.get(key);
+}
+
 export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): Promise<string> {
   strength = correctionStrength(strength);
   const token = getAccessToken();

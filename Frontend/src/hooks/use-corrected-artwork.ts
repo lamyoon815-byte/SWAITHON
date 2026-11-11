@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError, getCorrectedImage } from '@/lib/api';
+import { ApiError, cachedCorrectedImage, getCorrectedImage } from '@/lib/api';
 import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
 import { useProfile } from '@/hooks/use-profile';
 import { getAccessToken } from '@/store/auth';
@@ -29,6 +29,11 @@ export function useCorrectedArtwork(id: string | undefined, source: string | und
     // The key contains exactly the fields that affect the server image.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, attempt]);
-  const current = state?.key === key ? state : null;
-  return { source: active && current?.source ? current.source : source ?? '', error: profileError || current?.error, loading: active && !current, reload: () => { if (profileError) void reloadProfile(); setState(null); setAttempt((value) => value + 1); } };
+  // A corrected image fetched before (another screen, or going back) shows at once instead of after the delay.
+  const cached = active && id ? cachedCorrectedImage(id, values, strength) : undefined;
+  const current = state?.key === key ? state : cached ? { key: key!, source: cached } : null;
+  // While the first corrected image is on its way, show nothing rather than the uncorrected original,
+  // so the picture never flips from "almost corrected" to corrected.
+  const shown = !active ? source ?? '' : current?.source ?? (current?.error ? source ?? '' : '');
+  return { source: shown, error: profileError || current?.error, loading: active && !current, reload: () => { if (profileError) void reloadProfile(); setState(null); setAttempt((value) => value + 1); } };
 }

@@ -186,6 +186,10 @@ class GeminiService:
                         exc.close()
                         time.sleep(0.5)
                         continue
+                    if exc.code == 402:
+                        # 선불 크레딧 소진: 다시 시도해도 안 되므로 관리자가 할 일을 알려 준다.
+                        exc.close()
+                        raise HTTPException(503, "AI 해설 크레딧이 모두 소진됐어요. 저장된 해설은 들을 수 있고, 새 해설은 관리자가 충전한 뒤 만들 수 있어요.") from None
                     status = 429 if exc.code == 429 else (503 if exc.code in {400, 401, 403, 404} else 502)
                     exc.close()
                     message = "AI API 한도에 도달했습니다. 잠시 후 다시 시도해 주세요." if status == 429 else "AI API 호출에 실패했습니다. 서버의 모델·키 설정과 서비스 상태를 확인해 주세요."
