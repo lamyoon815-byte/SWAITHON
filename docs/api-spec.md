@@ -70,7 +70,7 @@ JSON 필수 필드:
 | 필드 | 타입 | 제한 |
 |---|---|---|
 | `email` | string | 유효한 이메일. 소문자로 정규화 |
-| `password` | string | 8~128자 |
+| `password` | string | 8~128자, 영문과 숫자를 모두 포함 (로그인은 8~128자만 검사) |
 | `nickname` | string | 앞뒤 공백 제거 후 1~40자 |
 
 ```json

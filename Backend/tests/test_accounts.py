@@ -48,7 +48,7 @@ class AccountTests(unittest.TestCase):
 
     def test_duplicate_invalid_and_unknown_credentials(self):
         self.register()
-        duplicate = self.client.post("/auth/register", json={"email": "FIRST@example.com", "password": "other-password", "nickname": "중복"})
+        duplicate = self.client.post("/auth/register", json={"email": "FIRST@example.com", "password": "other-password-1", "nickname": "중복"})
         self.assertEqual(duplicate.status_code, 409)
         messages = []
         for email in ["first@example.com", "unknown@example.com"]:
@@ -57,6 +57,9 @@ class AccountTests(unittest.TestCase):
             messages.append(response.json())
         self.assertEqual(messages[0], messages[1])
         self.assertEqual(self.client.post("/auth/register", json={"email": "bad", "password": "short", "nickname": ""}).status_code, 422)
+        for weak in ("onlyletters", "1234567890"):
+            response = self.client.post("/auth/register", json={"email": "weak@example.com", "password": weak, "nickname": "관람객"})
+            self.assertEqual(response.status_code, 422)
 
     def test_expired_or_missing_session(self):
         _, headers = self.register()

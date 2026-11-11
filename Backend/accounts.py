@@ -38,6 +38,15 @@ class Registration(Credentials):
     nickname: str = Field(min_length=1, max_length=40)
     model_config = ConfigDict(str_strip_whitespace=True)
 
+    # New passwords need letters and digits. Login keeps the length-only rule for existing accounts.
+    @field_validator("password")
+    @classmethod
+    def letters_and_digits(cls, value):
+        secret = value.get_secret_value()
+        if not (any(c.isascii() and c.isalpha() for c in secret) and any(c.isdigit() for c in secret)):
+            raise ValueError("비밀번호는 영문과 숫자를 모두 포함해야 합니다")
+        return value
+
 
 class User(BaseModel):
     id: str
