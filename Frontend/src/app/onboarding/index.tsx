@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
         </View>}
         <View style={styles.buttonRow}><BigButton label={busy ? '저장 중…' : last ? '내 눈에 맞추기' : '다음'} palette={palette} disabled={busy || !loaded} onPress={() => { if (last) void finish('correction'); else goTo(page + 1); }} /></View>
         {last ? (
-          <View style={styles.buttonRow}><BigButton label="먼저 둘러보기" selected={false} palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} /></View>
+          <TextButton label="먼저 둘러보기" palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} />
         ) : (
           <TextButton label="소개 건너뛰기" palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} />
         )}
