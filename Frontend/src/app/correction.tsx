@@ -1,13 +1,15 @@
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
+import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
+import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { showToast } from '@/components/common/toast';
 import { CORRECTION_CONTROLS, CorrectionSlider } from '@/components/mypage/correction-slider';
@@ -23,7 +25,7 @@ export default function CorrectionScreen() {
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { profile, loaded, error, saveViewingSettings, reloadProfile } = useProfile();
   const palette = getPalette('dark', profile.high_contrast);
-  const { bottom: bottomInset } = useSafeAreaInsets();
+  const [barHeight, setBarHeight] = useState(0);
   const [draft, setDraft] = useState<ViewingSettings | null>(null);
   const [previewMode, setPreviewMode] = useState<CorrectionPreview>('color');
   const [original, setOriginal] = useState(false);
@@ -100,7 +102,7 @@ export default function CorrectionScreen() {
         <View style={styles.headerSpace} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: barHeight + 40 }]}>
         <CorrectionCanvas
           source={preview.artwork}
           accessibilityLabel={preview.label}
@@ -165,13 +167,25 @@ export default function CorrectionScreen() {
             </View>
           ))}
         </View>
-        <View style={styles.buttonRow}><BigButton label="보정값 다시 맞추기" selected={false} palette={palette} disabled={disabled} accessibilityHint="화면 맞추기의 숫자 선택 단계부터 다시 시작해요" onPress={recalibrate} /></View>
+        <View style={[styles.divider, { backgroundColor: palette.outline }]} />
+        <Pressable accessibilityRole="button" accessibilityLabel="보정값 다시 맞추기" accessibilityHint="화면 맞추기의 숫자 선택 단계부터 다시 시작해요" accessibilityState={{ disabled }} disabled={disabled} onPress={recalibrate}
+          style={({ pressed }) => [styles.linkRow, { opacity: disabled ? 0.4 : 1, backgroundColor: pressed ? palette.fill : 'transparent' }]}>
+          <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.linkIcon, { backgroundColor: palette.fill }]}>
+            <SymbolView name={{ ios: 'arrow.counterclockwise', android: 'restart_alt', web: 'restart_alt' }} size={20} weight="semibold" tintColor={palette.highlight} />
+          </View>
+          <Text style={[styles.linkLabel, { color: palette.text }]}>보정값 다시 맞추기</Text>
+          <View accessible={false} importantForAccessibility="no-hide-descendants">
+            <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={18} weight="semibold" tintColor={palette.textSecondary} />
+          </View>
+        </Pressable>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: bottomInset + Spacing.two, backgroundColor: palette.background }]}>
-        <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '변경사항 저장'} palette={palette} disabled={disabled} onPress={() => { void save(); }} /></View>
-        <View style={styles.buttonRow}><BigButton label="변경 취소" selected={false} palette={palette} disabled={saving} onPress={cancel} /></View>
-      </View>
+      <BottomActionBar background={palette.background} onHeight={setBarHeight}>
+        <View style={styles.footerRow}>
+          <View style={styles.footerCancel}><BigButton label="취소" accessibilityLabel="변경 취소" selected={false} palette={palette} disabled={saving} onPress={cancel} /></View>
+          <View style={styles.footerSave}><BigButton label={saving ? '저장 중…' : '변경사항 저장'} palette={palette} disabled={disabled} onPress={() => { void save(); }} /></View>
+        </View>
+      </BottomActionBar>
 
       <Modal visible={confirmDiscard} transparent animationType="fade" onRequestClose={() => setConfirmDiscard(false)}>
         <View style={[styles.scrim, { backgroundColor: Scrim }]}>
@@ -212,7 +226,12 @@ const styles = StyleSheet.create({
   plate: { width: '100%', height: 160, marginBottom: Spacing.three },
   divider: { height: 1 },
   note: { fontSize: FontSize.label, lineHeight: 27 },
-  footer: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.two, gap: 12 },
+  linkRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12 },
+  linkIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  linkLabel: { flex: 1, fontSize: FontSize.body, fontWeight: 700 },
+  footerRow: { flexDirection: 'row', gap: ButtonGap },
+  footerCancel: { flex: 1, flexDirection: 'row' },
+  footerSave: { flex: 2, flexDirection: 'row' },
   buttonRow: { flexDirection: 'row' },
   scrim: { flex: 1 },
   modalContent: { flexGrow: 1, justifyContent: 'center', padding: ScreenPadding },

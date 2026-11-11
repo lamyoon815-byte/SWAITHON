@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { Text } from '@/components/common/text';
+import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { OnboardingIllustration } from '@/components/onboarding/illustration';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
@@ -60,13 +61,7 @@ export default function OnboardingScreen() {
       <View style={styles.header}>
         <View style={styles.headerSide}>{page > 0 && <BackButton label="이전 소개" palette={palette} onPress={() => goTo(page - 1)} />}</View>
         <Text style={[styles.brand, { color: palette.text }]}>MoMi</Text>
-        <View style={styles.headerSide}>
-          {!last && <Pressable accessibilityRole="button" accessibilityLabel="소개 건너뛰기" disabled={busy || !loaded} onPress={() => { void finish('home'); }} style={({ pressed }) => [styles.skip, { opacity: busy ? 0.4 : pressed ? 0.7 : 1 }]}>
-            <View style={[styles.skipPill, { borderColor: palette.outline }]}>
-              <Text style={[styles.skipLabel, { color: palette.textSecondary }]}>건너뛰기</Text>
-            </View>
-          </Pressable>}
-        </View>
+        <View style={styles.headerSide} />
       </View>
 
       <View style={styles.pager} onLayout={(event) => { const width = event.nativeEvent.layout.width; if (width > 0) setPageWidth(width); }}>
@@ -100,8 +95,10 @@ export default function OnboardingScreen() {
           <View style={styles.dots}>{ONBOARDING_SLIDES.map((item, index) => <View key={item.artwork} style={[styles.dot, { backgroundColor: index === page ? palette.highlight : palette.outline }]} />)}</View>
         </View>}
         <View style={styles.buttonRow}><BigButton label={busy ? '저장 중…' : last ? '내 눈에 맞추기' : '다음'} palette={palette} disabled={busy || !loaded} onPress={() => { if (last) void finish('correction'); else goTo(page + 1); }} /></View>
-        {last && (
+        {last ? (
           <View style={styles.buttonRow}><BigButton label="먼저 둘러보기" selected={false} palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} /></View>
+        ) : (
+          <TextButton label="소개 건너뛰기" palette={palette} disabled={busy || !loaded} onPress={() => { void finish('home'); }} />
         )}
       </View>
     </SafeAreaView>
@@ -113,9 +110,6 @@ const styles = StyleSheet.create({
   header: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.two, gap: Spacing.two },
   headerSide: { width: 88, minHeight: MinTouchTarget, justifyContent: 'center' },
   brand: { flex: 1, fontSize: FontSize.label, fontWeight: 800, textAlign: 'center' },
-  skip: { minHeight: MinTouchTarget, minWidth: MinTouchTarget, justifyContent: 'center', alignItems: 'center' },
-  skipPill: { maxWidth: '100%', borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
-  skipLabel: { fontSize: FontSize.label, textAlign: 'center', fontWeight: 600 },
   pager: { flex: 1 },
   slide: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.four },
   slideContent: { width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', gap: Spacing.four },

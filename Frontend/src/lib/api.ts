@@ -173,3 +173,15 @@ export function recognizeArtwork(uri: string): Promise<RecognitionResult> {
 export function analyzeArtwork(uri: string): Promise<AnalysisResult> {
   return upload<AnalysisResult>('/analyze', uri);
 }
+
+/** 짧은 음성 답(화면 맞추기 숫자 등)을 글자로 (`POST /transcribe`). 녹음 파일은 m4a. */
+export async function transcribeAnswer(uri: string): Promise<string> {
+  const body = new FormData();
+  if (Platform.OS === 'web') {
+    const audio = await fetch(uri);
+    body.append('audio', await audio.blob(), 'answer.webm');
+  } else {
+    body.append('audio', new File(uri) as unknown as Blob);
+  }
+  return (await request<{ text: string }>('/transcribe', { method: 'POST', body })).text;
+}
