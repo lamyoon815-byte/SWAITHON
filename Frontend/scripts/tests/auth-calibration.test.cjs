@@ -442,7 +442,7 @@ test('generated narration is reused and a failed generation is never cached as p
       ? { artwork_id: 'art', fallback: true, segments: [], review_status: 'unreviewed' }
       : { artwork_id: 'art', fallback: false, segments: [{ type: 'fact', text: '붉은 꽃이 있어요.', region_index: null }], review_status: 'unreviewed' } };
   });
-  await assert.rejects(api.generateNarration('art'), /AI 해설을 생성하지 못했어요/);
+  await assert.rejects(api.generateNarration('art'), /해설을 준비하지 못했어요/);
   const [a, b] = await Promise.all([api.generateNarration('art'), api.generateNarration('art')]);
   assert.equal(a.review_status, 'unreviewed');
   assert.equal(a, b);

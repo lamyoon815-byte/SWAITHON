@@ -48,6 +48,11 @@ class Registration(Credentials):
         return value
 
 
+class NicknameUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    nickname: str = Field(min_length=1, max_length=40)
+
+
 class User(BaseModel):
     id: str
     email: str
@@ -223,6 +228,13 @@ class AccountStore:
             raise HTTPException(401, "로그인이 필요하거나 세션이 만료되었습니다.", headers={"WWW-Authenticate": "Bearer"})
         return self.public_user(row)
 
+    def set_nickname(self, user_id: str, nickname: str):
+        with closing(self.connect()) as connection:
+            with connection:
+                connection.execute("UPDATE users SET nickname = ? WHERE id = ?", (nickname, user_id))
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return self.public_user(row)
+
     def logout(self, token: str):
         with closing(self.connect()) as connection:
             with connection:
@@ -368,6 +380,10 @@ def create_account_router(accounts: AccountStore, catalog):
     @router.get("/me", response_model=User, tags=["회원 인증"], summary="로그인한 내 회원 정보 조회")
     def me(user: Annotated[dict, Depends(current_user)]):
         return user
+
+    @router.patch("/me", response_model=User, tags=["회원 인증"], summary="내 이름(닉네임) 바꾸기")
+    def update_me(data: NicknameUpdate, user: Annotated[dict, Depends(current_user)]):
+        return accounts.set_nickname(user["id"], data.nickname)
 
     @router.get("/me/profile", response_model=VisualProfile, tags=["시각 프로필"], summary="내 시각 프로필 조회")
     def get_profile(user: Annotated[dict, Depends(current_user)]):

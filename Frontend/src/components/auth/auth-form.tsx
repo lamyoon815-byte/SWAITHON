@@ -83,8 +83,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
       <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.scroll}>
-          <View style={styles.content}>
-            <View style={styles.navigation}>
+          <View style={[styles.content, signup && styles.signupContent]}>
+            <View style={[styles.navigation, signup && styles.signupNavigation]}>
               <BackButton label="시작 화면으로" palette={palette} onPress={() => router.canGoBack() ? router.back() : router.replace('/auth')} />
             </View>
             <View style={styles.heading}>
@@ -144,15 +144,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               <View style={styles.row}>
                 <BigButton label={busy ? '잠시만 기다려 주세요…' : signup ? '회원가입하고 시작하기' : '로그인'} palette={palette} disabled={busy} onPress={submit} />
               </View>
+              {!signup && <>
               <View style={styles.or} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <View style={[styles.orLine, { backgroundColor: palette.outline }]} />
                 <Text style={[styles.orText, { color: palette.textSecondary }]}>또는</Text>
                 <View style={[styles.orLine, { backgroundColor: palette.outline }]} />
               </View>
               <View style={styles.row}>
-                <BigButton label={signup ? '로그인으로 돌아가기' : '회원가입'} palette={palette} selected={false} disabled={busy}
-                  onPress={() => signup ? router.replace('/auth/login') : router.push('/auth/register')} />
+                <BigButton label="회원가입" palette={palette} selected={false} disabled={busy}
+                  onPress={() => router.push('/auth/register')} />
               </View>
+              </>}
             </View>
             <Text style={[styles.credit, { color: palette.textSecondary }]}>SWAITHON · 김규린 · 김민서 · 박지현 · 배정윤</Text>
           </View>
@@ -167,7 +169,9 @@ const FieldRadius = 12;
 const styles = StyleSheet.create({
   screen: { flex: 1 }, scroll: { flexGrow: 1, paddingBottom: Spacing.four },
   navigation: { alignItems: 'flex-start' },
+  signupNavigation: { marginTop: ScreenPadding, marginBottom: -ScreenPadding },
   content: { width: '100%', maxWidth: 540, alignSelf: 'center', padding: ScreenPadding, gap: Spacing.four },
+  signupContent: { paddingTop: 0 },
   heading: { alignItems: 'center', gap: 12, paddingVertical: Spacing.two },
   brand: { fontSize: 17, fontWeight: '800', letterSpacing: 1 },
   title: { fontSize: 30, lineHeight: 40, fontWeight: '800', textAlign: 'center', letterSpacing: -1 },

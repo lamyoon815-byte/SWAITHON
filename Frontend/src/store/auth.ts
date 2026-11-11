@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import type { LoginResult, Session } from '@/types/auth';
+import type { LoginResult, Session, User } from '@/types/auth';
 
 const KEY = 'swaithon.session.v1';
 let snapshot: { session: Session | null; loaded: boolean } = { session: null, loaded: false };
@@ -61,6 +61,20 @@ export async function saveSession(result: LoginResult) {
   return writeSession(async () => {
     await storage.set(JSON.stringify(session));
     emit(session);
+  });
+}
+
+/** 이름을 바꾸거나 서버의 최신 회원 정보를 받았을 때 저장된 세션의 회원 정보만 바꾼다. 같으면 아무것도 하지 않는다. */
+export async function updateSessionUser(user: User) {
+  await load();
+  const token = snapshot.session?.token;
+  return writeSession(async () => {
+    const session = snapshot.session;
+    if (!session || session.token !== token || session.user.id !== user.id) return;
+    if (session.user.nickname === user.nickname && session.user.email === user.email) return;
+    const next = { ...session, user };
+    await storage.set(JSON.stringify(next));
+    emit(next);
   });
 }
 

@@ -8,6 +8,7 @@
 
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import Animated, {
@@ -39,7 +40,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { getMuseumArtworks, getMuseums } from '@/lib/api';
+import { getArtworkByNumber, getMuseumArtworkPage, getMuseums } from '@/lib/api';
+import { spokenNumbers } from '@/lib/spoken-answer';
+import { useVoiceAnswer } from '@/hooks/use-voice-answer';
+import type { Artwork } from '@/types/artwork';
 import type { MuseumNext } from '@/types/museum';
 
 const SearchBarHeight = 64;
@@ -67,15 +71,67 @@ export default function HomeScreen() {
   const { settings, loaded } = useSettings();
   const museumId = settings.recent_museum_id;
   const museumsRes = useResource('museums', getMuseums);
-  const artworksRes = useResource(museumId, () => getMuseumArtworks(museumId!));
+  const artworksRes = useResource(museumId, () => getMuseumArtworkPage(museumId!));
+  // Large museums have thousands of works: show 100 at a time and append on request.
+  const [more, setMore] = useState<{ museumId: string | null; items: Artwork[] }>({ museumId: null, items: [] });
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const museum = museumsRes.data?.find((m) => m.id === museumId);
-  const artworks = artworksRes.data;
+  const artworks = artworksRes.data && [...artworksRes.data.items, ...(more.museumId === museumId ? more.items : [])];
   const works = artworks ?? [];
+  const total = artworksRes.data?.total ?? 0;
+  const loadMore = async () => {
+    if (!museumId || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await getMuseumArtworkPage(museumId, works.length);
+      setMore((previous) => ({ museumId, items: [...(previous.museumId === museumId ? previous.items : []), ...page.items] }));
+    } catch {
+      showToast('작품을 더 불러오지 못했어요', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const failed = !!museumsRes.error || !!artworksRes.error;
   const retry = () => {
     museumsRes.reload();
     artworksRes.reload();
+  };
+
+  // 음성으로 찾기: 번호("12번", "십이")나 제목·작가 이름을 말하면 현재 미술관에서 찾아 연다.
+  const voice = useVoiceAnswer();
+  const findByVoice = () => {
+    if (!museum || !artworks) {
+      showToast('먼저 미술관을 골라 주세요', 'warning');
+      return;
+    }
+    voice.toggle({
+      onText: async (text) => {
+        const numbers = spokenNumbers(text);
+        const squash = (value: string) => value.replace(/[\s.,·:;'"!?()-]/g, '').toLowerCase();
+        const said = squash(text);
+        const byNumber = works.find((a) => a.number && numbers.includes(String(Number(a.number))));
+        const byName = said.length >= 2 ? works.find((a) => [a.title, a.original_title, a.artist, a.original_artist]
+          .some((name) => name && (squash(name).includes(said) || said.includes(squash(name))))) : undefined;
+        let found = byNumber ?? byName;
+        // Only the first pages are loaded; a spoken number may belong to a work further down.
+        for (const number of found ? [] : numbers) {
+          try {
+            found = await getArtworkByNumber(museum.id, number.padStart(2, '0'));
+            break;
+          } catch {
+            // Try the next number that was heard.
+          }
+        }
+        if (found) {
+          showToast(`"${found.title}" 작품을 열어요`, 'success');
+          openArtwork(found.id);
+        } else {
+          showToast(text ? `"${text}"(으)로 들었어요. 맞는 작품을 찾지 못했어요` : '잘 들리지 않았어요. 다시 말해 주세요', 'warning');
+        }
+      },
+      onError: (message) => showToast(message, 'warning'),
+    });
   };
 
   const openPicker = (next?: MuseumNext) =>
@@ -126,11 +182,12 @@ export default function HomeScreen() {
             onPress={() => router.navigate('/camera')}
           />
           <WayButton
-            ios="mic"
-            android="mic"
-            label="음성으로 찾기"
+            ios={voice.state === 'recording' ? 'stop.fill' : 'mic'}
+            android={voice.state === 'recording' ? 'stop' : 'mic'}
+            label={voice.state === 'recording' ? '듣고 있어요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 찾기'}
+            hint={voice.state === 'recording' ? '다 말했으면 누르세요' : '작품 번호나 제목을 말해 주세요'}
             palette={palette}
-            onPress={() => showToast('음성으로 찾기는 준비 중이에요')}
+            onPress={findByVoice}
           />
         </View>
 
@@ -142,7 +199,7 @@ export default function HomeScreen() {
               </Text>
               {!!museum && artworks && (
                 <Text style={[styles.count, { color: palette.textSecondary }]}>
-                  {works.length}점
+                  {total}점
                 </Text>
               )}
             </View>
@@ -150,6 +207,7 @@ export default function HomeScreen() {
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="크게 넘겨보기"
+                hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityHint="작품을 한 점씩 크게 보며 넘겨요"
                 onPress={() => router.push('/browse')}
                 style={({ pressed }) => [
@@ -209,6 +267,15 @@ export default function HomeScreen() {
                   <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
                 </View>
               ))}
+              {works.length < total && (
+                <View style={styles.moreRow}>
+                  <PillButton
+                    label={loadingMore ? '불러오는 중…' : `더 보기 (${works.length} / ${total})`}
+                    palette={palette}
+                    onPress={() => { void loadMore(); }}
+                  />
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -354,7 +421,7 @@ const styles = StyleSheet.create({
   },
   wayLabel: {
     flexShrink: 1,
-    fontSize: 17,
+    fontSize: FontSize.label,
     fontWeight: 700,
   },
   listHeader: {
@@ -370,9 +437,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: Spacing.two,
   },
-  // Slim (44, the minimum tap size) so it reads as a header action, not a main button.
+  // 보이는 높이는 48로 낮추되, 위아래 hitSlop으로 누르는 영역은 56을 지킨다.
   browse: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: ButtonRadius,
@@ -381,7 +448,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   browseText: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 800,
   },
   listTitle: {
@@ -389,7 +456,7 @@ const styles = StyleSheet.create({
     fontWeight: 800,
   },
   count: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 600,
   },
   messageBox: {
@@ -414,8 +481,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: {
-    fontSize: 17,
+    fontSize: FontSize.label,
     fontWeight: 800,
+  },
+  moreRow: {
+    alignItems: 'center',
+    paddingTop: Spacing.three,
   },
   skeletonList: {
     gap: Spacing.three,

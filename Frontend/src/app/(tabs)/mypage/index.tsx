@@ -2,12 +2,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/common/text';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
@@ -15,21 +16,22 @@ import { PressableScale } from '@/components/common/pressable-scale';
 import { Avatar } from '@/components/mypage/avatar';
 import { ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { NARRATION_OPTIONS } from '@/constants/narration';
-import { MaxContentWidth, ScreenPadding, Scrim, Spacing } from '@/constants/theme';
+import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvatar } from '@/hooks/use-avatar';
 import { useProfile } from '@/hooks/use-profile';
 import { useCorrectionEntry } from '@/hooks/use-correction-entry';
 import { useSettings } from '@/hooks/use-settings';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { logout as apiLogout } from '@/lib/api';
+import { logout as apiLogout, updateNickname } from '@/lib/api';
+import { getFontScale } from '@/lib/font-scale';
 import type { DeviceSettings } from '@/store/settings';
 import type { NarrationMode } from '@/types/narration';
 
 const FONT_OPTIONS = [
-  { value: 'normal', label: '기본' },
-  { value: 'large', label: '크게' },
-  { value: 'xlarge', label: '아주 크게' },
+  { value: 'normal', label: '기본', previewScale: getFontScale('normal') },
+  { value: 'large', label: '크게', previewScale: getFontScale('large') },
+  { value: 'xlarge', label: '아주 크게', previewScale: getFontScale('xlarge') },
 ] as const;
 
 export default function MyPageScreen() {
@@ -43,6 +45,8 @@ export default function MyPageScreen() {
   const user = session?.user ?? null;
   const { avatar, setAvatar, clearAvatar } = useAvatar(user?.id);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [savingMode, setSavingMode] = useState(false);
   // 닫히며 사라지는 동안에도 마지막 시트 내용을 유지한다.
@@ -76,6 +80,23 @@ export default function MyPageScreen() {
     }
   };
 
+  const openProfile = () => {
+    setNameDraft(user?.nickname ?? '');
+    openSheet('photo');
+  };
+  const saveName = async () => {
+    const nickname = nameDraft.trim();
+    if (savingName || !nickname || nickname === user?.nickname) return;
+    setSavingName(true);
+    try {
+      await updateNickname(nickname);
+      showToast('이름을 바꿨어요', 'success');
+    } catch {
+      showToast('이름을 바꾸지 못했어요. 다시 시도해 주세요', 'error');
+    } finally {
+      setSavingName(false);
+    }
+  };
   const pickPhoto = async (source: 'library' | 'camera') => {
     try {
       const permission = source === 'camera'
@@ -118,27 +139,25 @@ export default function MyPageScreen() {
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + Spacing.four }]}>
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>마이페이지</Text>
-        <View style={[styles.card, card, styles.profileCard]}>
-          {user ? (
-            <View style={styles.profileRow}>
-              <PressableScale accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" onPress={() => openSheet('photo')} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                <Avatar uri={avatar} name={user.nickname} palette={palette} />
-                <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.cameraBadge, { backgroundColor: palette.text, borderColor: palette.surface }]}>
-                  <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'photo_camera' }} size={14} tintColor={palette.background} />
-                </View>
-              </PressableScale>
-              <View style={styles.profileTexts}>
-                <Text numberOfLines={1} style={[styles.profileName, { color: palette.text }]}>{user.nickname}</Text>
-                <Text numberOfLines={1} style={[styles.profileEmail, { color: palette.textSecondary }]}>{user.email}</Text>
-              </View>
+        {/* 프로필 카드 전체가 버튼: 누르면 이름과 사진을 바꾸는 시트가 열린다. */}
+        <PressableScale accessibilityRole="button" accessibilityLabel={user ? `${user.nickname}, ${user.email}. 프로필 수정` : '프로필 불러오는 중'}
+          accessibilityHint="이름과 프로필 사진을 바꿀 수 있어요" disabled={!user} onPress={openProfile}
+          pressedScale={0.98} background={palette.surface} pressedBackground={palette.fill}
+          style={[styles.card, { borderColor: palette.outline }, styles.profileCard]}>
+          <View style={styles.profileRow}>
+            <View>
+              <Avatar uri={avatar} name={user?.nickname} palette={palette} />
+              {user && <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.cameraBadge, { backgroundColor: palette.text, borderColor: palette.surface }]}>
+                <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={14} tintColor={palette.background} />
+              </View>}
             </View>
-          ) : (
-            <View style={styles.profileRow}>
-              <Avatar uri={null} palette={palette} />
-              <Text style={[styles.profileName, { color: palette.text }]}>불러오는 중</Text>
+            <View style={styles.profileTexts}>
+              <Text numberOfLines={1} style={[styles.profileName, { color: palette.text }]}>{user?.nickname ?? '불러오는 중'}</Text>
+              {!!user && <Text numberOfLines={1} style={[styles.profileEmail, { color: palette.textSecondary }]}>{user.email}</Text>}
             </View>
-          )}
-        </View>
+            {!!user && <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={20} weight="semibold" tintColor={palette.text} />}
+          </View>
+        </PressableScale>
         <View style={styles.section}>
           <Text accessibilityRole="header" style={[styles.sectionTitle, styles.settingsHeading, { color: palette.text }]}>내 화면 설정</Text>
           <View style={[styles.card, card]}>
@@ -157,9 +176,6 @@ export default function MyPageScreen() {
           <View style={[styles.card, card]}>
             <SettingRow label="관람 기록" icon={{ ios: 'clock.arrow.circlepath', android: 'history' }} palette={palette} onPress={() => router.push('/history')} />
           </View>
-          <View style={[styles.card, card]}>
-            <SettingRow label="앱 소개 다시 보기" icon={{ ios: 'sparkles', android: 'auto_awesome' }} palette={palette} onPress={() => router.push('/onboarding')} />
-          </View>
         </View>
         {user && (
           <>
@@ -171,11 +187,26 @@ export default function MyPageScreen() {
             </PressableScale>
           </>
         )}
+        {/* 자주 쓰지 않아 설정 목록에서 빼고, 맨 아래 작은 글자 버튼으로만 둔다. */}
+        <View style={styles.introLink}>
+          <TextButton label="앱 소개 다시 보기" palette={palette} onPress={() => router.push('/onboarding')} />
+        </View>
       </ScrollView>
       <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : '프로필 사진'} palette={palette} dismissible={!savingMode} onClose={() => setSheet(null)}>
                 {shown === 'photo' ? (
                   <>
-                    <View style={styles.photoPreview}><Avatar uri={avatar} name={user?.nickname} size={88} palette={palette} /></View>
+                    <View style={styles.photoPreview}><Avatar uri={avatar} name={nameDraft || user?.nickname} size={88} palette={palette} /></View>
+                    <Text style={[styles.fieldLabel, { color: palette.text }]}>이름</Text>
+                    <View style={[styles.nameField, { backgroundColor: palette.background, borderColor: palette.border }]}>
+                      <TextInput value={nameDraft} onChangeText={setNameDraft} maxLength={40} placeholder="앱에서 부를 이름" placeholderTextColor={palette.textSecondary}
+                        accessibilityLabel="이름" returnKeyType="done" onSubmitEditing={() => { void saveName(); }} style={[styles.nameInput, { color: palette.text }]} />
+                    </View>
+                    <View style={styles.buttonRow}>
+                      <BigButton label={savingName ? '저장 중…' : '이름 저장'} palette={palette}
+                        disabled={savingName || !nameDraft.trim() || nameDraft.trim() === user?.nickname} onPress={() => { void saveName(); }} />
+                    </View>
+                    <View style={[styles.sheetDivider, { backgroundColor: palette.outline }]} />
+                    <Text style={[styles.fieldLabel, { color: palette.text }]}>프로필 사진</Text>
                     <SheetRow label="앨범에서 고르기" icon={{ ios: 'photo.on.rectangle', android: 'photo_library' }} palette={palette} onPress={() => { void pickPhoto('library'); }} />
                     <SheetRow label="사진 찍기" icon={{ ios: 'camera', android: 'photo_camera' }} palette={palette} onPress={() => { void pickPhoto('camera'); }} />
                     {avatar && <SheetRow label="기본 이미지로" icon={{ ios: 'person.crop.circle', android: 'account_circle' }} palette={palette} onPress={() => { void resetPhoto(); }} />}
@@ -184,7 +215,6 @@ export default function MyPageScreen() {
                   <>
                     <SegmentedControl accessibilityLabel="글씨 크기" palette={palette} value={settings.font_scale}
                       onChange={(next) => { void selectFont(next); }} options={FONT_OPTIONS} />
-                    <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>고르면 바로 앱 전체 글씨에 적용돼요.</Text>
                   </>
                 ) : shown === 'narration' ? (
                   <View style={styles.narrationOptions} accessibilityRole="radiogroup" accessibilityLabel="해설 방식 선택">
@@ -236,23 +266,21 @@ export default function MyPageScreen() {
                     <Text style={[styles.closeLabel, { color: palette.textSecondary }]}>닫기</Text>
                   </Pressable>
                 ) : shown === 'photo' ? (
-                  <TextButton label="닫기" accessibilityLabel="프로필 사진 창 닫기" palette={palette} onPress={() => setSheet(null)} />
+                  <TextButton label="닫기" accessibilityLabel="프로필 수정 창 닫기" palette={palette} onPress={() => setSheet(null)} />
                 ) : (
                   <View style={styles.buttonRow}><BigButton label="닫기" palette={palette} onPress={() => setSheet(null)} /></View>
                 )}
       </BottomSheet>
-      <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => { if (!loggingOut) setConfirmLogout(false); }}>
-        <View style={[styles.scrim, { backgroundColor: Scrim }]}>
-          <View accessibilityViewIsModal style={[styles.dialog, card]}>
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: palette.text }]}>로그아웃할까요?</Text>
-            <Text lineBreakStrategyIOS="hangul-word" style={[styles.body, { color: palette.textSecondary }]}>이 기기에 저장한 보기 설정은 그대로 남아요.</Text>
-            <View style={styles.dialogActions}>
-              <View style={styles.buttonRow}><BigButton label={loggingOut ? '로그아웃 중…' : '로그아웃'} palette={palette} disabled={loggingOut} onPress={() => { void logout(); }} /></View>
-              <View style={styles.buttonRow}><BigButton label="취소" selected={false} palette={palette} disabled={loggingOut} onPress={() => setConfirmLogout(false)} /></View>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={confirmLogout}
+        title="로그아웃"
+        message="정말 로그아웃할까요? 이 기기에 저장한 보기 설정은 그대로 남아요."
+        confirmLabel={loggingOut ? '로그아웃 중…' : '로그아웃'}
+        palette={palette}
+        busy={loggingOut}
+        onConfirm={() => { void logout(); }}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -296,13 +324,17 @@ function SettingRow({ label, description, value, icon, palette, onPress, disable
   );
 }
 
+/** 카드 안 내용이 시작하는 위치: 테두리 1.5 + 안쪽 여백 16 */
+const CardInset = 1.5 + Spacing.three;
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.four },
-  title: { fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center', marginBottom: Spacing.four },
+  // 제목·소제목·로그아웃은 카드 안 내용(테두리 1.5 + 여백 16)과 같은 선에서 시작한다. 카드 모서리가 둥근 만큼 안쪽으로.
+  title: { fontSize: FontSize.heading, fontWeight: 700, paddingLeft: CardInset, marginBottom: Spacing.four },
   section: { gap: 12 },
   sectionTitle: { fontSize: FontSize.heading, fontWeight: 700, marginBottom: Spacing.two },
-  settingsHeading: { paddingLeft: Spacing.two },
+  settingsHeading: { paddingLeft: CardInset },
   card: { borderWidth: 1.5, borderRadius: 24, overflow: 'hidden' },
   row: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
   rowText: { flex: 1, gap: Spacing.two },
@@ -319,8 +351,13 @@ const styles = StyleSheet.create({
   profileEmail: { fontSize: FontSize.label, lineHeight: 26 },
   cameraBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   photoPreview: { alignItems: 'center', paddingVertical: Spacing.two },
+  fieldLabel: { fontSize: FontSize.label, fontWeight: 700, paddingLeft: Spacing.one },
+  nameField: { minHeight: MinTouchTarget, borderWidth: 1.5, borderRadius: 16, paddingHorizontal: Spacing.three, justifyContent: 'center' },
+  nameInput: { fontSize: FontSize.body, paddingVertical: 10 },
+  sheetDivider: { height: 1, marginVertical: Spacing.two },
   sectionDivider: { height: 1, marginTop: Spacing.four, marginBottom: Spacing.two },
-  logout: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.two, borderRadius: 12 },
+  logout: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: CardInset, borderRadius: 16 },
+  introLink: { alignItems: 'center', marginTop: Spacing.four },
   logoutText: { fontSize: FontSize.body, fontWeight: 600 },
   sheetRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 14 },
   sheetRowIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

@@ -3,7 +3,7 @@ import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 // 와이어프레임 2 작품 감상 → 디자인 "저시력 미술관 앱"의 작품 상세
 /**
  * 위에서부터 큰 작품 이미지(보정 캔버스, 누르면 크게 보기) · 미술관과 번호 · 제목 · 작가 ·
- * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명(글자 크기 조절) · 이전/다음 작품.
+ * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명 · 이전/다음 작품.
  * 이미지나 "확대"를 누르면 탭 바 없는 전체 화면(`/zoom/[id]`)에서 핀치·버튼으로 확대한다.
  * 보정본일 때는 그 아래 보정 강도(0~100%)로 얼마나 보정할지 고른다. 크게 보기에도 같은 강도로 넘긴다.
  * TODO(B): 영역 터치(regions, P1).
@@ -37,12 +37,10 @@ import { useProfile } from '@/hooks/use-profile';
 import { useHistory } from '@/hooks/use-history';
 import { useRecordViewing } from '@/hooks/use-record-viewing';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { ApiError, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
+import { ApiError, generateNarration, getArtwork, getMuseumArtworks, getMuseums } from '@/lib/api';
 import { addRecent } from '@/store/recent';
 
 const HERO_HEIGHT = 380;
-/** 작품 설명 글자 크기 단계. 가장 작은 단계도 본문 최소 크기(18) 이상 */
-const DESC_SIZES = [18, 20, 23, 26];
 
 
 export default function ArtworkScreen() {
@@ -59,10 +57,19 @@ export default function ArtworkScreen() {
   const { data: museums } = useResource('museums', getMuseums);
   const museumId = artwork?.museum_id || null;
   const { data: siblings } = useResource(museumId, () => getMuseumArtworks(museumId!));
+  // 검수된 해설이 없으면 AI 해설을 만들어 보여 준다. 해설 화면·크게 보기와 같은 키라 한 번만 만든다.
+  // 작품을 받기 전에는 artwork가 비어 있다. `artwork!.id`처럼 쓰면 React Compiler가 값을 미리 읽어
+  // 받기 전에 에러가 나므로, 안전하게 꺼낸 id만 쓴다.
+  const artworkId = artwork?.id;
+  const needsAi = !!artworkId && !artwork?.description;
+  const aiRes = useResource(needsAi ? `ai-narration:${artworkId}` : null, () => generateNarration(artworkId ?? ''));
+  const aiDescription = aiRes.data ? {
+    facts: aiRes.data.segments.filter((s) => s.type === 'fact').map((s) => s.text),
+    interpretations: aiRes.data.segments.filter((s) => s.type === 'interpretation').map((s) => s.text),
+  } : null;
   const [original, setOriginal] = useState(false);
   const [chosenStrength, setStrength] = useState<number | null>(null);
   const strength = chosenStrength ?? profile.strength;
-  const [sizeStep, setSizeStep] = useState(1);
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), original, strength);
   useRecordViewing(artwork, profile, strength, original, profileLoaded && !profileError, !historyId);
 
@@ -80,7 +87,7 @@ export default function ArtworkScreen() {
     position >= 0 && siblings && position < siblings.length - 1
       ? siblings[position + 1]
       : undefined;
-  const descSize = DESC_SIZES[sizeStep];
+  const descSize = FontSize.body;
 
   const openNarration = () => {
     if (!artwork) return;
@@ -118,7 +125,7 @@ export default function ArtworkScreen() {
     );
   }
 
-  const description = artwork.description;
+  const description = artwork.description ?? aiDescription;
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -225,26 +232,16 @@ export default function ArtworkScreen() {
           <Text accessibilityRole="header" style={[styles.descTitle, { color: palette.text }]}>
             작품 설명
           </Text>
-          <View style={styles.sizeButtons}>
-            <SizeButton
-              label="가−"
-              a11yLabel="글자 작게"
-              small
-              disabled={sizeStep === 0}
-              palette={palette}
-              onPress={() => setSizeStep((s) => Math.max(0, s - 1))}
-            />
-            <SizeButton
-              label="가+"
-              a11yLabel="글자 크게"
-              disabled={sizeStep === DESC_SIZES.length - 1}
-              palette={palette}
-              onPress={() => setSizeStep((s) => Math.min(DESC_SIZES.length - 1, s + 1))}
-            />
-          </View>
         </View>
 
         <View style={styles.desc}>
+          {!artwork.description && aiDescription && (
+            <View accessible accessibilityLabel={`AI가 만든 해설이에요. ${aiRes.data?.warning ?? '전문가가 검수하지 않았어요.'}`}
+              style={[styles.aiBadge, { borderColor: palette.outline }]}>
+              <SymbolView name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }} size={16} tintColor={palette.textSecondary} />
+              <Text style={[styles.aiBadgeText, { color: palette.textSecondary }]}>AI 해설 · 미검수</Text>
+            </View>
+          )}
           {description ? (
             <>
               <Text
@@ -294,8 +291,14 @@ export default function ArtworkScreen() {
               )}
               <Text
                 style={[styles.descPending, { color: palette.textSecondary, fontSize: descSize }]}>
-                아직 해설이 준비되지 않았어요
+                {needsAi && !aiRes.error ? 'AI 해설을 만들고 있어요…' : '아직 해설이 준비되지 않았어요'}
               </Text>
+              {needsAi && !!aiRes.error && (
+                <PressableScale accessibilityRole="button" accessibilityLabel="AI 해설 다시 만들기" onPress={aiRes.reload}
+                  style={[styles.aiRetry, { backgroundColor: palette.fill }]}>
+                  <Text style={[styles.aiRetryText, { color: palette.text }]}>AI 해설 다시 만들기</Text>
+                </PressableScale>
+              )}
             </>
           )}
         </View>
@@ -332,28 +335,6 @@ type SmallButtonProps = {
   palette: Palette;
   onPress: () => void;
 };
-
-function SizeButton({ small, ...p }: SmallButtonProps & { small?: boolean }) {
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={p.a11yLabel}
-      accessibilityState={{ disabled: p.disabled }}
-      disabled={p.disabled}
-      onPress={p.onPress}
-      style={({ pressed }) => [
-        styles.size,
-        {
-          backgroundColor: p.palette.fill,
-          opacity: p.disabled ? 0.35 : pressed ? 0.7 : 1,
-        },
-      ]}>
-      <Text style={[styles.sizeText, { color: p.palette.text, fontSize: small ? 16 : 20 }]}>
-        {p.label}
-      </Text>
-    </PressableScale>
-  );
-}
 
 function SiblingButton({ direction, ...p }: SmallButtonProps & { direction: 'prev' | 'next' }) {
   const chevron = (
@@ -499,21 +480,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
     fontWeight: 800,
   },
-  sizeButtons: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  size: {
-    minWidth: MinTouchTarget,
-    minHeight: MinTouchTarget,
-    paddingHorizontal: 8,
-    borderRadius: MinTouchTarget / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sizeText: {
-    fontWeight: 800,
-  },
   desc: {
     gap: Spacing.two,
     paddingHorizontal: 20,
@@ -525,6 +491,33 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
     fontSize: 16,
     fontWeight: 800,
+  },
+  aiBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    marginBottom: Spacing.two,
+  },
+  aiBadgeText: {
+    fontSize: 15,
+    fontWeight: 700,
+  },
+  aiRetry: {
+    alignSelf: 'flex-start',
+    minHeight: MinTouchTarget,
+    paddingHorizontal: Spacing.three,
+    borderRadius: ButtonRadius,
+    justifyContent: 'center',
+    marginTop: Spacing.two,
+  },
+  aiRetryText: {
+    fontSize: FontSize.label,
+    fontWeight: 700,
   },
   descPending: {
     fontWeight: 600,

@@ -28,21 +28,25 @@ const METHODS: {
 }[] = [
   {
     key: 'qr',
-    label: 'QR 코드가 있으면',
+    label: 'QR 코드',
     desc: '안내판의 QR을 비추기만 하면 바로 찾아요',
     ios: 'qrcode.viewfinder',
     material: 'qr_code_scanner',
   },
   {
     key: 'artwork',
-    label: 'QR이 없으면',
-    desc: '작품 전체를 정면에서 담아 촬영 버튼을 눌러요',
+    label: '작품 사진',
+    desc: 'QR이 없으면 작품 전체를 정면에서 찍어요',
     ios: 'photo.artframe',
     material: 'image',
   },
 ];
 
-const TIPS = ['찾은 작품의 미술관이 현재 미술관으로 바뀌어요.'];
+const TIPS = [
+  '목록에 없는 작품도 AI가 사진을 보고 설명해 줘요',
+  '작품 전체가 보이게 정면에서 찍어 주세요',
+  '찾은 작품의 미술관이 현재 미술관으로 바뀌어요',
+];
 
 export default function CameraScreen() {
   const palette = getPalette(useColorScheme() === 'dark' ? 'dark' : 'light', false);

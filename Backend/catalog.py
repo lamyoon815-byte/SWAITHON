@@ -177,7 +177,9 @@ class CatalogStore:
         with closing(sqlite3.connect(self.db_path)) as connection:
             total = connection.execute("SELECT COUNT(*) FROM artworks" + where, params).fetchone()[0]
             rows = connection.execute(
-                "SELECT metadata_json, image_filename FROM artworks" + where + " ORDER BY id LIMIT ? OFFSET ?",
+                "SELECT metadata_json, image_filename FROM artworks" + where
+                # Number order (2, 10, 100), not text order (10, 100, 2); non-numeric numbers fall back to id.
+                + " ORDER BY CAST(json_extract(metadata_json, '$.number') AS INTEGER), id LIMIT ? OFFSET ?",
                 [*params, limit, offset],
             ).fetchall()
         return [self._decode(row) for row in rows], total

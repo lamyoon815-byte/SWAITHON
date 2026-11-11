@@ -5,8 +5,7 @@
  * 전체 문장과 듣는 범위(전체 · 사실 · 해석)는 오른쪽 위 "문장 목록" 시트에서 고른다. 문장을 누르면 거기서부터 읽는다.
  * 사실/해석은 색이 아니라 "사실"·"해석" 글자 표시로 구분한다.
  * 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만들어 바로 들을 수 있게 한다(서버가 결과를 저장해 다시 만들지 않는다).
- * 생성 결과는 미검수로 표시한다. 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
- * 목소리(OpenAI · 기기)도 문장 목록 시트에서 고른다.
+ * 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
  */
 
 import { useLocalSearchParams } from 'expo-router';
@@ -14,11 +13,12 @@ import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/common/text';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { BottomActionBar } from '@/components/common/bottom-action-bar';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { PressableScale } from '@/components/common/pressable-scale';
@@ -32,12 +32,11 @@ import {
   getPalette,
   type Palette,
 } from '@/constants/a11y';
-import { ScreenPadding, Shadow, Spacing } from '@/constants/theme';
+import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
-import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
 import type { NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
@@ -58,7 +57,8 @@ export default function NarrationScreen() {
   const mode = selectedMode ?? profile.narration_mode;
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
-  const bottomInset = useTabBarInset();
+  const { bottom: bottomInset } = useSafeAreaInsets();
+  const [playerBarHeight, setPlayerBarHeight] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
   const strength = correctionStrength(strengthParam !== undefined ? Number(strengthParam) : profile.strength);
@@ -75,10 +75,10 @@ export default function NarrationScreen() {
   const aiRes = useResource(noReviewed && id ? `ai-narration:${id}` : null, () => generateNarration(id!));
   const ai = aiRes.data ?? null;
   const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
-    ? 'AI 해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
+    ? '해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
     : aiRes.error instanceof ApiError && aiRes.error.status === 503
-      ? 'AI 해설을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'
-      : 'AI 해설을 만들지 못했어요. 다시 시도해 주세요.') : null;
+      ? '해설을 지금 준비할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : '해설을 준비하지 못했어요. 다시 시도해 주세요.') : null;
   const all = ai?.segments ?? narrationRes.data?.segments ?? [];
   const segments = all.filter(
     (s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'),
@@ -126,7 +126,7 @@ export default function NarrationScreen() {
         ) : <View style={styles.headerSpacer} />}
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? 0 : bottomInset }]}>
+      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? playerBarHeight + 40 : bottomInset }]}>
       {/* 작품: 남는 공간을 모두 쓴다(최소 화면 높이의 40%). 글이 길면 화면 전체가 스크롤된다. */}
       <View style={[styles.stage, { minHeight: Math.max(220, windowHeight * 0.4) }]}>
         {artwork ? (
@@ -159,7 +159,7 @@ export default function NarrationScreen() {
             <Text lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
             {player.preparing && <Text accessibilityLiveRegion="polite" style={[styles.status, { color: palette.textSecondary }]}>음성을 준비하고 있어요…</Text>}
             {!!player.error && <Text accessibilityRole="alert" style={[styles.status, { color: palette.text }]}>{player.error}</Text>}
-            {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>{ai.warning}</Text>}
+            {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>AI 생성 해설입니다.</Text>}
           </View>
         ) : all.length > 0 ? (
           <Text style={[styles.note, { color: palette.textSecondary }]}>
@@ -172,17 +172,14 @@ export default function NarrationScreen() {
                 ? '해설을 불러오는 중이에요'
                 : failed
                   ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
-                  : aiError ? '아직 검수된 해설이 없어요' : 'AI 해설을 만들고 있어요…'}
+                  : aiError ? '해설을 준비하지 못했어요' : '해설을 준비하고 있어요…'}
             </Text>
             {failed && <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />}
             {missing && <>
-              <Text lineBreakStrategyIOS="hangul-word" style={[styles.emptyText, { color: palette.textSecondary }]}>
-                작품 사진과 정보를 바탕으로 만든 해설이에요. 전문가가 검수하지 않았다는 표시를 함께 보여 드려요.
-              </Text>
               {aiError ? <>
                 <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{aiError}</Text>
                 <PillButton label="다시 만들기" palette={palette} onPress={aiRes.reload} />
-              </> : <ActivityIndicator color={palette.text} accessibilityLabel="AI 해설을 만드는 중" />}
+              </> : <ActivityIndicator color={palette.text} accessibilityLabel="해설을 준비하는 중" />}
             </>}
           </View>
         )}
@@ -190,7 +187,8 @@ export default function NarrationScreen() {
       </ScrollView>
 
       {total > 0 && (
-        <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.outline, paddingBottom: bottomInset + Spacing.two }]}>
+        <BottomActionBar background={palette.background} onHeight={setPlayerBarHeight}>
+        <View style={styles.panel}>
           <View style={[styles.track, { backgroundColor: palette.fill }]}>
             <View style={[styles.trackFill, { backgroundColor: palette.accent, width: `${((player.index + 1) / total) * 100}%` }]} />
           </View>
@@ -245,6 +243,7 @@ export default function NarrationScreen() {
             </PressableScale>
           </View>
         </View>
+        </BottomActionBar>
       )}
 
       <BottomSheet visible={listOpen} title="문장 목록" palette={palette} onClose={() => setListOpen(false)}>
@@ -443,15 +442,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: { fontSize: 17, fontWeight: 800, textAlign: 'center' },
-  // Fixed at the bottom, above the floating tab bar (its inset is the bottom padding).
+  // 탭 바 없이 하단 안전 영역 바로 위에 고정한다.
   panel: {
     gap: Spacing.three,
-    paddingHorizontal: ScreenPadding,
-    paddingTop: Spacing.three,
-    borderTopWidth: 1.5,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    boxShadow: Shadow.floating,
+    paddingTop: Spacing.two,
   },
   track: { height: 6, borderRadius: 3, overflow: 'hidden' },
   trackFill: { height: 6, borderRadius: 3 },
