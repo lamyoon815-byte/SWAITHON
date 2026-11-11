@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { Avatar } from '@/components/mypage/avatar';
 import { ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
@@ -174,8 +175,8 @@ export default function MyPageScreen() {
             <View style={[styles.sectionDivider, { backgroundColor: palette.outline }]} />
             <Pressable accessibilityRole="button" accessibilityLabel="로그아웃" onPress={() => setConfirmLogout(true)}
               style={({ pressed }) => [styles.logout, pressed && { backgroundColor: palette.fill }]}>
-              <SymbolView name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }} size={22} tintColor={palette.textSecondary} />
-              <Text style={[styles.logoutText, { color: palette.textSecondary }]}>로그아웃</Text>
+              <SymbolView name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }} size={22} tintColor={palette.danger} />
+              <Text style={[styles.logoutText, { color: palette.danger }]}>로그아웃</Text>
             </Pressable>
           </>
         )}
@@ -183,10 +184,10 @@ export default function MyPageScreen() {
       <BottomSheet visible={sheet !== null} title={shown === 'font' ? '글씨 크기' : shown === 'narration' ? '해설 방식' : shown === 'photo' ? '프로필 사진' : '방문한 미술관'} palette={palette} dismissible={!savingMode} onClose={() => setSheet(null)}>
                 {shown === 'photo' ? (
                   <>
-                    <View style={styles.photoPreview}><Avatar uri={avatar} name={user?.nickname} size={112} palette={palette} /></View>
-                    <View style={styles.buttonRow}><BigButton label="앨범에서 고르기" palette={palette} onPress={() => { void pickPhoto('library'); }} /></View>
-                    <View style={styles.buttonRow}><BigButton label="사진 찍기" selected={false} palette={palette} onPress={() => { void pickPhoto('camera'); }} /></View>
-                    {avatar && <View style={styles.buttonRow}><BigButton label="기본 이미지로" selected={false} palette={palette} onPress={() => { void resetPhoto(); }} /></View>}
+                    <View style={styles.photoPreview}><Avatar uri={avatar} name={user?.nickname} size={88} palette={palette} /></View>
+                    <SheetRow label="앨범에서 고르기" icon={{ ios: 'photo.on.rectangle', android: 'photo_library' }} palette={palette} onPress={() => { void pickPhoto('library'); }} />
+                    <SheetRow label="사진 찍기" icon={{ ios: 'camera', android: 'photo_camera' }} palette={palette} onPress={() => { void pickPhoto('camera'); }} />
+                    {avatar && <SheetRow label="기본 이미지로" icon={{ ios: 'person.crop.circle', android: 'account_circle' }} palette={palette} onPress={() => { void resetPhoto(); }} />}
                   </>
                 ) : shown === 'font' ? FONT_OPTIONS.map((option) => (
                   <View style={styles.buttonRow} key={option.value}>
@@ -256,6 +257,8 @@ export default function MyPageScreen() {
                     </View>
                     <Text style={[styles.closeLabel, { color: palette.textSecondary }]}>닫기</Text>
                   </Pressable>
+                ) : shown === 'photo' ? (
+                  <TextButton label="닫기" accessibilityLabel="프로필 사진 창 닫기" palette={palette} onPress={() => setSheet(null)} />
                 ) : (
                   <View style={styles.buttonRow}><BigButton label="닫기" palette={palette} onPress={() => setSheet(null)} /></View>
                 )}
@@ -273,6 +276,19 @@ export default function MyPageScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+/** 시트 안의 가벼운 선택 행: 아이콘 + 글자. 테두리·배경 없이, 누를 때만 배경이 생긴다. */
+function SheetRow({ label, icon, palette, onPress }: { label: string; icon: { ios: SFSymbol; android: AndroidSymbol }; palette: Palette; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
+      style={({ pressed }) => [styles.sheetRow, pressed && { backgroundColor: palette.fill }]}>
+      <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.sheetRowIcon, { backgroundColor: palette.fill }]}>
+        <SymbolView name={{ ...icon, web: icon.android }} size={22} tintColor={palette.text} />
+      </View>
+      <Text style={[styles.sheetRowLabel, { color: palette.text }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -326,6 +342,9 @@ const styles = StyleSheet.create({
   sectionDivider: { height: 1, marginTop: Spacing.four, marginBottom: Spacing.two },
   logout: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.two, borderRadius: 12 },
   logoutText: { fontSize: FontSize.body, fontWeight: 600 },
+  sheetRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: -Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 14 },
+  sheetRowIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  sheetRowLabel: { flex: 1, fontSize: FontSize.body, fontWeight: 600 },
   scrim: { flex: 1, justifyContent: 'center', padding: ScreenPadding },
   dialog: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', padding: Spacing.four, borderWidth: 1.5, borderRadius: 24, gap: Spacing.three },
   dialogActions: { gap: 12 },
