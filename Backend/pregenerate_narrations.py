@@ -69,6 +69,8 @@ def main():
             try:
                 result = make_narration(gemini, artwork_id, record, content, length)
                 if result["fallback"] or not result["segments"]:
+                    if attempt < 2:
+                        continue  # 형식이 어긋난 응답은 다시 만들면 대부분 된다.
                     return artwork_id, length, "실패(빈 해설)"
                 cache.put("narration", key, json.dumps({**result, "warning": AI_WARNING}, ensure_ascii=False).encode())
                 return artwork_id, length, f"{result['estimated_seconds']}초"

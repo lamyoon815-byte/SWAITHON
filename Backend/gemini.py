@@ -207,6 +207,11 @@ class GeminiService:
         try:
             return self.generate(content, prompt, Description)
         except GeminiSchemaError:
+            pass
+        try:
+            # 대부분 영역 상자 좌표가 그림 밖으로 벗어난 경우다. 상자 없이 해설 문장만 다시 받는다.
+            return self.generate(content, prompt + " 이번에는 regions를 빈 배열로, 영역 인덱스는 모두 null로 두세요.", Description)
+        except GeminiSchemaError:
             return FallbackDescription(
                 facts=["해설을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."],
                 interpretations=[], regions=[], mood_keywords=[],
