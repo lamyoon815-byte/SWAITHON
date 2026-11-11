@@ -127,6 +127,8 @@ export default function CameraScreen() {
 
 /** 카멜레온 발이 QR 코드 상자 윗부분에 걸치는 깊이 */
 const MASCOT_PERCH = 22;
+/** 카멜레온만 위로 올리는 정도. 발바닥은 상자 안, 발등은 상자 윗선에 맞는다 */
+const MASCOT_LIFT = 12;
 
 const styles = StyleSheet.create({
   screen: {
@@ -142,7 +144,8 @@ const styles = StyleSheet.create({
   // zIndex로 카멜레온을 상자 앞에 그린다.
   header: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, zIndex: 2, elevation: 2, marginBottom: -(Spacing.four + MASCOT_PERCH) },
   // 그림 비율(1326×1187)에 맞춰 위아래 빈칸 없이 발이 상자 경계에 닿게 한다.
-  mascot: { width: 124, height: 111 },
+  // 카멜레온만 살짝 올려 발등이 QR 상자 윗선에 맞게 한다(상자와 아래 내용 위치는 그대로).
+  mascot: { width: 124, height: 111, marginBottom: MASCOT_LIFT },
   heading: {
     flex: 1,
     fontSize: 28,
