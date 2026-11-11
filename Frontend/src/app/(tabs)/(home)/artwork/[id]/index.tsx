@@ -78,7 +78,7 @@ export default function ArtworkScreen() {
 
   const openNarration = () => {
     if (!artwork) return;
-    router.push({ pathname: '/artwork/[id]/narration', params: { id: artwork.id } });
+    router.push({ pathname: '/artwork/[id]/narration', params: { id: artwork.id, strength: String(strength), original: original ? '1' : '0' } });
   };
 
   const openZoom = () => {
