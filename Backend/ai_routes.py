@@ -9,7 +9,7 @@ from threading import BoundedSemaphore
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from PIL import Image
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 if __package__:
     from .generated_cache import GeneratedCache
@@ -148,7 +148,7 @@ def client_key(request: Request) -> str:
 
 
 def create_ai_router(catalog, accounts, current_user, recognition, gemini, corrector=None):
-    # accounts·current_user는 회원 API 호환을 위해 받지만, 이 라우터의 API는 로그인을 요구하지 않는다.
+    # 개인 보정은 인증된 계정의 DB 설정만 사용한다. 인식·해설 API의 인증 정책은 유지한다.
     router = APIRouter()
     narration_cache = GeneratedCache(catalog.data_dir)
     pending_narrations = {}
@@ -163,19 +163,28 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                             503: {"description": "AI 보정 함수 미연결"}})
     async def correction(
         request: Request,
+        user: Annotated[dict, Depends(current_user)],
         image: Annotated[UploadFile | None, File()] = None,
         artwork_id: Annotated[str | None, Form()] = None,
-        profile: Annotated[str | None, Form(description="6필드 AI 프로필 JSON 문자열. 기기에 저장한 값을 매번 보낸다")] = None,
+        strength: Annotated[float, Form(ge=0, le=1, description="DB 보정값의 적용 비율. 1도 저장 강도를 초과하지 않는다")] = 1,
+        profile_revision: Annotated[str | None, Form(min_length=64, max_length=64)] = None,
+        profile: Annotated[str | None, Form(description="사용 불가: 개인 보정값은 DB에서만 조회한다")] = None,
     ):
         try:
             if (image is None) == (artwork_id is None):
                 raise HTTPException(422, "image 또는 artwork_id 중 하나만 보내주세요.")
-            if profile is None:
-                raise HTTPException(422, "profile을 함께 보내주세요. 프로필은 기기에만 저장합니다.")
-            try:
-                selected = AIProfile.model_validate_json(profile)
-            except ValidationError:
-                raise HTTPException(422, "profile은 AI 6필드 규격에 맞는 JSON 객체여야 합니다.") from None
+            if profile is not None:
+                raise HTTPException(422, "profile은 보낼 수 없습니다. 계정에 저장한 보정값만 사용합니다.")
+            viewing, saved = await run_in_threadpool(accounts.correction_profile, user["id"])
+            if saved is None:
+                raise HTTPException(409, "먼저 개인 보정값을 저장해 주세요.")
+            if profile_revision is not None and profile_revision != viewing.revision:
+                raise HTTPException(409, "보정값이 변경되었습니다. 다시 불러와 주세요.")
+            # 대비·밝기·선명도는 DB에서 읽은 앱 설정으로 Skia가 한 번만 처리한다.
+            selected = saved.model_copy(update={
+                "severity": saved.severity * strength if saved.color_type != "normal" else 0,
+                "edge": saved.edge * strength, "contrast": 1, "brightness": 0, "sharpness": 0,
+            })
             ai_limiter.check(client_key(request))
             if image is not None:
                 normalized = await read_upload(image)
@@ -186,7 +195,9 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
                 normalized = await run_in_threadpool(normalize_image, content)
             result = await run_in_threadpool(correct_jpeg, normalized.content, selected, corrector)
-            return Response(result, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+            return Response(result, media_type="image/jpeg", headers={
+                "Cache-Control": "no-store", "X-Correction-Profile-Revision": viewing.revision,
+            })
         finally:
             if image is not None:
                 await image.close()

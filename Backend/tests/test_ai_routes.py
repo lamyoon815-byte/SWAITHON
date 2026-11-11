@@ -185,16 +185,21 @@ class AIRouteTests(unittest.TestCase):
         self.assertNotIn("fallback", response.json()["description"])
 
     def test_correction_validation_and_default_implementation(self):
-        self.assertEqual(self.client.post("/correction").status_code, 422)
-        # 프로필은 기기에만 저장하므로 요청마다 보내야 한다.
-        self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 422)
-        data = {"artwork_id": "sample", "profile": "{}"}
+        self.assertEqual(self.client.post("/correction", data={"artwork_id": "sample"}).status_code, 401)
+        self.assertEqual(self.client.post("/correction", headers=self.headers).status_code, 422)
+        data = {"artwork_id": "sample"}
+        self.assertEqual(self.client.post("/correction", headers=self.headers, data=data).status_code, 409)
+        self.client.put("/me/profile", headers=self.headers, json={
+            "calibration": {"color_type": "normal", "severity": 0, "edge": 0},
+        })
         # Backend/ai/correction.py가 구현되어 기본 보정 함수로 JPEG를 반환한다.
-        response = self.client.post("/correction", data=data)
+        response = self.client.post("/correction", headers=self.headers, data=data)
         self.assertEqual((response.status_code, response.headers["content-type"]), (200, "image/jpeg"))
-        self.assertEqual(self.client.post("/correction", data={**data, "artwork_id": "missing"}).status_code, 404)
-        self.assertEqual(self.client.post("/correction", data={**data, "profile": '{"brightness":51}'}).status_code, 422)
-        self.assertEqual(self.client.post("/correction", data=data, files={"image": ("x.png", self.image)}).status_code, 422)
+        self.assertEqual(self.client.post("/correction", headers=self.headers, data={**data, "artwork_id": "missing"}).status_code, 404)
+        self.assertEqual(self.client.post("/correction", headers=self.headers, data={**data, "profile": '{"edge":1}'}).status_code, 422)
+        self.assertEqual(self.client.post("/correction", headers=self.headers, data=data, files={"image": ("x.png", self.image)}).status_code, 422)
+        for invalid in ("-0.1", "1.01", "nan", "inf"):
+            self.assertEqual(self.client.post("/correction", headers=self.headers, data={**data, "strength": invalid}).status_code, 422)
 
     def test_corrector_contract_and_jpeg_response(self):
         captured = []
@@ -205,17 +210,38 @@ class AIRouteTests(unittest.TestCase):
 
         app = create_app(self.root / "correction-data", corrector=corrector)
         with TestClient(app) as client:
-            response = client.post("/correction", data={"profile": '{"brightness":20}'}, files={"image": ("x.png", self.image)})
+            login = client.post("/auth/register", json={"email": "correct@example.com", "password": "password-12345", "nickname": "관람객"}).json()
+            headers = {"Authorization": "Bearer " + login["access_token"]}
+            saved = client.put("/me/profile", headers=headers, json={
+                "calibration": {"color_type": "deutan", "severity": 0.4, "edge": 0.2},
+                "contrast": 1.6, "brightness": 0.4, "sharpen": 0.8,
+            }).json()
+            response = client.post("/correction", headers=headers, data={"profile_revision": saved["revision"]}, files={"image": ("x.png", self.image)})
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual(response.headers["content-type"], "image/jpeg")
             self.assertEqual(response.headers["cache-control"], "no-store")
+            self.assertEqual(response.headers["X-Correction-Profile-Revision"], saved["revision"])
             with Image.open(BytesIO(response.content)) as image:
                 self.assertEqual(image.size, (16, 8))
-            self.assertEqual(captured[0]["brightness"], 20)
+            self.assertEqual(captured[0], {"color_type": "deutan", "severity": 0.4, "edge": 0.2,
+                                           "contrast": 1, "brightness": 0, "sharpness": 0})
             app.state.catalog.import_manifest(self.manifest)
-            response = client.post("/correction", data={"artwork_id": "sample", "profile": '{"edge":0.4}'})
+            response = client.post("/correction", headers=headers, data={"artwork_id": "sample", "strength": "0.5"})
             self.assertEqual(response.status_code, 200, response.text)
-            self.assertEqual(captured[-1]["edge"], 0.4)
+            self.assertEqual(captured[-1]["edge"], 0.1)
+            self.assertEqual(captured[-1]["severity"], 0.2)
+            # A DB edit is used by the very next correction; no request profile can override it.
+            client.put("/me/profile", headers=headers, json={
+                "calibration": {"color_type": "tritan", "severity": 0.2, "edge": 0},
+            })
+            stale = client.post("/correction", headers=headers, data={"artwork_id": "sample", "profile_revision": saved["revision"]})
+            self.assertEqual(stale.status_code, 409)
+            response = client.post("/correction", headers=headers, data={"artwork_id": "sample"})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual((captured[-1]["color_type"], captured[-1]["severity"], captured[-1]["edge"]), ("tritan", 0.2, 0))
+            other = client.post("/auth/register", json={"email": "other@example.com", "password": "password-12345", "nickname": "다른 관람객"}).json()
+            response = client.post("/correction", headers={"Authorization": "Bearer " + other["access_token"]}, data={"artwork_id": "sample"})
+            self.assertEqual(response.status_code, 409)
         for invalid in [b"invalid", self.image, "not bytes"]:
             with self.assertRaises(HTTPException) as error:
                 correct_jpeg(self.image, AIProfile(), lambda content, profile: invalid)

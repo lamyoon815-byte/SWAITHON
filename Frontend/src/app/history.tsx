@@ -62,7 +62,7 @@ function HistoryCard({ item, palette }: { item: ViewingRecord; palette: Palette 
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${item.artwork.title}, ${summary}`}
-      accessibilityHint="기록된 보정값으로 작품을 열어요"
+      accessibilityHint="계정에 저장된 현재 보정값으로 작품을 열어요"
       onPress={() => router.push({ pathname: '/artwork/[id]', params: { id: item.artwork.id, history: item.id } })}
       pressedScale={0.98}
       background={palette.surface}

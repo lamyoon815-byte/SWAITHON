@@ -39,7 +39,7 @@ export default function ZoomScreen() {
     history?: string;
   }>();
   const historyRecord = historyItems.find((item) => item.id === historyId && item.artwork.id === id);
-  const profile = historyRecord?.profile ?? currentProfile;
+  const profile = currentProfile;
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const showOriginal = original === '1';
   const rawStrength = Number(strength ?? profile.strength);

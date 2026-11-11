@@ -41,6 +41,8 @@ import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
 import type { NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
+import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
+import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
 const START_RATE = DEFAULT_PROFILE.speech_rate;
 
@@ -59,8 +61,9 @@ export default function NarrationScreen() {
   const bottomInset = useTabBarInset();
   const { height: windowHeight } = useWindowDimensions();
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
-  const strength = strengthParam !== undefined && !Number.isNaN(Number(strengthParam)) ? Number(strengthParam) : profile.strength;
+  const strength = correctionStrength(strengthParam !== undefined ? Number(strengthParam) : profile.strength);
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
+  const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), originalParam === '1', strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
@@ -128,7 +131,7 @@ export default function NarrationScreen() {
       <View style={[styles.stage, { minHeight: Math.max(220, windowHeight * 0.4) }]}>
         {artwork ? (
           <CorrectionCanvas
-            source={artwork.image_url}
+            source={corrected.source}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
             correction={{ ...profile, strength }}
             original={originalParam === '1'}

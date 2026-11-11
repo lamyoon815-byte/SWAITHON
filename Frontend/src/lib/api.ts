@@ -8,7 +8,8 @@ import type { Museum } from '@/types/museum';
 import type { Narration, NarrationMode, GeneratedNarration } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
 import { clearSession, getAccessToken } from '@/store/auth';
-import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
+import { correctionStrength, serverCorrection, type ViewingProfile } from '@/lib/calibration';
+import type { VisualProfile } from '@/types/profile';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
@@ -25,7 +26,7 @@ async function request<T>(path: string, init?: RequestInit, authenticated = true
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) {
-    if (res.status === 401 && token && getAccessToken() === token) await clearSession();
+    if (res.status === 401 && token && getAccessToken() === token) await clearSession(token);
     const error = await res.json().catch(() => null) as { detail?: unknown } | null;
     throw new ApiError(res.status, typeof error?.detail === 'string' ? error.detail : `API ${res.status}`);
   }
@@ -48,19 +49,35 @@ export function register(email: string, password: string, nickname: string) {
 }
 
 export const getCurrentUser = () => request<User>('/me');
+export const getProfile = () => request<VisualProfile>('/me/profile');
+export async function putProfile(profile: VisualProfile) {
+  const saved = await request<VisualProfile>('/me/profile', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile),
+  });
+  correctionEpoch++;
+  correctedImages.clear();
+  return saved;
+}
 
 export async function logout() {
+  const token = getAccessToken();
   await request<void>('/auth/logout', { method: 'POST' });
-  await clearSession();
+  await clearSession(token);
 }
 
 // Cache only successful results; contrast/brightness do not affect the server image.
 const correctedImages = new Map<string, string>();
 const pendingCorrections = new Map<string, Promise<string>>();
+let correctionEpoch = 0;
 
 export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1): Promise<string> {
+  strength = correctionStrength(strength);
+  const token = getAccessToken();
+  if (!token) return Promise.reject(new ApiError(401, '로그인이 필요해요.'));
+  if (!profile.revision) return Promise.reject(new ApiError(409, '보정값을 다시 불러와 주세요.'));
+  const epoch = correctionEpoch;
   const correction = serverCorrection(profile, strength);
-  const key = JSON.stringify([API_URL, artworkId, correction]);
+  const key = JSON.stringify([API_URL, token, epoch, artworkId, profile.revision, correction]);
   const cached = correctedImages.get(key);
   if (cached) return Promise.resolve(cached);
   const pending = pendingCorrections.get(key);
@@ -69,13 +86,21 @@ export function getCorrectedImage(artworkId: string, profile: ViewingProfile, st
     if (!API_URL) throw new ApiError(0, '백엔드 주소가 설정되지 않았어요.');
     const body = new FormData();
     body.append('artwork_id', artworkId);
-    body.append('profile', JSON.stringify(correction));
-    const token = getAccessToken();
+    // 개인 보정값을 전송하거나 덮어쓰지 않는다. 서버가 현재 계정 DB에서 직접 읽는다.
+    body.append('strength', String(strength));
+    body.append('profile_revision', profile.revision!);
     const res = await fetch(`${API_URL}/correction`, {
       method: 'POST', body, headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
-    if (!res.ok) throw new ApiError(res.status);
+    if (!res.ok) {
+      if (res.status === 401 && getAccessToken() === token) await clearSession(token);
+      throw new ApiError(res.status);
+    }
+    if (res.headers.get('X-Correction-Profile-Revision') !== profile.revision || epoch !== correctionEpoch) {
+      throw new ApiError(409, '보정값이 변경되었어요. 다시 불러와 주세요.');
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
+    if (epoch !== correctionEpoch) throw new ApiError(409, '보정값이 변경되었어요.');
     // Data URLs work as Skia and expo-image sources on phone, without temporary file lifecycle issues.
     let binary = '';
     for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));

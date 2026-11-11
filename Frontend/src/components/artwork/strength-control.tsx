@@ -38,7 +38,7 @@ export function StrengthControl({ value, disabled, palette, onChange }: Props) {
         disabled && styles.disabled,
       ]}>
       <View style={styles.header}>
-        <Text style={[styles.label, { color: palette.text }]}>보정 강도</Text>
+        <Text style={[styles.label, { color: palette.text }]}>내 보정값 적용 비율</Text>
         <Text style={[styles.value, { color: palette.text }]}>{percent(value)}</Text>
       </View>
       {disabled && (
@@ -83,7 +83,7 @@ export function StrengthControl({ value, disabled, palette, onChange }: Props) {
       </View>
       <View style={styles.ends}>
         <Text style={[styles.end, { color: palette.textSecondary }]}>원본에 가깝게</Text>
-        <Text style={[styles.end, { color: palette.textSecondary }]}>내 보정 그대로</Text>
+        <Text style={[styles.end, { color: palette.textSecondary }]}>저장한 강도 그대로</Text>
       </View>
     </View>
   );

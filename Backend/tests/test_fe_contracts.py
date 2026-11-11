@@ -115,6 +115,8 @@ class MuseumContractTests(unittest.TestCase):
             legacy = {'id': 'a', 'title': '작품', 'artist': '작가', 'museum': '미술관', 'number': '007'}
             with sqlite3.connect(store.db_path) as db:
                 db.execute('INSERT INTO artworks VALUES (?, ?, ?)', ('a', json.dumps(legacy), 'unused.png'))
+            # sqlite3의 컨텍스트는 commit만 하므로 Windows 임시 DB 삭제 전에 명시적으로 닫는다.
+            db.close()
             store.initialize()
             museum_id = store.get('a')['museum_id']
             self.assertEqual(store.museums(20, 0)['items'][0]['id'], museum_id)

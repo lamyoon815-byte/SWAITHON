@@ -53,7 +53,8 @@ export default function ArtworkScreen() {
   const bottomInset = useTabBarInset();
   const { id, history: historyId } = useLocalSearchParams<{ id: string; history?: string }>();
   const historyRecord = historyItems.find((item) => item.id === historyId && item.artwork.id === id);
-  const profile = historyRecord?.profile ?? currentProfile;
+  // 과거 기기 기록의 보정값이 현재 계정의 DB 설정과 섞이지 않게 한다.
+  const profile = currentProfile;
   const { data: artwork, error } = useResource(id ?? null, () => getArtwork(id!));
   const { data: museums } = useResource('museums', getMuseums);
   const museumId = artwork?.museum_id || null;

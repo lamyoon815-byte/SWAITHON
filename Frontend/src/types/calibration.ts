@@ -18,7 +18,7 @@ export const CALIBRATION_COLOR_LABELS: Record<CalibrationColorType, string> = {
 export function isCalibrationSettings(value: unknown): value is CalibrationSettings {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as CalibrationSettings;
-  const level = (v: number) => Number.isFinite(v) && [0, 0.2, 0.4, 0.6, 0.8, 1].includes(v);
+  const level = (v: number) => Number.isFinite(v) && v >= 0 && v <= 1;
   return Object.hasOwn(CALIBRATION_COLOR_LABELS, candidate.color_type)
     && level(candidate.severity) && level(candidate.edge)
     && (candidate.color_type !== 'normal' || candidate.severity === 0);

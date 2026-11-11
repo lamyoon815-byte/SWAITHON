@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator, model_validator
 from pwdlib import PasswordHash
 
 if __package__:
@@ -62,6 +62,22 @@ class LoginResult(BaseModel):
     user: User
 
 
+class CalibrationSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    color_type: Literal["normal", "protan", "deutan", "tritan"]
+    severity: float = Field(ge=0, le=1)
+    edge: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def normal_has_no_color_correction(self):
+        if self.color_type == "normal" and self.severity != 0:
+            raise ValueError("색 보정 없음의 severity는 0이어야 합니다")
+        return self
+
+
+COLOR_VISION = {"normal": "normal", "protan": "protanopia", "deutan": "deuteranopia", "tritan": "tritanopia"}
+
+
 class VisualProfile(BaseModel):
     """진단값이 아닌 사용자 설정. FE 슬라이더와 같은 단위로 저장한다."""
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
@@ -75,6 +91,9 @@ class VisualProfile(BaseModel):
     narration_mode: Literal["facts", "interpretations", "both"] = "both"
     speech_rate: float = Field(default=1, ge=0.75, le=1.5)
     high_contrast: bool = False
+    # 앱 설정과 함께 원자적으로 저장하며, 조회 시 ai_profiles에서 읽는다.
+    calibration: CalibrationSettings | None = None
+    revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class HistoryInput(BaseModel):
@@ -211,14 +230,54 @@ class AccountStore:
 
     def profile(self, user_id: str):
         with closing(self.connect()) as connection:
-            row = connection.execute("SELECT profile_json FROM profiles WHERE user_id = ?", (user_id,)).fetchone()
-        return VisualProfile.model_validate_json(row[0])
+            return self._profile_snapshot(connection, user_id)[0]
+
+    def correction_profile(self, user_id: str):
+        with closing(self.connect()) as connection:
+            return self._profile_snapshot(connection, user_id)
+
+    @staticmethod
+    def _profile_snapshot(connection, user_id: str):
+        row = connection.execute(
+            """SELECT profiles.profile_json, ai_profiles.profile_json AS ai_profile_json
+               FROM profiles LEFT JOIN ai_profiles ON profiles.user_id = ai_profiles.user_id
+               WHERE profiles.user_id = ?""", (user_id,),
+        ).fetchone()
+        profile = VisualProfile.model_validate_json(row["profile_json"])
+        ai = None
+        if row["ai_profile_json"]:
+            ai = AIProfile.model_validate_json(row["ai_profile_json"])
+            profile.calibration = CalibrationSettings(
+                color_type=ai.color_type, severity=ai.severity if ai.color_type != "normal" else 0, edge=ai.edge,
+            )
+            profile.color_vision = COLOR_VISION[ai.color_type]
+            profile.color_severity = profile.calibration.severity
+        profile.revision = sha256(profile.model_dump_json(exclude={"revision"}).encode()).hexdigest()
+        return profile, ai
 
     def set_profile(self, user_id: str, profile: VisualProfile):
+        ai_profile = None
+        if profile.calibration is not None:
+            settings = profile.calibration
+            profile = profile.model_copy(update={
+                "color_vision": COLOR_VISION[settings.color_type], "color_severity": settings.severity,
+            })
+            ai_profile = AIProfile(**settings.model_dump(), contrast=profile.contrast,
+                                   brightness=profile.brightness * 50, sharpness=profile.sharpen)
         with closing(self.connect()) as connection:
             with connection:
-                connection.execute("UPDATE profiles SET profile_json = ? WHERE user_id = ?", (profile.model_dump_json(), user_id))
-        return profile
+                connection.execute("BEGIN IMMEDIATE")
+                if profile.revision is not None and profile.revision != self._profile_snapshot(connection, user_id)[0].revision:
+                    raise HTTPException(409, "다른 화면에서 보정값이 변경되었습니다. 다시 불러온 뒤 저장해 주세요.")
+                connection.execute("UPDATE profiles SET profile_json = ? WHERE user_id = ?",
+                                   (profile.model_dump_json(exclude={"calibration", "revision"}), user_id))
+                if ai_profile is not None:
+                    connection.execute(
+                        "INSERT INTO ai_profiles VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET profile_json=excluded.profile_json",
+                        (user_id, ai_profile.model_dump_json()),
+                    )
+                saved = self._profile_snapshot(connection, user_id)[0]
+        return saved
 
     def add_history(self, user_id: str, data: HistoryInput):
         ai_profile = self.ai_profile(user_id)
@@ -315,7 +374,7 @@ def create_account_router(accounts: AccountStore, catalog):
         return accounts.profile(user["id"])
 
     @router.put("/me/profile", response_model=VisualProfile, tags=["시각 프로필"], summary="내 시각 프로필 전체 저장",
-                description="앱에서 선택한 설정을 계정에 저장합니다. 생략한 필드는 기본값으로 저장됩니다. 이미지는 앱에서 보정합니다.")
+                description="calibration(색 종류·세기·윤곽선)을 포함하면 앱 설정과 AI 프로필을 하나의 DB 트랜잭션으로 저장합니다. 대비·밝기·선명도는 앱에서 한 번만 적용합니다.")
     def put_profile(profile: VisualProfile, user: Annotated[dict, Depends(current_user)]):
         return accounts.set_profile(user["id"], profile)
 

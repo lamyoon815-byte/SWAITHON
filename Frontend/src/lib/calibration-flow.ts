@@ -56,17 +56,21 @@ export function advanceCalibration(state: CalibrationState, action: CalibrationA
     const series = CALIBRATION.color[state.result.color_type];
     const plate = series.plates[state.index];
     if (!plate?.choices.includes(action.value)) return state;
-    return action.value === plate.answer || state.index === series.levels.length - 1
-      ? next(state, 'edge', { severity: series.levels[state.index] })
-      : { ...state, index: state.index + 1 };
+    if (action.value === plate.answer) return next(state, 'edge', { severity: series.levels[state.index] });
+    // 마지막까지 보이지 않은 강도를 개인 맞춤값(최댓값)으로 확정하지 않는다.
+    return state.index === series.levels.length - 1
+      ? next(state, 'edge', { severity: 0 }) : { ...state, index: state.index + 1 };
   }
   if (state.phase === 'edge' || state.phase === 'contrast') {
     if (!['visible', 'not-visible'].includes(action.value)) return state;
     const series = CALIBRATION[state.phase];
-    if (action.value === 'visible' || state.index === series.levels.length - 1) {
+    if (action.value === 'visible') {
       return state.phase === 'edge'
         ? next(state, 'contrast', { edge: series.levels[state.index] })
         : next(state, 'complete', { contrast: series.levels[state.index] });
+    }
+    if (state.index === series.levels.length - 1) {
+      return state.phase === 'edge' ? next(state, 'contrast', { edge: 0 }) : next(state, 'complete', { contrast: 1 });
     }
     return { ...state, index: state.index + 1 };
   }

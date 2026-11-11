@@ -6,6 +6,7 @@ import type { LoginResult, Session } from '@/types/auth';
 const KEY = 'swaithon.session.v1';
 let snapshot: { session: Session | null; loaded: boolean } = { session: null, loaded: false };
 let loading: Promise<void> | null = null;
+let writing: Promise<void> = Promise.resolve();
 let expiry: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
 
@@ -27,7 +28,7 @@ const storage = {
 function emit(session: Session | null) {
   clearTimeout(expiry);
   snapshot = { session, loaded: true };
-  if (session) expiry = setTimeout(() => { void clearSession(); }, Math.max(0, session.expiresAt - Date.now()));
+  if (session) expiry = setTimeout(() => { void clearSession(session.token); }, Math.max(0, session.expiresAt - Date.now()));
   listeners.forEach((listener) => listener());
 }
 
@@ -57,13 +58,24 @@ export function getAccessToken() {
 export async function saveSession(result: LoginResult) {
   await load();
   const session = { token: result.access_token, expiresAt: Date.now() + result.expires_in * 1000, user: result.user };
-  await storage.set(JSON.stringify(session));
-  emit(session);
+  return writeSession(async () => {
+    await storage.set(JSON.stringify(session));
+    emit(session);
+  });
 }
 
-export async function clearSession() {
+export async function clearSession(expectedToken?: string | null) {
   await load();
-  // Clear the persisted credential before reporting a successful logout.
-  try { await storage.remove(); }
-  finally { emit(null); }
+  return writeSession(async () => {
+    if (expectedToken !== undefined && expectedToken !== (snapshot.session?.token ?? null)) return;
+    // Serialize credential writes so a late 401 cannot delete a newly saved login.
+    try { await storage.remove(); }
+    finally { emit(null); }
+  });
+}
+
+function writeSession(change: () => Promise<void>) {
+  const next = writing.then(change);
+  writing = next.catch(() => {});
+  return next;
 }

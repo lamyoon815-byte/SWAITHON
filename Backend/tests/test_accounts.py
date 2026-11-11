@@ -1,6 +1,7 @@
 from contextlib import closing
 from hashlib import sha256
 import json
+import sqlite3
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -110,6 +111,55 @@ class AccountTests(unittest.TestCase):
         history = self.client.get("/me/history", headers=headers).json()
         self.assertEqual(history["items"][0]["id"], "old-entry")
         self.assertIsNone(history["items"][0]["ai_profile"])
+
+    def test_calibration_and_viewing_settings_save_together_and_survive_restart(self):
+        first, headers = self.register()
+        _, other = self.register("other@example.com")
+        settings = {"color_type": "deutan", "severity": 0.4, "edge": 0.2}
+        payload = {"calibration": settings, "contrast": 1.2, "brightness": -0.25, "sharpen": 0.3}
+        response = self.client.put("/me/profile", headers=headers, json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["calibration"], settings)
+        self.assertEqual(response.json()["color_vision"], "deuteranopia")
+        ai = self.client.get("/me/ai-profile", headers=headers).json()
+        self.assertEqual(ai, {**settings, "contrast": 1.2, "brightness": -12.5, "sharpness": 0.3})
+        self.assertIsNone(self.client.get("/me/profile", headers=other).json()["calibration"])
+        # Read through a new store/connection, not the request's in-memory input object.
+        from Backend.accounts import AccountStore
+        restored = AccountStore(self.root / "data").profile(first["user"]["id"])
+        self.assertEqual(restored.calibration.model_dump(), settings)
+        self.assertEqual(restored.contrast, 1.2)
+
+    def test_failed_ai_profile_write_rolls_back_app_settings_too(self):
+        _, headers = self.register()
+        before = self.client.get("/me/profile", headers=headers).json()
+        with closing(self.app.state.accounts.connect()) as connection, connection:
+            connection.execute("""CREATE TRIGGER fail_calibration BEFORE INSERT ON ai_profiles
+                                  BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END""")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.put("/me/profile", headers=headers, json={
+                "contrast": 1.8, "calibration": {"color_type": "protan", "severity": 0.4, "edge": 0.2},
+            })
+        self.assertEqual(self.client.get("/me/profile", headers=headers).json(), before)
+        self.assertIsNone(self.client.get("/me/ai-profile", headers=headers).json())
+
+    def test_profile_revision_prevents_stale_settings_from_overwriting_calibration(self):
+        _, headers = self.register()
+        first = self.client.put("/me/profile", headers=headers, json={
+            "calibration": {"color_type": "deutan", "severity": 0.2, "edge": 0.2}, "contrast": 1.2,
+        }).json()
+        newer = {**first, "calibration": {"color_type": "deutan", "severity": 0.8, "edge": 0.4}}
+        response = self.client.put("/me/profile", headers=headers, json=newer)
+        self.assertEqual(response.status_code, 200, response.text)
+        saved = response.json()
+        self.assertNotEqual(saved["revision"], first["revision"])
+        conflict = self.client.put("/me/profile", headers=headers, json={**first, "narration_mode": "facts"})
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(self.client.get("/me/profile", headers=headers).json(), saved)
+        # Legacy clients omitting calibration still receive the real retained DB settings.
+        response = self.client.put("/me/profile", headers=headers, json={"narration_mode": "facts"})
+        self.assertEqual(response.json(), self.client.get("/me/profile", headers=headers).json())
+        self.assertEqual(response.json()["calibration"]["severity"], 0.8)
 
     def test_history_ownership_and_profile_snapshot(self):
         _, headers = self.register()

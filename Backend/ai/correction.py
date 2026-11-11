@@ -178,14 +178,15 @@ def emphasize_edges(rgb, edge: float):
     # 선 색 넓히기도 1000px 크기에서 계산해 원본 크기로 키운다(큰 사진에서 얼룩 모양이 생기지 않게).
     small = cv2.resize(rgb, size, interpolation=cv2.INTER_AREA)
     line_color = cv2.resize(cv2.erode(small, ellipse(line_radius)), (width, height), interpolation=cv2.INTER_LINEAR)
-    weight = line_mask * (0.35 + 0.5 * edge)
+    # 0에 가까운 설정에도 고정 강조량이 붙지 않도록 저장 강도에 비례시킨다.
+    weight = line_mask * (0.85 * edge)
     rgb = rgb * (1 - weight) + np.minimum(rgb, line_color) * weight
 
     # 2) 형태 윤곽선 강조 (Otsu 값을 Canny 높은 기준, 절반을 낮은 기준으로 쓰는 흔한 자동 설정)
     smooth = cv2.GaussianBlur(gray, (0, 0), sigmaX=1.4)
     otsu, _ = cv2.threshold(smooth, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     contours = cv2.dilate(cv2.Canny(smooth, 0.5 * otsu, otsu), ellipse(max(0, radius - 1)))
-    contour_mask = full_size(contours > 0, 0.7) * (0.15 + 0.45 * edge)
+    contour_mask = full_size(contours > 0, 0.7) * (0.6 * edge)
     return np.clip(rgb * (1 - contour_mask) + rgb * 0.15 * contour_mask, 0, 1).astype(np.float32)
 
 

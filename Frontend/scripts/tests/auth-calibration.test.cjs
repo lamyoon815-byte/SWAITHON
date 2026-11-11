@@ -79,15 +79,7 @@ test('legacy viewing settings migrate once and keep brightness and contrast unit
   const storage = new Map([['swaithon.viewing.v1', JSON.stringify({ completed: true, values: {
     color_type: 'tritan', severity: 0.6, edge: 0.2, contrast: 0.8, brightness: -0.25, sharpness: 1.4,
   } })]]);
-  const store = load('store/profile.ts', {
-    '@react-native-async-storage/async-storage': { __esModule: true, default: {
-      getItem: async (key) => storage.get(key) ?? null,
-      setItem: async (key, value) => { storage.set(key, value); },
-    } },
-    '@/types/profile': load('types/profile.ts'),
-    '@/types/calibration': load('types/calibration.ts'),
-  });
-  store.subscribeProfile(() => {});
+  const { store, profiles, switchUser } = profileStore({ storage });
   await new Promise((resolve) => setImmediate(resolve));
   const state = store.getProfileSnapshot();
   assert.equal(state.error, false);
@@ -97,7 +89,12 @@ test('legacy viewing settings migrate once and keep brightness and contrast unit
   assert.equal(state.profile.contrast, 0.8);
   assert.equal(state.profile.brightness, -0.25);
   assert.equal(state.profile.sharpen, 1.4);
-  assert.equal(JSON.parse(storage.get('swaithon:profile:v1')).color_vision, 'tritanopia');
+  assert.equal(profiles.get('user-1').color_vision, 'tritanopia');
+  switchUser('user-2');
+  await tick();
+  assert.equal(store.getProfileSnapshot().saved, false);
+  assert.equal(store.getProfileSnapshot().profile.calibration, undefined);
+  assert.equal(profiles.has('user-2'), false);
 });
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -105,6 +102,184 @@ const loginResult = {
   access_token: 'session-token', token_type: 'bearer', expires_in: 604800,
   user: { id: 'user-1', nickname: '관람객', email: 'viewer@example.com', created_at: '2026-11-11' },
 };
+
+function profileStore({ storage = new Map(), profiles = new Map(), failPut = false, failStorage = false, read, write } = {}) {
+  const defaults = load('types/profile.ts');
+  let userId = 'user-1';
+  const authListeners = new Set();
+  const writes = [];
+  const store = load('store/profile.ts', {
+    '@react-native-async-storage/async-storage': { __esModule: true, default: {
+      getItem: async (key) => { if (failStorage) throw new Error('Storage unavailable'); return storage.get(key) ?? null; },
+      setItem: async (key, value) => { storage.set(key, value); },
+    } },
+    '@/types/profile': defaults,
+    '@/types/calibration': load('types/calibration.ts'),
+    '@/lib/calibration': calibration,
+    '@/store/auth': {
+      getAccessToken: () => userId ? `token-${userId}` : null,
+      getAuthSnapshot: () => ({ loaded: true, session: userId ? { user: { id: userId } } : null }),
+      subscribeAuth: (listener) => { authListeners.add(listener); return () => authListeners.delete(listener); },
+    },
+    '@/lib/api': {
+      getProfile: async () => read ? read(userId) : structuredClone(profiles.get(userId) ?? defaults.DEFAULT_PROFILE),
+      putProfile: async (value) => {
+        const owner = userId;
+        if (write) await write(owner, value);
+        if (failPut) throw new Error('DB write failed');
+        writes.push({ userId: owner, profile: structuredClone(value) });
+        profiles.set(owner, structuredClone(value));
+        return structuredClone(value);
+      },
+    },
+  });
+  store.subscribeProfile(() => {});
+  return { store, profiles, writes, switchUser: (id) => { userId = id; authListeners.forEach((listener) => listener()); } };
+}
+
+test('calibration is saved to the account DB before being used and untested filters reset to neutral', async () => {
+  const { store, profiles, writes } = profileStore();
+  await tick();
+  await store.saveCalibration({ color_type: 'deutan', severity: 0.4, edge: 0.2, contrast: 1.2 });
+  assert.equal(writes.length, 1);
+  assert.deepEqual(profiles.get('user-1').calibration, { color_type: 'deutan', severity: 0.4, edge: 0.2 });
+  assert.equal(store.getProfileSnapshot().profile.contrast, 1.2);
+  assert.equal(store.getProfileSnapshot().profile.strength, 1);
+  assert.equal(store.getProfileSnapshot().profile.brightness, 0);
+  assert.equal(store.getProfileSnapshot().profile.sharpen, 0);
+});
+
+test('a failed DB save never becomes a successful calibration in shared state', async () => {
+  const { store, writes } = profileStore({ failPut: true });
+  await tick();
+  await assert.rejects(store.saveCalibration({ color_type: 'protan', severity: 0.4, edge: 0.2, contrast: 1.4 }), /DB write failed/);
+  assert.equal(writes.length, 0);
+  assert.equal(store.getProfileSnapshot().saved, false);
+  assert.equal(store.getProfileSnapshot().profile.contrast, 1);
+});
+
+test('the DB wins over old device data and late account responses are ignored', async () => {
+  let finishFirst;
+  const first = new Promise((resolve) => { finishFirst = resolve; });
+  const { DEFAULT_PROFILE } = load('types/profile.ts');
+  const second = { ...DEFAULT_PROFILE, calibration: { color_type: 'tritan', severity: 0.2, edge: 0.4 }, contrast: 1.2 };
+  const { store, switchUser, writes } = profileStore({
+    storage: new Map([['swaithon:profile:v1', JSON.stringify({ ...DEFAULT_PROFILE, calibration: { color_type: 'deutan', severity: 1, edge: 1 } })]]),
+    read: (id) => id === 'user-1' ? first : second,
+  });
+  switchUser('user-2');
+  await tick();
+  assert.equal(store.getProfileSnapshot().profile.calibration.color_type, 'tritan');
+  finishFirst({ ...DEFAULT_PROFILE, calibration: { color_type: 'protan', severity: 1, edge: 1 } });
+  await tick();
+  assert.equal(store.getProfileSnapshot().profile.calibration.color_type, 'tritan');
+  assert.equal(writes.length, 0);
+  switchUser(null);
+  assert.equal(store.getProfileSnapshot().profile.calibration, undefined);
+  assert.equal(store.getProfileSnapshot().profile.contrast, 1);
+});
+
+test('a save queued under a different account cannot modify the next account', async () => {
+  const { store, switchUser, writes } = profileStore();
+  await tick();
+  const saving = store.saveCalibration({ color_type: 'deutan', severity: 0.2, edge: 0.2, contrast: 1.2 });
+  switchUser('user-2');
+  await assert.rejects(saving, /로그인이 필요해요/);
+  assert.equal(writes.length, 0);
+});
+
+test('saving a narration preference merges the latest DB calibration rather than a stale snapshot', async () => {
+  const { DEFAULT_PROFILE } = load('types/profile.ts');
+  const profiles = new Map([['user-1', { ...DEFAULT_PROFILE,
+    calibration: { color_type: 'deutan', severity: 0.2, edge: 0.2 }, revision: 'old' }]]);
+  const { store } = profileStore({ profiles });
+  await tick();
+  profiles.set('user-1', { ...DEFAULT_PROFILE,
+    calibration: { color_type: 'deutan', severity: 0.8, edge: 0.4 }, revision: 'new' });
+  await store.saveNarrationMode('facts');
+  assert.equal(profiles.get('user-1').calibration.severity, 0.8);
+  assert.equal(profiles.get('user-1').revision, 'new');
+  assert.equal(profiles.get('user-1').narration_mode, 'facts');
+});
+
+test('a local migration-marker failure cannot replace a valid DB profile with defaults', async () => {
+  const { DEFAULT_PROFILE } = load('types/profile.ts');
+  const { store } = profileStore({ failStorage: true,
+    profiles: new Map([['user-1', { ...DEFAULT_PROFILE, contrast: 1.4,
+      calibration: { color_type: 'deutan', severity: 0.4, edge: 0.2 } }]]) });
+  await tick();
+  assert.equal(store.getProfileSnapshot().error, false);
+  assert.equal(store.getProfileSnapshot().saved, true);
+  assert.equal(store.getProfileSnapshot().profile.contrast, 1.4);
+});
+
+test('the next account can save without waiting for an old account request to finish', async () => {
+  let release;
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const { store, switchUser, writes } = profileStore({ write: (owner) => owner === 'user-1' ? blocked : undefined });
+  await tick();
+  const oldSaving = store.saveNarrationMode('facts');
+  await tick();
+  switchUser('user-2');
+  await tick();
+  await store.saveCalibration({ color_type: 'tritan', severity: 0.2, edge: 0.2, contrast: 1.2 });
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].userId, 'user-2');
+  release();
+  await assert.rejects(oldSaving, /계정이 변경/);
+  assert.equal(store.getProfileSnapshot().profile.calibration.color_type, 'tritan');
+});
+
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/images/calibration/calibration.json'), 'utf8'));
+test('each slider level selects its matching bundled color and edge preview, with a stable original', () => {
+  const assetDir = path.join(__dirname, '../../assets/images/calibration');
+  const assets = Object.fromEntries(fs.readdirSync(assetDir).filter((name) => name.endsWith('.jpg')).map((name) => [`./${name}`, name]));
+  const { CALIBRATION } = load('../assets/images/calibration/index.ts', assets);
+  const { correctionPreview } = load('lib/correction-settings.ts', { '@/assets/images/calibration': { CALIBRATION } });
+  for (const color_type of ['protan', 'deutan', 'tritan']) {
+    for (const [index, severity] of manifest.preview.levels.entries()) {
+      const values = { color_type, severity, edge: severity, contrast: 1, brightness: 0, sharpen: 0 };
+      const preview = correctionPreview(values, 'color', false);
+      assert.equal(preview.plate, manifest.preview[color_type].plate[index]);
+      assert.equal(preview.artwork, manifest.preview[color_type].artwork[index]);
+      assert.equal(correctionPreview(values, 'color', true).artwork, manifest.preview[color_type].artwork[0]);
+      assert.equal(correctionPreview(values, 'edge', false).artwork, manifest.edge.files[index]);
+      assert.equal(correctionPreview(values, 'edge', true).artwork, manifest.edge.files[0]);
+    }
+    for (const kind of ['plate', 'artwork']) {
+      const images = manifest.preview[color_type][kind].map((name) => fs.readFileSync(path.join(assetDir, name)).toString('base64'));
+      assert.equal(new Set(images).size, 6, `${color_type} ${kind}: all six levels must differ`);
+    }
+  }
+});
+const flow = load('lib/calibration-flow.ts', { '@/assets/images/calibration': { CALIBRATION: manifest } });
+
+test('failed calibration steps never auto-select maximum correction', () => {
+  let state = flow.advanceCalibration({ ...flow.initialCalibration(), phase: 'manual' }, { type: 'choose', value: 'deutan' });
+  while (state.phase === 'color') {
+    const plate = manifest.color.deutan.plates[state.index];
+    state = flow.advanceCalibration(state, { type: 'answer', value: plate.choices.find((choice) => choice !== plate.answer) });
+  }
+  while (state.phase !== 'complete') state = flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' });
+  assert.equal(state.result.severity, 0);
+  assert.equal(state.result.edge, 0);
+  assert.equal(state.result.contrast, 1);
+});
+
+test('the first successful color, edge and contrast levels are preserved exactly', () => {
+  let state = flow.advanceCalibration({ ...flow.initialCalibration(), phase: 'manual' }, { type: 'choose', value: 'deutan' });
+  state = flow.advanceCalibration(state, { type: 'answer', value: manifest.screening.not_visible });
+  state = flow.advanceCalibration(state, { type: 'answer', value: manifest.color.deutan.plates[state.index].answer });
+  state = flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' });
+  state = flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' });
+  state = flow.advanceCalibration(state, { type: 'answer', value: 'visible' });
+  state = flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' });
+  state = flow.advanceCalibration(state, { type: 'answer', value: 'visible' });
+  assert.equal(state.phase, 'complete');
+  assert.equal(state.result.severity, 0.4);
+  assert.equal(state.result.edge, 0.4);
+  assert.equal(state.result.contrast, 1.2);
+});
 
 function authStore(raw = null, failSave = false) {
   const storage = { raw, deleted: false };
@@ -147,6 +322,17 @@ test('credential persistence failure leaves the app logged out', async () => {
   assert.equal(store.getAuthSnapshot().session, null);
 });
 
+test('a stale 401 cannot clear a new session even when credential writes overlap', async () => {
+  const { store, storage } = authStore();
+  await store.saveSession(loginResult);
+  const clearing = store.clearSession('session-token');
+  const saving = store.saveSession({ ...loginResult, access_token: 'new-session-token' });
+  const lateClear = store.clearSession('session-token');
+  await Promise.all([clearing, saving, lateClear]);
+  assert.equal(store.getAccessToken(), 'new-session-token');
+  assert.equal(JSON.parse(storage.raw).token, 'new-session-token');
+});
+
 function apiClient(respond, token = 'saved-token') {
   const calls = [];
   let cleared = false;
@@ -164,6 +350,54 @@ test('login sends credentials without an existing bearer token', async () => {
   await api.login('  viewer@example.com  ', 'example-password');
   assert.equal(calls[0].init.headers.get('Authorization'), null);
   assert.deepEqual(JSON.parse(calls[0].init.body), { email: 'viewer@example.com', password: 'example-password' });
+});
+
+test('correction requests contain only an artwork and a bounded ratio, and caches are account scoped', async () => {
+  let token = 'first-account';
+  const revision = 'a'.repeat(64);
+  const { api, calls } = apiClient(() => ({ ok: true, status: 200,
+    headers: new Headers({ 'X-Correction-Profile-Revision': revision }),
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer }), () => token);
+  const profile = { ...calibration.DEFAULT_VIEWING, color_type: 'deutan', severity: 0.2, edge: 0.4, revision };
+  await api.getCorrectedImage('sample', profile, 5);
+  assert.equal(calls[0].init.body.has('profile'), false);
+  assert.equal(calls[0].init.body.get('artwork_id'), 'sample');
+  assert.equal(calls[0].init.body.get('strength'), '1');
+  assert.equal(calls[0].init.body.get('profile_revision'), revision);
+  await api.getCorrectedImage('sample', profile, 1);
+  assert.equal(calls.length, 1);
+  token = 'second-account';
+  await api.getCorrectedImage('sample', profile, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].init.headers.Authorization, 'Bearer second-account');
+  token = null;
+  await assert.rejects(api.getCorrectedImage('sample', profile), /로그인이 필요해요/);
+});
+
+test('a correction made from a different DB version is never returned or cached', async () => {
+  let attempts = 0;
+  const revision = 'a'.repeat(64);
+  const { api, calls } = apiClient(() => ({ ok: true, status: 200,
+    headers: new Headers({ 'X-Correction-Profile-Revision': ++attempts === 1 ? 'b'.repeat(64) : revision }),
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer }));
+  const profile = { ...calibration.DEFAULT_VIEWING, edge: 0.2, revision };
+  await assert.rejects(api.getCorrectedImage('sample', profile), /보정값이 변경/);
+  await api.getCorrectedImage('sample', profile);
+  assert.equal(calls.length, 2);
+});
+
+test('a correction in flight during a profile save cannot poison the old-strength cache', async () => {
+  const revision = 'a'.repeat(64);
+  let release;
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const { api } = apiClient((url) => url.endsWith('/me/profile')
+    ? { ok: true, status: 200, json: async () => ({ revision: 'b'.repeat(64) }) }
+    : blocked);
+  const request = api.getCorrectedImage('sample', { ...calibration.DEFAULT_VIEWING, edge: 0.2, revision });
+  await api.putProfile({});
+  release({ ok: true, status: 200, headers: new Headers({ 'X-Correction-Profile-Revision': revision }),
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
+  await assert.rejects(request, /보정값이 변경/);
 });
 
 test('logout sends bearer credentials and handles 204 without parsing JSON', async () => {

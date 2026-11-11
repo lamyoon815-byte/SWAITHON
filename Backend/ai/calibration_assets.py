@@ -15,6 +15,7 @@
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\calibration_assets.py
 """
 from io import BytesIO
+import argparse
 import json
 from pathlib import Path
 import sys
@@ -95,9 +96,35 @@ def choices(answer, rng):
     return numbers + [NOT_VISIBLE]
 
 
-def main():
+def main(edges_only=False, colors_only=False):
     records = {record["id"]: record for record in json.loads((BACKEND / "catalog.artworks.json").read_text(encoding="utf-8"))}
     OUT.mkdir(parents=True, exist_ok=True)
+    if colors_only:
+        # 기존 질문·정답은 보존하고 현재 서버 알고리즘으로 색 보정 자료만 갱신한다.
+        manifest = json.loads((OUT / "calibration.json").read_text(encoding="utf-8"))
+        for color_type in COLOR_TYPES:
+            for index, number in enumerate(PLATE_NUMBERS[color_type]):
+                source = to_jpeg(make_plate(color_type, number, PLATE_SEED[color_type] + index)[0])
+                level = LEVELS[index]
+                content = correct_image(source, {"color_type": color_type, "severity": level / 100}) if level else source
+                save(content, f"plate-{color_type}-{number}-{level}.jpg")
+            plate = to_jpeg(make_plate(color_type, PLATE_NUMBERS[color_type][0], PLATE_SEED[color_type])[0])
+            sample = SAMPLES[PREVIEW_SAMPLE[color_type]]
+            artwork = source_jpeg(records[sample["artwork_id"]], sample["crop"])
+            for kind, source in (("plate", plate), ("artwork", artwork)):
+                for index, level in enumerate(LEVELS):
+                    content = correct_image(source, {"color_type": color_type, "severity": level / 100}) if level else source
+                    save(content, manifest["preview"][color_type][kind][index])
+        print("Updated color calibration and slider previews using the current correction algorithm.")
+        return
+    if edges_only:
+        # 보정 알고리즘 변경 시 기존 숫자 검사판·메타데이터는 보존하고 윤곽선 미리보기만 갱신한다.
+        sample = SAMPLES["shower"]
+        source = source_jpeg(records[sample["artwork_id"]], sample["crop"])
+        for level in LEVELS[1:]:
+            save(correct_image(source, {"edge": level / 100}), f"shower-edge-{level}.jpg")
+        print("Updated 5 edge previews using the artwork correction algorithm.")
+        return
     for old in OUT.glob("*.jpg"):
         old.unlink()
     rng = np.random.default_rng(20261111)
@@ -203,4 +230,8 @@ export const CALIBRATION = {{
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--edges-only", action="store_true", help="기존 자료를 유지하고 윤곽선 미리보기 5장만 갱신")
+    parser.add_argument("--colors-only", action="store_true", help="기존 질문·정답을 유지하고 색 보정 미리보기만 갱신")
+    args = parser.parse_args()
+    main(edges_only=args.edges_only, colors_only=args.colors_only)

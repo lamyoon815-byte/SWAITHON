@@ -107,7 +107,7 @@ FE에 전달할 전체 요청·응답·인증·오류 규격은 [FE API 명세�
 | `POST /recognize` | 작품 사진 또는 명패로 후보 상위 3개 검색 (인증 필요) |
 | `GET /artworks/{id}/narration` | 감상 모드에 맞춘 검수 해설 텍스트 (인증 필요) |
 | `POST /analyze` | 미등록 작품 실시간 분석 (인증 필요, Gemini 설정 필요) |
-| `POST /correction` | 원본 작품 ID 또는 촬영본과 AI 프로필로 JPEG 보정. AI 함수 연결 전에는 503 (인증 필요) |
+| `POST /correction` | 원본 작품 ID 또는 촬영본을 계정 DB의 색·윤곽선 설정으로 JPEG 보정. `strength` 0~1만 허용, 요청 `profile` 전송 금지 (인증 필요) |
 
 `/upload`는 사용자 사진을 저장하거나 작품 DB에 등록하지 않는다.
 작품 번호 조회의 요청·응답 및 FE 오류 처리 규칙은 [FE 전달 내용](../docs/fe-handoff.md)을 참고한다.

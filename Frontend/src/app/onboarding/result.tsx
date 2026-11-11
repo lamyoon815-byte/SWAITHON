@@ -24,7 +24,7 @@ const COLOR_LABELS = {
   tritanopia: '파랑 보정',
 } as const;
 
-/** 와이어프레임 6-1: 기기에 저장한 보기 설정 확인. */
+/** 와이어프레임 6-1: 계정 DB에 저장한 보기 설정 확인. */
 export default function CorrectionResultScreen() {
   const { profile, loaded, error, reloadProfile } = useProfile();
   const palette = getPalette('dark', profile.high_contrast);

@@ -76,6 +76,10 @@ export default function CalibrationScreen() {
     if (disabled || lastAction.current === state || (action.type === 'answer' && !imageReady)) return;
     const next = advanceCalibration(state, action);
     if (next === state) return;
+    if (action.type === 'answer' && next.phase !== phase && (
+      (phase === 'color' && next.result.severity === 0)
+      || ((phase === 'edge' || phase === 'contrast') && action.value === 'not-visible')
+    )) showToast('편한 강도를 찾지 못해 이 항목은 보정 없음으로 두었어요. 내 보정값에서 다시 조절할 수 있어요.', 'info');
     lastAction.current = state;
     setFrames((previous) => [...previous, next]);
     setManual(false);

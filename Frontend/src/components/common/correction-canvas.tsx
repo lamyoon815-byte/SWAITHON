@@ -97,7 +97,7 @@ export function CorrectionCanvas({
   };
 
   const { contrast, brightness, sharpen, strength } = correction;
-  const amount = original ? 0 : strength;
+  const amount = original ? 0 : Number.isFinite(strength) ? clamp(strength, 0, 1) : 1;
   const matrix = useMemo(
     () => correctionMatrix(contrast, brightness, amount),
     [contrast, brightness, amount],

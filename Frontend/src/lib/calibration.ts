@@ -8,6 +8,7 @@ export type ViewingProfile = {
   /** App/Skia unit; never sent to /correction. */
   brightness: number;
   sharpness: number;
+  revision?: string;
 };
 
 export const DEFAULT_VIEWING: ViewingProfile = {
@@ -29,12 +30,18 @@ export function screeningColor(failed: Exclude<ColorType, 'normal'>[]): ColorTyp
 
 /** Server handles only color/edge. Skia applies brightness, contrast and sharpness once. */
 export function serverCorrection(profile: ViewingProfile, strength = 1) {
+  strength = correctionStrength(strength);
   return {
     color_type: profile.color_type,
     severity: profile.color_type === 'normal' ? 0 : profile.severity * strength,
     edge: profile.edge * strength,
     contrast: 1, brightness: 0, sharpness: 0,
   };
+}
+
+/** 작품 슬라이더와 URL 모두 저장된 개인 보정값의 0~100% 안에서만 조절한다. */
+export function correctionStrength(value: number) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
 }
 
 export function normalizeViewing(value: Partial<ViewingProfile>): ViewingProfile {
@@ -53,10 +60,10 @@ export function normalizeViewing(value: Partial<ViewingProfile>): ViewingProfile
 /** Shared device profile, including a past viewing record, to the AI correction contract. */
 export function viewingFromProfile(profile: VisualProfile): ViewingProfile {
   const legacyColor = { normal: 'normal', protanopia: 'protan', deuteranopia: 'deutan', tritanopia: 'tritan' } as const;
-  return normalizeViewing({
+  return { ...normalizeViewing({
     color_type: profile.calibration?.color_type ?? legacyColor[profile.color_vision],
     severity: profile.calibration?.severity ?? profile.color_severity,
     edge: profile.calibration?.edge ?? 0,
     contrast: profile.contrast, brightness: profile.brightness, sharpness: profile.sharpen,
-  });
+  }), revision: profile.revision };
 }

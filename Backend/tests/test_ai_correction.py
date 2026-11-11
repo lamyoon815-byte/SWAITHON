@@ -68,6 +68,16 @@ class CorrectionTests(unittest.TestCase):
         dark_after = int((correct_array(image, {"edge": 1.0})[..., 0] < 0.5).sum())
         self.assertGreater(dark_after, dark_before * 1.5)
 
+    def test_small_edge_settings_do_not_have_a_fixed_large_effect(self):
+        image = np.full((200, 200, 3), 0.9, dtype=np.float32)
+        image[:, 99:101] = 0.1
+        differences = [float(np.abs(correct_array(image, {"edge": edge}) - image).mean())
+                       for edge in (0, 0.001, 0.01, 0.2, 0.4, 0.6, 0.8, 1)]
+        self.assertEqual(differences[0], 0)
+        self.assertLess(differences[1], differences[-1] * 0.003)
+        self.assertLess(differences[2], differences[-1] * 0.03)
+        self.assertEqual(differences, sorted(differences))
+
 
 if __name__ == "__main__":
     unittest.main()

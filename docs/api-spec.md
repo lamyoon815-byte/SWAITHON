@@ -1,8 +1,8 @@
 # MoMi FE API 명세서
 
-기준일: 2026-11-04. **이 문서와 함께 커밋한 백엔드 코드 기준**입니다. 배포 서버의 반영 상태는 별도로 확인합니다.
+기준일: 2026-11-11. **현재 백엔드 코드 기준**입니다. 배포 서버의 반영 상태는 별도로 확인합니다.
 미술관·번호·QR, confidence, 자동 촬영 호출 제한, 위치 힌트·해설 영역 연결과 기존 AI 계약을 포함합니다.
-`POST /correction`은 라우트와 입력·출력 계약만 준비됐으며 실제 AI 함수 미연결로 정상 입력에도 503을 반환합니다.
+`POST /correction`은 로그인한 계정의 DB 보정값으로 동작합니다. 초기 검사 저장·미리보기·실제 작품의 연결 규칙은 [보기 설정 테스트 규칙](ai-calibration.md)을 참고합니다.
 
 ## 1. 접속 및 공통 규칙
 
@@ -16,7 +16,7 @@
 | 공유용 OpenAPI | [openapi.json](openapi.json). 코드에서 생성한 스냅샷이며 일부 런타임 오류·정적 이미지 경로는 아래 본문 참고 |
 | JSON 요청 | `Content-Type: application/json` |
 | 파일 요청 | `multipart/form-data`. FE에서 Content-Type을 직접 지정하지 않고 FormData에 맡김 |
-| 인증 | 앱은 사용하지 않음. 회원 API(`/me/*`)만 `Authorization: Bearer {access_token}` |
+| 인증 | 회원 API(`/me/*`)와 개인 보정(`/correction`)에 `Authorization: Bearer {access_token}` |
 | 시간 | ISO 8601 UTC 문자열. 화면 표시는 FE에서 현지 시간으로 변환 |
 | 빈 값 | 응답의 `null`과 빈 배열을 정상 상태로 처리 |
 | 페이지네이션 | `limit` 기본 20, 1~100 / `offset` 기본 0, 0 이상 |
@@ -31,18 +31,18 @@
 
 ## 2. API 목록
 
-> **앱은 로그인 없이 기기 로컬 저장만 사용합니다** (2026-11-06 결정). 작품·인식·해설·보정 API는 토큰 없이 호출하고,
-> 호출 제한은 접속 IP 기준입니다. `/auth/*`, `/me/*` 회원·프로필·관람 기록 API는 서버에 남아 있지만 앱에서 사용하지 않습니다.
+> 앱은 로그인·회원가입과 계정별 DB 보정값을 사용합니다. 작품 조회·인식·해설 API는 기존처럼 인증 없이도 호출할 수 있습니다.
+> 보정은 계정 DB를 조회하므로 인증이 필요하고, 관람 기록은 현재 앱에서 기기 저장을 유지합니다. 호출 제한은 접속 IP 기준입니다.
 
 | Method | Path | 인증 | 성공 | 용도 |
 |---|---|---|---|---|
 | GET | `/health` | 불필요 | 200 | 서버 연결 확인 |
-| POST | `/auth/register` | 불필요 | 201 | 회원가입 및 토큰 발급 (앱 미사용) |
-| POST | `/auth/login` | 불필요 | 200 | 로그인 (앱 미사용) |
-| POST | `/auth/logout` | 필요 | 204 | 현재 세션 로그아웃 (앱 미사용) |
-| GET | `/me` | 필요 | 200 | 내 회원 정보 (앱 미사용) |
-| GET | `/me/profile` | 필요 | 200 | 앱 시각·음성 설정 조회 (앱 미사용) |
-| PUT | `/me/profile` | 필요 | 200 | 앱 설정 전체 저장 (앱 미사용) |
+| POST | `/auth/register` | 불필요 | 201 | 회원가입 및 토큰 발급 |
+| POST | `/auth/login` | 불필요 | 200 | 로그인 |
+| POST | `/auth/logout` | 필요 | 204 | 현재 세션 로그아웃 |
+| GET | `/me` | 필요 | 200 | 내 회원 정보 |
+| GET | `/me/profile` | 필요 | 200 | 앱 설정 및 DB의 calibration 조회 |
+| PUT | `/me/profile` | 필요 | 200 | 앱 설정과 calibration 원자적 저장 |
 | GET | `/me/ai-profile` | 필요 | 200 | AI 6필드 프로필 조회 (앱 미사용) |
 | PUT | `/me/ai-profile` | 필요 | 200 | AI 프로필 전체 저장 (앱 미사용) |
 | GET | `/museums` | 불필요 | 200 | 등록 작품이 있는 미술관 목록 |
@@ -54,7 +54,7 @@
 | POST | `/recognize` | 불필요 | 200 | 작품·명패 인식 후보 조회. 호출 제한은 접속 IP 기준 |
 | GET | `/artworks/{artwork_id}/narration` | 불필요 | 200 | 등록 작품 검수 해설·TTS 텍스트 |
 | POST | `/analyze` | 불필요 | 200 | 미등록 작품의 실시간 해설. 호출 제한은 접속 IP 기준 |
-| POST | `/correction` | 불필요 | 200 JPEG | AI 이미지 보정. 현재 AI 함수 미연결 |
+| POST | `/correction` | 필요 | 200 JPEG | 계정 DB의 색·윤곽선 보정값으로 이미지 보정 |
 | POST | `/me/history` | 필요 | 201 | 관람 기록 등록 (앱 미사용) |
 | GET | `/me/history` | 필요 | 200 | 내 관람 기록 목록 (앱 미사용) |
 | DELETE | `/me/history/{history_id}` | 필요 | 204 | 내 관람 기록 삭제 (앱 미사용) |
@@ -135,6 +135,8 @@ Bearer 인증. GET은 현재 앱 설정, PUT은 아래 JSON 저장 후 저장된
 | `narration_mode` | `facts`, `interpretations`, `both` | `both` |
 | `speech_rate` | number, 0.75~1.5 | 1 |
 | `high_contrast` | boolean | false |
+| `calibration` | `{color_type, severity, edge}` 또는 null. 세기·윤곽선 0~1 | null (미설정) |
+| `revision` | DB 프로필의 SHA-256 버전. GET 결과를 PUT에도 포함 | null (구형 클라이언트) |
 
 ```json
 {
@@ -151,11 +153,15 @@ Bearer 인증. GET은 현재 앱 설정, PUT은 아래 JSON 저장 후 저장된
 }
 ```
 
-이 설정의 이미지 반영·확대·음성 속도 적용은 FE에서 수행합니다.
+`calibration`을 포함한 PUT은 `profiles`와 `ai_profiles`를 같은 트랜잭션으로 저장합니다. `normal`의 severity는 반드시 0이며, `color_vision`·`color_severity`는 calibration과 맞춥니다. GET의 calibration은 AI 프로필 DB에서 읽습니다. 기존 클라이언트가 calibration을 생략하면 저장된 AI 값은 지우지 않습니다.
+
+앱은 저장 직전 최신 DB 설정을 다시 읽고 변경한 항목만 합칩니다. GET 이후 DB revision이 달라졌으면 PUT은 **409**로 거절하여 다른 세션의 보정값을 덮어쓰지 않습니다. PUT 응답도 실제 DB 상태와 revision을 반환합니다.
+
+대비·밝기·선명도는 이 GET으로 받은 값을 FE Skia에서 한 번만 적용합니다. 색·윤곽선은 서버가 같은 계정의 DB에서 직접 조회합니다.
 
 ### GET /me/ai-profile · PUT /me/ai-profile
 
-Bearer 인증. **기존 `/me/profile`과 독립적으로 저장**합니다. 필드명·밝기 단위를 자동 변환하지 않습니다.
+Bearer 인증. AI 6필드를 직접 조회·저장하는 호환 API입니다. 앱은 부분 저장을 피하기 위해 `/me/profile`의 calibration을 사용합니다. 이 호환 PUT은 앱의 대비·밝기·선명도를 변경하지 않으며, 해당 값을 앱에 적용하려면 `/me/profile`로 저장합니다.
 GET은 미설정 시 **200 + `null`**, 설정 이후에는 아래 객체를 반환합니다.
 PUT은 전체 교체이며 생략 필드는 기본값으로 저장합니다. 응답 **200**은 저장된 전체 객체입니다.
 기본값은 사용자 설정 시작값이며 색각 진단 결과가 아닙니다. 허용하지 않은 필드·값은 **422**입니다.
@@ -455,24 +461,29 @@ Gemini 요청은 한 번당 타임아웃 45초, 재시도 포함 최대 2회이�
 
 ### POST /correction
 
-인증 없음. **현재 AI 함수가 없으므로 정상 입력도 503**입니다. 기존 앱 Skia 보정은 계속 사용할 수 있습니다.
+Bearer 인증. 서버는 계정의 `ai_profiles`에서 색 보정·윤곽선 값을 직접 읽습니다. DB 검사값 미설정은 **409**입니다.
 multipart:
 
 | Form | 타입 | 필수·규칙 |
 |---|---|---|
 | `artwork_id` | string | 등록 작품 원본을 사용할 때 전송 |
 | `image` | 파일 | 미등록 촬영본을 사용할 때 전송. artwork_id와 정확히 하나만 전송 |
-| `profile` | string | 필수. 기기에 저장한 4장의 AI 프로필 JSON을 `JSON.stringify()`한 문자열 |
+| `strength` | number | 선택, 기본 1. 저장한 강도의 0~100% 적용 비율(0~1) |
+| `profile_revision` | string | 앱은 GET의 revision을 전송. DB와 다르면 409로 재조회 |
 
-`profile`이 없으면 **422**입니다. 프로필은 서버에 저장하지 않으므로 요청마다 보냅니다.
-연결 후 성공 **200**, `Content-Type: image/jpeg`, JPEG 바이너리이며 JSON이 아닙니다.
+임의 `profile` JSON을 보내면 **422**이며, 저장 강도를 초과하는 strength도 **422**입니다. 서버 보정 함수에는 DB의 색·윤곽선 값 × strength를 전달하되 대비·밝기·선명도는 중립값으로 두어 앱과 이중 적용하지 않습니다.
+성공 **200**, `Content-Type: image/jpeg`, JPEG 바이너리이며 JSON이 아닙니다.
+응답 `X-Correction-Profile-Revision`은 실제 사용한 DB 버전입니다. 앱은 요청 버전과 다르거나 저장 도중 완료된 결과는 표시·캐시하지 않습니다. 보정값 저장 성공 시 이전 이미지 캐시를 무효화합니다.
 이미지는 회전·RGB 전처리 후 입력과 같은 크기이고 저장 URL을 발급하지 않습니다.
 
 ```ts
 const body = new FormData();
 body.append("artwork_id", "mona-lisa");
-body.append("profile", JSON.stringify(aiProfile));
-const response = await fetch(`${BASE_URL}/correction`, { method: "POST", body });
+body.append("strength", "1");
+body.append("profile_revision", profile.revision);
+const response = await fetch(`${BASE_URL}/correction`, {
+  method: "POST", body, headers: { Authorization: `Bearer ${accessToken}` },
+});
 if (!response.ok) {
   // 실패 응답은 JSON 오류로 처리
   throw new Error(`보정 실패: ${response.status}`);
@@ -480,8 +491,8 @@ if (!response.ok) {
 const jpeg = await response.blob(); // 웹 예시. 네이티브는 앱의 이미지 로딩 방식에 맞춰 사용
 ```
 
-오류: 공통 인증·이미지 오류, **404** 작품 없음 /
-**422** image·artwork_id 조합 또는 profile JSON 오류 / **429** 호출 제한 /
+오류: 공통 인증·이미지 오류, **401** 미로그인 / **409** DB 보정값 미설정 / **404** 작품 없음 /
+**422** image·artwork_id 조합, profile 전송 또는 strength 범위 오류 / **429** 호출 제한 /
 **502** AI 출력 형식·크기 오류 / **503** 보정 함수 미연결.
 
 ## 9. 관람 기록
@@ -577,8 +588,8 @@ FE는 자동 무한 재시도를 하지 않고 대기·수동 재시도를 제�
 
 ## 11. 화면 연결 순서
 
-1. 회원가입 또는 로그인 → 토큰 저장 → `/me/profile`, `/me/ai-profile` 조회.
-2. 앱 설정은 `/me/profile`, AI 보정 설정은 `/me/ai-profile`에 각각 저장.
+1. 회원가입 또는 로그인 → 토큰 저장 → `/me/profile`로 앱 설정과 DB calibration 조회.
+2. 초기 검사·세부 조정은 `/me/profile`에 calibration과 함께 한 번에 저장. 계정별 DB 저장 성공 후에만 앱 상태 반영.
 3. `/museums`에서 미술관 선택 → `/artworks?museum_id=...` 또는 `/artworks/by-number?museum_id=...&number=...`. QR은 ID 추출 후 작품 상세 조회. 사진·명패는 `/recognize`.
 4. confidence에 따라 바로 이동·후보 확인·미등록 안내로 분기. 선택 후 작품 ID로 상세·원본 조회 → `/narration` 텍스트를 TTS 재생.
 5. `no_match`라면 촬영본으로 `/analyze` 호출 → 미검수·fallback 상태를 구분해 표시.

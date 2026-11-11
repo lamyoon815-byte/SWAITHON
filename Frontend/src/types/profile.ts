@@ -19,8 +19,10 @@ export type VisualProfile = {
   /** 0.75~1.5 */
   speech_rate: number;
   high_contrast: boolean;
-  /** 기기에 저장한 AI 테스트 결과. 서버 VisualProfile 요청에는 포함하지 않는다. */
+  /** 계정 DB에 앱 설정과 함께 저장하는 검사 결과. */
   calibration?: CalibrationSettings;
+  /** DB 프로필 버전. 저장 충돌 및 다른 강도로 생성된 이미지 재사용을 막는다. */
+  revision?: string;
 };
 
 /** CorrectionCanvas가 쓰는 값만. 프로필을 그대로 넘겨도 된다. */

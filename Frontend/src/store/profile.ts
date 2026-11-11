@@ -3,13 +3,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_PROFILE, type CorrectionValues, type ViewingSettings, type VisualProfile } from '@/types/profile';
 import type { NarrationMode } from '@/types/narration';
 import { isCalibrationSettings, type CalibrationResult } from '@/types/calibration';
+import { getProfile, putProfile } from '@/lib/api';
+import { correctionStrength } from '@/lib/calibration';
+import { getAccessToken, getAuthSnapshot, subscribeAuth } from '@/store/auth';
 
 const KEY = 'swaithon:profile:v1';
+const MIGRATION_KEY = 'swaithon:profile:db-migration:v1';
 type Snapshot = { profile: VisualProfile; loaded: boolean; saved: boolean; error: boolean };
 let snapshot: Snapshot = { profile: DEFAULT_PROFILE, loaded: false, saved: false, error: false };
 let loading: Promise<void> | null = null;
 let writing: Promise<void> = Promise.resolve();
 const listeners = new Set<() => void>();
+let ownerToken: string | null | undefined;
+let generation = 0;
 
 const limits = { contrast: [0.5, 2], brightness: [-1, 1], sharpen: [0, 2] } as const;
 
@@ -28,31 +34,65 @@ function emit(next: Snapshot) {
   listeners.forEach((listener) => listener());
 }
 
-function load() {
-  loading ??= AsyncStorage.getItem(KEY).then(async (raw) => {
-    if (!raw) {
-      // Preserve settings saved by the earlier authenticated app before the stores were unified.
-      const legacyRaw = await AsyncStorage.getItem('swaithon.viewing.v1');
-      const legacy = legacyRaw ? JSON.parse(legacyRaw) : null;
-      if (legacy?.completed && isCalibrationSettings(legacy.values)) {
-        const { color_type, severity, edge, contrast, brightness, sharpness } = legacy.values;
-        const colorVision = { normal: 'normal', protan: 'protanopia', deutan: 'deuteranopia', tritan: 'tritanopia' } as const;
-        raw = JSON.stringify({ ...DEFAULT_PROFILE, calibration: { color_type, severity, edge },
-          color_vision: colorVision[color_type as keyof typeof colorVision], color_severity: severity,
-          ...normalizeCorrection({ contrast, brightness, sharpen: sharpness }) });
-        await AsyncStorage.setItem(KEY, raw);
-      }
+function normalizeProfile(value: VisualProfile): VisualProfile {
+  const profile = { ...DEFAULT_PROFILE, ...value, ...normalizeCorrection(value), strength: correctionStrength(value.strength) };
+  if (!isCalibrationSettings(profile.calibration)) delete profile.calibration;
+  return profile;
+}
+
+/** 기존 기기 설정은 DB가 비어 있을 때 첫 계정에 한 번만 이관한다. 이후에는 DB만 읽는다. */
+async function migrateLegacy(profile: VisualProfile, userId: string, current: () => boolean) {
+  const marker = await AsyncStorage.getItem(MIGRATION_KEY).catch(() => 'unavailable');
+  if (marker && marker !== `pending:${userId}`) return profile;
+  if (profile.calibration) {
+    await AsyncStorage.setItem(MIGRATION_KEY, `done:${userId}`).catch(() => {});
+    return profile;
+  }
+  let previous: Partial<VisualProfile> | null = null;
+  try {
+    const raw = await AsyncStorage.getItem(KEY);
+    previous = raw ? JSON.parse(raw) : null;
+    if (!previous) {
+      const rawViewing = await AsyncStorage.getItem('swaithon.viewing.v1');
+      const legacy = rawViewing ? JSON.parse(rawViewing) : null;
+      if (legacy?.completed && isCalibrationSettings(legacy.values)) previous = {
+        calibration: legacy.values, contrast: legacy.values.contrast,
+        brightness: legacy.values.brightness, sharpen: legacy.values.sharpness,
+      };
     }
-    const stored = raw ? JSON.parse(raw) : null;
-    if (stored !== null && (typeof stored !== 'object' || Array.isArray(stored))) {
-      throw new Error('잘못된 프로필 형식');
-    }
-    const profile = { ...DEFAULT_PROFILE, ...stored };
-    if (!['facts', 'interpretations', 'both'].includes(profile.narration_mode)) profile.narration_mode = 'both';
-    if (!isCalibrationSettings(profile.calibration)) delete profile.calibration;
-    emit({ profile: { ...profile, ...normalizeCorrection(profile) }, loaded: true, saved: !!stored, error: false });
+  } catch { /* 손상된 기기 데이터로 정상 DB 설정을 대체하지 않는다. */ }
+  if (!current()) return profile;
+  // 소유자를 먼저 지정하여 계정 전환 중 다른 계정에 옛 설정이 복제되지 않게 한다.
+  try { await AsyncStorage.setItem(MIGRATION_KEY, `pending:${userId}`); }
+  catch { return profile; }
+  if (previous && isCalibrationSettings(previous.calibration) && current()) {
+    profile = await putProfile({ ...profile, ...calibrationPatch(previous.calibration),
+      ...normalizeCorrection({ ...profile, ...previous }) });
+  }
+  await AsyncStorage.setItem(MIGRATION_KEY, `done:${userId}`).catch(() => {});
+  return profile;
+}
+
+function load(): Promise<void> {
+  const auth = getAuthSnapshot();
+  if (!auth.loaded) return Promise.resolve();
+  const token = getAccessToken();
+  if (token !== ownerToken) {
+    ownerToken = token;
+    generation++;
+    loading = null;
+    writing = Promise.resolve();
+    emit({ profile: DEFAULT_PROFILE, loaded: !token, saved: false, error: false });
+  }
+  if (!token || !auth.session) return Promise.resolve();
+  const version = generation;
+  const current = () => version === generation && token === getAccessToken();
+  loading ??= getProfile().then(async (value) => {
+    if (!current()) return;
+    const profile = await migrateLegacy(normalizeProfile(value), auth.session!.user.id, current);
+    if (current()) emit({ profile: normalizeProfile(profile), loaded: true, saved: !!profile.calibration, error: false });
   }).catch(() => {
-    emit({ profile: DEFAULT_PROFILE, loaded: true, saved: false, error: true });
+    if (current()) emit({ profile: DEFAULT_PROFILE, loaded: true, saved: false, error: true });
   });
   return loading;
 }
@@ -65,7 +105,7 @@ export function subscribeProfile(listener: () => void) {
 
 export function getProfileSnapshot() { return snapshot; }
 
-/** 로그인 없는 기기 저장 규격. 쓰기 성공 후에만 공유 상태를 갱신한다. */
+/** DB 저장 응답을 받은 뒤에만 공유 상태를 갱신한다. */
 export async function saveCorrection(values: Pick<CorrectionValues, keyof typeof limits>) {
   return updateProfile(normalizeCorrection(values));
 }
@@ -75,14 +115,14 @@ export async function saveNarrationMode(narration_mode: NarrationMode) {
   return updateProfile({ narration_mode });
 }
 
-/** 테스트 결과와 Skia 대비를 한 번에 저장한다. 기존 밝기·선명도·접근성 설정은 유지한다. */
+/** 검사로 확인한 값만 저장한다. 검사하지 않은 밝기·선명도는 중립값으로 초기화한다. */
 export async function saveCalibration(result: CalibrationResult) {
   if (!isCalibrationSettings(result) || ![1, 1.2, 1.4, 1.6, 1.8, 2].includes(result.contrast)) {
     throw new Error('잘못된 보기 설정');
   }
   const { color_type, severity, edge, contrast } = result;
   return updateProfile({
-    ...calibrationPatch({ color_type, severity, edge }), contrast,
+    ...calibrationPatch({ color_type, severity, edge }), contrast, brightness: 0, sharpen: 0, strength: 1,
   });
 }
 
@@ -99,18 +139,31 @@ export async function saveViewingSettings(values: ViewingSettings) {
 }
 
 function updateProfile(patch: Partial<VisualProfile>) {
+  const token = getAccessToken();
   const next = writing.then(async () => {
     await load();
+    if (!token || token !== getAccessToken()) throw new Error('로그인이 필요해요');
     if (snapshot.error) throw new Error('프로필을 불러오지 못했어요');
-    const profile = { ...snapshot.profile, ...patch };
-    await AsyncStorage.setItem(KEY, JSON.stringify(profile));
-    emit({ profile, loaded: true, saved: true, error: false });
+    // 해설 방식 같은 작은 변경으로 다른 기기에서 저장한 보정값을 덮어쓰지 않는다.
+    const latest = await getProfile();
+    if (token !== getAccessToken()) throw new Error('계정이 변경되었어요');
+    const profile = { ...normalizeProfile(latest), ...patch };
+    const saved = await putProfile(profile);
+    if (token !== getAccessToken()) throw new Error('계정이 변경되었어요');
+    // 먼저 시작된 조회가 늦게 도착해 방금 저장한 값을 되돌리지 못하게 한다.
+    generation++;
+    loading = Promise.resolve();
+    emit({ profile: normalizeProfile(saved), loaded: true, saved: !!saved.calibration, error: false });
   });
   writing = next.catch(() => {});
   return next;
 }
 
 export async function reloadProfile() {
+  generation++;
   loading = null;
   await load();
 }
+
+// 로그인·로그아웃·계정 전환 때 이전 계정의 보정값을 즉시 비우고 DB를 다시 조회한다.
+subscribeAuth(() => { void load(); });
