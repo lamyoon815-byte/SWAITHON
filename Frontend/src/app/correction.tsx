@@ -1,4 +1,4 @@
-import { router, usePreventRemove } from 'expo-router';
+import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +18,7 @@ import type { CorrectionField } from '@/lib/profile-format';
 type Draft = Record<CorrectionField, number>;
 
 export default function CorrectionScreen() {
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { profile, loaded, error, saveCorrection, reloadProfile } = useProfile();
   const palette = getPalette('dark', profile.high_contrast);
   const { bottom: bottomInset } = useSafeAreaInsets();
@@ -38,7 +39,8 @@ export default function CorrectionScreen() {
   });
 
   const goBack = () => {
-    if (router.canGoBack()) router.back();
+    if (from === 'onboarding') router.replace('/');
+    else if (router.canGoBack()) router.back();
     else router.replace('/mypage');
   };
   const cancel = () => {

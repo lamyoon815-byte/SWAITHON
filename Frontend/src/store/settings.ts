@@ -11,6 +11,8 @@ export type DeviceSettings = {
   font_scale: 'normal' | 'large' | 'xlarge';
   /** 최근 방문 미술관 (1-0). 다음 실행 때 홈 카드에 다시 보여 준다 */
   recent_museum_id: string | null;
+  /** 소개를 완료하거나 건너뛰면 다음 실행부터 홈으로 진입한다. */
+  onboarding_completed: boolean;
 };
 
 const KEY = 'swaithon:settings:v1';
@@ -20,6 +22,7 @@ export const DefaultSettings: DeviceSettings = {
   music_autoplay: false,
   font_scale: 'normal',
   recent_museum_id: null,
+  onboarding_completed: false,
 };
 
 type Snapshot = { settings: DeviceSettings; loaded: boolean };
@@ -58,4 +61,12 @@ export async function updateSettings(patch: Partial<DeviceSettings>) {
   const settings = { ...snapshot.settings, ...patch };
   emit({ settings, loaded: true });
   await AsyncStorage.setItem(KEY, JSON.stringify(settings)).catch(() => {});
+}
+
+/** 완료 여부는 디스크 저장에 성공해야만 반영한다. 실패 시 소개 화면에서 재시도한다. */
+export async function finishOnboarding() {
+  await load();
+  const settings = { ...snapshot.settings, onboarding_completed: true };
+  await AsyncStorage.setItem(KEY, JSON.stringify(settings));
+  emit({ settings, loaded: true });
 }

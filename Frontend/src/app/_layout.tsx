@@ -5,12 +5,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ToastHost } from '@/components/common/toast';
+import { FirstLaunch } from '@/components/onboarding/first-launch';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 SplashScreen.preventAutoHideAsync();
 
 // 루트 Stack. 탭 화면은 (tabs) 안에, 탭 바 없이 전체 화면으로 띄우는 화면(1-0 미술관 선택 등)은 여기에 둔다.
-// TODO(A): 토큰 없으면 로그인, 프로필 없으면 온보딩으로 보내기 (README 5.2).
+// 로그인 없이, 홈 첫 실행 시 FirstLaunch에서 온보딩으로 보낸다.
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
@@ -30,6 +31,7 @@ export default function RootLayout() {
           <Stack.Screen name="spike" />
         </Stack>
         <ToastHost />
+        <FirstLaunch />
       </ThemeProvider>
     </GestureHandlerRootView>
   );
