@@ -19,6 +19,7 @@ export class NarrationEngine {
     private onPlaying: (on: boolean) => void,
     private onPreparing: (on: boolean) => void,
     private onError: (message: string | null) => void,
+    private onPosition: (currentTime: number, duration: number) => void,
   ) {}
 
   configure(config: Config) {
@@ -48,6 +49,7 @@ export class NarrationEngine {
     if (!text) return;
     const mine = ++this.token;
     this.dispose(); this.current = i; this.speaking = true;
+    this.onPosition(0, 0);
     this.onIndex(i); this.onPlaying(true); this.onPreparing(true); this.onError(null);
     const done = () => {
       if (mine !== this.token) return;
@@ -71,6 +73,7 @@ export class NarrationEngine {
       let started = false;
       const statusChanged = (status: AudioStatus) => {
         if (mine !== this.token) return;
+        if (status.isLoaded) this.onPosition(status.currentTime, status.duration);
         if (status.error) {
           this.stop(); this.onError('음성을 재생하지 못했어요. 다시 시도해 주세요.');
         } else if (status.didJustFinish) done();

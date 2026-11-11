@@ -7,10 +7,11 @@ import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
-import { CALIBRATION, type CalibrationPlate } from '@/assets/images/calibration';
+import { CALIBRATION, CALIBRATION_NOT_VISIBLE, type CalibrationPlate } from '@/assets/images/calibration';
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
+import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { Text } from '@/components/common/text';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
@@ -27,11 +28,18 @@ import { advanceCalibration, initialCalibration, screeningSuggestion, type Calib
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
 
 const PHASE_INDEX: Record<CalibrationPhase, number> = { screening: 0, manual: 0, color: 1, edge: 2, contrast: 3, complete: 3 };
+const STEP_DETAILS = [
+  { name: '색각 확인', count: '3문제' },
+  { name: '색 보정', count: '최대 5문제' },
+  { name: '윤곽선', count: '최대 6문제' },
+  { name: '대비', count: '최대 6문제' },
+] as const;
 
 export default function CalibrationScreen() {
   const { profile, loaded, error, saveCalibration, reloadProfile } = useProfile();
   const { loaded: settingsLoaded, finishOnboarding } = useSettings();
   const palette = getPalette('dark', profile.high_contrast);
+  const [started, setStarted] = useState(false);
   const [frames, setFrames] = useState(() => [initialCalibration()]);
   const [manual, setManual] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,16 +57,31 @@ export default function CalibrationScreen() {
     : phase === 'color' && result.color_type !== 'normal' ? CALIBRATION.color[result.color_type].plates[index] : undefined;
   const source = plate?.image ?? (phase === 'edge' ? CALIBRATION.edge.images[index] : undefined);
   const imageReady = source === undefined || (readySource === source && failedSource !== source);
-  const progress = phase === 'screening' ? `색 보정 · ${index + 1} / 3`
-    : phase === 'manual' ? '색 보정 선택' : phase === 'color' ? `색 보정 세기 · ${Math.round(CALIBRATION.color[result.color_type === 'normal' ? 'protan' : result.color_type].levels[index] * 100)}%`
-      : phase === 'edge' ? `윤곽선 강조 · ${Math.round(CALIBRATION.edge.levels[index] * 100)}%`
-        : phase === 'contrast' ? `대비 · ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '화면 맞추기 완료';
+  const colorLevels = CALIBRATION.color[result.color_type === 'normal' ? 'protan' : result.color_type].levels;
+  const progress = phase === 'screening' ? `색각 확인 · 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
+    : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
+      : phase === 'edge' ? `윤곽선 · 문제 ${index + 1} / ${CALIBRATION.edge.levels.length}`
+        : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '색각 맞춤 테스트 완료';
+  const progressRatio = phase === 'screening' ? (index / CALIBRATION.screening.plates.length) * 0.25
+    : phase === 'manual' ? 0.25
+      : phase === 'color' ? 0.25 + (index / colorLevels.length) * 0.25
+        : phase === 'edge' ? 0.5 + (index / CALIBRATION.edge.levels.length) * 0.25
+          : phase === 'contrast' ? 0.75 + (index / CALIBRATION.contrast.levels.length) * 0.25 : 1;
+  const progressPercent = Math.round(progressRatio * 100);
   const question = plate ? '어떤 숫자가 보이나요?' : phase === 'manual' ? '색 보정을 선택해 주세요'
     : phase === 'edge' ? '윤곽선이 또렷하게 보이나요?' : phase === 'contrast' ? '밝은 부분이 구분되나요?' : '보기 설정을 찾았어요';
-  const description = plate ? '그림 속 숫자를 고르거나 말로 답해 주세요.' : phase === 'manual' ? '편하게 보는 데 필요한 색 보정을 골라 주세요.'
-    : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast' ? CALIBRATION.contrast.question : '설정을 확인하고 감상을 시작해 보세요.';
-  // Number plates read only the question and the buttons, e.g. "어떤 숫자가 보이나요? 97, 45, 71, 숫자가 안 보여요".
-  useSpeech(plate ? `${question} ${plate.choices.join(', ')}` : `${question} ${description}`);
+  const description = plate ? '그림 속 숫자를 음성으로 말해 주세요. 숫자가 보이지 않으면 “안 보여요”라고 말해 주세요.' : phase === 'manual' ? '편하게 보는 데 필요한 색 보정을 골라 주세요.'
+    : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast'
+      ? `같은 그림에서 대비만 단계별로 높이고 있어요. 흰 옷과 뒤쪽 흰 커튼의 경계를 비교해 주세요. 현재 대비 ${CALIBRATION.contrast.levels[index].toFixed(1)}배예요.`
+      : '설정을 확인하고 감상을 시작해 보세요.';
+  const questionPhase = phase === 'screening' || phase === 'color' || phase === 'edge' || phase === 'contrast';
+  const introSpeech = '색각 맞춤 테스트를 시작하기 전에 안내해 드릴게요. 화면 밝기를 편하게 맞추고, 그림 속 숫자를 음성으로 답해 주세요. 숫자가 보이지 않으면 안 보여요라고 말하면 돼요.';
+  useSpeech(started ? `${question} ${description}` : introSpeech);
+
+  const leaveTest = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/onboarding');
+  };
 
   const moveBack = () => {
     if (savingLock.current) return;
@@ -68,8 +91,11 @@ export default function CalibrationScreen() {
       setFrames((previous) => previous.slice(0, -1));
       setManual(false);
       scroll.current?.scrollTo({ y: 0, animated: false });
-    } else if (router.canGoBack()) router.back();
-    else router.replace('/onboarding');
+    } else setStarted(false);
+  };
+  const moveNext = () => {
+    if (plate) act({ type: 'answer', value: CALIBRATION_NOT_VISIBLE });
+    else if (phase === 'edge' || phase === 'contrast') act({ type: 'answer', value: 'not-visible' });
   };
   const disablePrevention = usePreventRemove(frames.length > 1 || saving, () => { moveBack(); });
   const act = (action: CalibrationAction) => {
@@ -105,6 +131,15 @@ export default function CalibrationScreen() {
   const [voiceSessionId] = useState(() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   // 들은 말은 그 문제(frame)에서만 보여 준다. 다음 문제로 넘어가면 사라진다.
   const [heard, setHeard] = useState<{ frame: typeof state; message: string } | null>(null);
+  const [pendingAnswer, setPendingAnswer] = useState<{
+    frame: typeof state;
+    transcript: string;
+    match: string;
+    choices: string[];
+    expected: string;
+    step: 'screening' | 'color';
+    item: string;
+  } | null>(null);
   const answerByVoice = () => {
     if (!plate || disabled || !imageReady) return;
     const frame = state;
@@ -112,16 +147,18 @@ export default function CalibrationScreen() {
     voice.toggle({
       onText: (text) => {
         const match = matchSpokenChoice(text, plate.choices);
-        // 인식된 글자와 맞춘 보기를 서버 DB에 남긴다. 저장 실패가 화면 맞추기 진행을 막지 않게 한다.
-        void saveVoiceAnswer({
-          session_id: voiceSessionId, step: frame.phase === 'color' ? 'color' : 'screening', choices: plate.choices,
-          transcript: text, choice: match, expected: plate.answer, item: `${frame.phase}-${frame.index}`,
-        }).catch(() => undefined);
         if (match) {
-          showToast(`"${match}"(으)로 들었어요`, 'success');
-          act({ type: 'answer', value: match });
+          setPendingAnswer({
+            frame,
+            transcript: text,
+            match,
+            choices: [...plate.choices],
+            expected: plate.answer,
+            step: frame.phase === 'color' ? 'color' : 'screening',
+            item: `${frame.phase}-${frame.index}`,
+          });
         } else {
-          setHeard({ frame, message: text ? `"${text}"(으)로 들었어요. 다시 말하거나 버튼을 눌러 주세요.` : '잘 들리지 않았어요. 다시 말하거나 버튼을 눌러 주세요.' });
+          setHeard({ frame, message: text ? `"${text}"(으)로 들었어요. 다시 말해 주세요.` : '잘 들리지 않았어요. 다시 말해 주세요.' });
         }
       },
       onError: (message) => setHeard({ frame, message }),
@@ -138,20 +175,75 @@ export default function CalibrationScreen() {
     );
   };
 
+  if (!started) {
+    const guides = [
+      { ios: 'sun.max.fill', android: 'brightness_6', title: '화면을 편하게 맞춰 주세요', body: '화면 밝기를 평소 보기 편한 정도로 조절하고, 휴대폰을 눈앞의 편한 거리에 놓아 주세요.' },
+      { ios: 'mic.fill', android: 'mic', title: '보이는 숫자를 말해 주세요', body: '색점 그림 속 숫자를 음성으로 답하면, 들은 내용을 한 번 더 확인해 드려요.' },
+      { ios: 'eye.slash.fill', android: 'visibility_off', title: '안 보이면 그대로 말해 주세요', body: '숫자가 구분되지 않을 때는 “안 보여요”라고 말하면 다음 문제로 이어져요.' },
+    ] as const;
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}
+      >
+        <StatusBar style="light" />
+        <View style={styles.header}>
+          <View style={styles.headerSide}><BackButton label="소개로" palette={palette} onPress={leaveTest} /></View>
+          <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>색각 맞춤 테스트</Text>
+          <View style={styles.headerSide} />
+        </View>
+        <ScrollView contentContainerStyle={styles.guideContent}>
+          <View style={styles.guideIntro}>
+            <Text accessibilityRole="header" style={[styles.guideHeading, { color: palette.text }]}>테스트 전에 확인해 주세요</Text>
+            <Text style={[styles.guideDescription, { color: palette.textSecondary }]}>간단한 문제를 통해 색상과 윤곽선, 대비를 내 눈에 편하게 맞춰요.</Text>
+          </View>
+          <View style={styles.guideList}>
+            {guides.map((guide) => <View key={guide.title} style={[styles.guideCard, { backgroundColor: palette.surface, borderColor: palette.outline }]}
+            >
+              <View style={[styles.guideIcon, { backgroundColor: palette.fill }]}>
+                <SymbolView name={{ ios: guide.ios, android: guide.android, web: guide.android }} size={26} tintColor={palette.highlight} />
+              </View>
+              <View style={styles.guideTexts}>
+                <Text style={[styles.guideTitle, { color: palette.text }]}>{guide.title}</Text>
+                <Text lineBreakStrategyIOS="hangul-word" style={[styles.guideBody, { color: palette.textSecondary }]}>{guide.body}</Text>
+              </View>
+            </View>)}
+          </View>
+          <View style={styles.guideButton}><BigButton label="테스트 시작" palette={palette} disabled={disabled} onPress={() => { setStarted(true); scroll.current?.scrollTo({ y: 0, animated: false }); }} /></View>
+          <Text style={[styles.guideNote, { color: palette.textSecondary }]}>마이크 권한이 필요하며, 테스트 결과는 화면을 보기 편하게 조정하는 데 사용돼요.</Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]}>
       <StatusBar style="light" />
       <View style={styles.header}>
         <View style={styles.headerSide}><BackButton label="이전 화면으로" palette={palette} onPress={moveBack} /></View>
-        <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>화면 맞추기</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>색각 맞춤 테스트</Text>
         <View style={styles.headerSide} />
       </View>
       <View style={styles.progressBar}>
-        <View style={styles.progressRow}>
-          <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>{progress}</Text>
-          <View style={styles.segments} accessibilityRole="progressbar" accessibilityLabel="화면 맞추기 진행" accessibilityValue={{ min: 1, max: 4, now: PHASE_INDEX[phase] + 1, text: `${PHASE_INDEX[phase] + 1} / 4 단계` }}>
-            {[0, 1, 2, 3].map((step) => <View key={step} style={[styles.segment, { backgroundColor: step <= PHASE_INDEX[phase] ? palette.highlight : palette.outline }]} />)}
-          </View>
+        <Text accessibilityRole="header" style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
+        <View accessible accessibilityRole="progressbar" accessibilityLabel="색각 맞춤 테스트 진행률"
+          accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: `${progressPercent}% 완료` }}
+          style={[styles.progressTrack, { backgroundColor: palette.outline }]}
+        >
+          <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: palette.highlight }]} />
+        </View>
+        <Text style={[styles.progressPercent, { color: palette.textSecondary }]}>{progressPercent}% 완료</Text>
+        <View style={styles.steps}>
+          {STEP_DETAILS.map((step, stepIndex) => {
+            const active = stepIndex === PHASE_INDEX[phase];
+            const complete = stepIndex < PHASE_INDEX[phase];
+            return <View key={step.name} style={[styles.stepCard, {
+              backgroundColor: active ? palette.highlight : palette.surface,
+              borderColor: active || complete ? palette.highlight : palette.outline,
+            }]}
+            >
+              <Text style={[styles.stepName, { color: active ? palette.highlightText : palette.text }]}>{stepIndex + 1}. {step.name}</Text>
+              <Text style={[styles.stepCount, { color: active ? palette.highlightText : palette.textSecondary }]}>{step.count}</Text>
+            </View>;
+          })}
         </View>
       </View>
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
@@ -171,7 +263,6 @@ export default function CalibrationScreen() {
         </View>}
         {phase === 'contrast' && <CorrectionCanvas source={CALIBRATION.contrast.image} accessibilityLabel="흰 옷을 입은 인물과 뒤의 흰 커튼, 대비 비교 그림" correction={{ contrast: CALIBRATION.contrast.levels[index], brightness: 0, sharpen: 0, strength: 1 }} palette={palette} style={styles.contrastPicture} />}
 
-        {plate && <View style={styles.choices}>{plate.choices.map((label) => choice(label, { type: 'answer', value: label }))}</View>}
         {plate && <PressableScale accessibilityRole="button"
           accessibilityLabel={voice.state === 'recording' ? '말하기 끝내기' : voice.state === 'thinking' ? '알아듣는 중' : '말로 답하기'}
           accessibilityHint={voice.state === 'recording' ? '누르면 녹음을 멈추고 답을 확인해요' : `누른 뒤 보이는 숫자를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`}
@@ -180,16 +271,16 @@ export default function CalibrationScreen() {
           style={({ pressed }) => [styles.voice, voice.state === 'recording'
             ? { backgroundColor: palette.highlight, borderColor: palette.highlight }
             : { backgroundColor: 'transparent', borderColor: palette.border },
-          { opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}>
+          { opacity: disabled || !imageReady ? 0.4 : pressed ? 0.7 : 1 }]}
+        >
           {voice.state === 'thinking' ? <ActivityIndicator color={palette.text} />
             : <SymbolView name={voice.state === 'recording' ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
               size={22} tintColor={voice.state === 'recording' ? palette.highlightText : palette.text} />}
           <Text style={[styles.voiceText, { color: voice.state === 'recording' ? palette.highlightText : palette.text }]}>
-            {voice.state === 'recording' ? '듣고 있어요 · 다 말했으면 누르세요' : voice.state === 'thinking' ? '알아듣는 중…' : '말로 답하기'}
+            {voice.state === 'recording' ? '듣고 있어요 · 다 말했으면 누르세요' : voice.state === 'thinking' ? '알아듣는 중…' : '음성으로 답하기'}
           </Text>
         </PressableScale>}
         {plate && heard?.frame === state && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.note, { color: palette.text }]}>{heard.message}</Text>}
-        {plate && <Text style={[styles.note, { color: palette.textSecondary }]}>정답을 몰라도 괜찮아요.</Text>}
         {phase === 'manual' && <View style={styles.manual}>
           {!manual && suggestion !== null ? <>
             <Text style={[styles.note, { color: palette.textSecondary }]}>{suggestion === 'normal' ? '색 보정 없이 다음 단계로 갈 수 있어요.' : `${CALIBRATION_COLOR_LABELS[suggestion]}을 먼저 맞춰볼게요.`}</Text>
@@ -202,6 +293,11 @@ export default function CalibrationScreen() {
           <View style={styles.buttonRow}><BigButton label="아직 잘 안 보여요" selected={false} palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'not-visible' })} /></View>
           {phase === 'contrast' && Platform.OS === 'web' && <Text style={[styles.note, { color: palette.textSecondary }]}>대비 맞추기는 휴대폰에서 진행해 주세요. 웹에서는 아래 「이 단계 건너뛰기」로 기본값을 사용할 수 있어요.</Text>}
         </View>}
+        {questionPhase && <View style={styles.questionNav}>
+          <BigButton label="이전 문제" selected={false} palette={palette} disabled={disabled || frames.length <= 1} onPress={moveBack} />
+          <BigButton label="다음 문제" palette={palette} disabled={disabled || !imageReady} accessibilityHint="현재 그림은 잘 보이지 않는 것으로 기록하고 다음 문제로 이동해요" onPress={moveNext} />
+        </View>}
+        {questionPhase && <Text style={[styles.navHint, { color: palette.textSecondary }]}>다음 문제를 누르면 현재 그림은 ‘잘 보이지 않음’으로 기록돼요.</Text>}
         {phase === 'complete' && <View style={styles.manual}>
           <Text style={[styles.note, { color: palette.textSecondary }]}>마이페이지에서 언제든 다시 맞출 수 있어요.</Text>
           <View style={styles.buttonRow}><BigButton label={saving ? '저장 중…' : '보정값 확인하기'} palette={palette} disabled={disabled} onPress={() => { void finish(); }} /></View>
@@ -209,6 +305,29 @@ export default function CalibrationScreen() {
         {phase !== 'complete' && <TextButton label="이 단계 건너뛰기" accessibilityHint="지금 단계는 보정 없음으로 두고 다음 단계로 이동해요" palette={palette} disabled={disabled} onPress={() => act({ type: 'skip' })} />}
         {error && <View style={styles.manual}><Text style={[styles.note, { color: palette.textSecondary }]}>기존 설정을 불러오지 못했어요.</Text><View style={styles.buttonRow}><BigButton label="설정 다시 불러오기" palette={palette} onPress={() => { void reloadProfile(); }} /></View></View>}
       </ScrollView>
+      <ConfirmDialog
+        visible={pendingAnswer?.frame === state}
+        title={pendingAnswer ? `“${pendingAnswer.match}”라고 답하신 게 맞나요?` : ''}
+        confirmLabel="네"
+        cancelLabel="아니요"
+        palette={palette}
+        onCancel={() => setPendingAnswer(null)}
+        onConfirm={() => {
+          if (!pendingAnswer || pendingAnswer.frame !== state) return;
+          void saveVoiceAnswer({
+            session_id: voiceSessionId,
+            step: pendingAnswer.step,
+            choices: pendingAnswer.choices,
+            transcript: pendingAnswer.transcript,
+            choice: pendingAnswer.match,
+            expected: pendingAnswer.expected,
+            item: pendingAnswer.item,
+          }).catch(() => undefined);
+          const answer = pendingAnswer.match;
+          setPendingAnswer(null);
+          act({ type: 'answer', value: answer });
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -216,14 +335,30 @@ export default function CalibrationScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.two, gap: Spacing.two },
-  headerSide: { width: 88, minHeight: MinTouchTarget, justifyContent: 'center' },
+  headerSide: { width: MinTouchTarget, minHeight: MinTouchTarget, justifyContent: 'center' },
   title: { flex: 1, fontSize: FontSize.heading, fontWeight: 700, textAlign: 'center' },
+  guideContent: { flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: ScreenPadding, paddingVertical: Spacing.four, gap: Spacing.four },
+  guideIntro: { alignItems: 'center', gap: Spacing.two },
+  guideHeading: { fontSize: FontSize.heading, lineHeight: 36, fontWeight: 800, textAlign: 'center' },
+  guideDescription: { fontSize: FontSize.body, lineHeight: 30, textAlign: 'center' },
+  guideList: { gap: 12 },
+  guideCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, borderWidth: 1.5, borderRadius: 20 },
+  guideIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  guideTexts: { flex: 1, gap: 4 },
+  guideTitle: { fontSize: FontSize.label, lineHeight: 26, fontWeight: 800 },
+  guideBody: { fontSize: 16, lineHeight: 24 },
+  guideButton: { flexDirection: 'row' },
+  guideNote: { fontSize: 15, lineHeight: 23, textAlign: 'center' },
   content: { flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.four },
-  progressBar: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.one, paddingBottom: Spacing.two },
-  progressRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  progressLabel: { fontSize: FontSize.label, fontWeight: 600 },
-  segments: { flexDirection: 'row', gap: Spacing.one },
-  segment: { width: 28, height: 8, borderRadius: 4 },
+  progressBar: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.one, paddingBottom: Spacing.two, gap: Spacing.two },
+  progressLabel: { fontSize: FontSize.heading, lineHeight: 34, fontWeight: 800 },
+  progressTrack: { width: '100%', height: 16, borderRadius: 8, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 8 },
+  progressPercent: { marginTop: -Spacing.one, fontSize: 15, lineHeight: 22, fontWeight: 700, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  stepCard: { flexBasis: '45%', flexGrow: 1, minHeight: 58, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1.5, borderRadius: 14 },
+  stepName: { fontSize: 16, lineHeight: 22, fontWeight: 800 },
+  stepCount: { fontSize: 14, lineHeight: 20, fontWeight: 700 },
   intro: { gap: Spacing.two, alignItems: 'center' },
   heading: { fontSize: FontSize.heading, lineHeight: 36, fontWeight: 700, textAlign: 'center' },
   description: { fontSize: FontSize.body, lineHeight: 30, textAlign: 'center' },
@@ -239,4 +374,6 @@ const styles = StyleSheet.create({
   note: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
   manual: { gap: 12 },
   buttonRow: { flexDirection: 'row' },
+  questionNav: { flexDirection: 'row', gap: Spacing.two },
+  navHint: { marginTop: -Spacing.two, fontSize: 14, lineHeight: 21, textAlign: 'center' },
 });

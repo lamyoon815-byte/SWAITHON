@@ -150,12 +150,17 @@ export default function SearchScreen() {
         {/* Search bar: back · number · clear · search, all in one long round field. */}
         <View style={styles.top}>
           <View
-            style={[styles.bar, { backgroundColor: palette.surface, borderColor: palette.accent }]}>
+            accessibilityLiveRegion="polite"
+            style={[styles.bar, voice.state === 'recording'
+              ? { backgroundColor: palette.highlight, borderColor: palette.highlight }
+              : { backgroundColor: palette.surface, borderColor: palette.accent }]}
+          >
             <IconButton
               ios="arrow.left"
               android="arrow_back"
               label="뒤로"
               palette={palette}
+              inverted={voice.state === 'recording'}
               onPress={() => router.back()}
             />
             <TextInput
@@ -163,8 +168,8 @@ export default function SearchScreen() {
               accessibilityHint="번호를 입력하면 맞는 작품이 아래에 보여요"
               autoFocus={!!museumId}
               editable={!!museumId}
-              placeholder="작품 옆 명패 번호"
-              placeholderTextColor={palette.textSecondary}
+              placeholder={voice.state === 'recording' ? '듣고 있어요…' : '작품 옆 명패 번호'}
+              placeholderTextColor={voice.state === 'recording' ? palette.highlightText : palette.textSecondary}
               // 찾기는 키보드 위 큰 '찾기' 버튼 하나로만 한다. iOS 숫자 키패드엔 원래 오른쪽 아래 키가 없고,
               // 안드로이드는 키 자체를 숨길 수 없어 이름 없는 키(none)로 두고 눌러도 아무 일도 하지 않게 한다.
               keyboardType="number-pad"
@@ -176,7 +181,7 @@ export default function SearchScreen() {
                 setVoiceFound(null);
                 setNum(v.replace(/\D/g, ''));
               }}
-              style={[styles.input, { color: palette.text }]}
+              style={[styles.input, { color: voice.state === 'recording' ? palette.highlightText : palette.text }]}
             />
             {!!num && (
               <IconButton
@@ -184,6 +189,7 @@ export default function SearchScreen() {
                 android="cancel"
                 label="번호 지우기"
                 palette={palette}
+                inverted={voice.state === 'recording'}
                 muted
                 onPress={() => setNum('')}
               />
@@ -405,11 +411,12 @@ type IconButtonProps = {
   label: string;
   palette: Palette;
   muted?: boolean;
+  inverted?: boolean;
   onPress: () => void;
 };
 
 /** 56×56 아이콘 버튼. 아이콘이 작아도 누르는 곳은 최소 터치 영역을 지킨다. */
-function IconButton({ ios, android, label, palette, muted, onPress }: IconButtonProps) {
+function IconButton({ ios, android, label, palette, muted, inverted, onPress }: IconButtonProps) {
   return (
     <PressableScale
       accessibilityRole="button"
@@ -421,7 +428,7 @@ function IconButton({ ios, android, label, palette, muted, onPress }: IconButton
           name={{ ios, android, web: android }}
           size={22}
           weight="medium"
-          tintColor={pressed ? palette.highlightText : muted ? palette.textSecondary : palette.text}
+          tintColor={pressed || inverted ? palette.highlightText : muted ? palette.textSecondary : palette.text}
         />
       )}
     </PressableScale>

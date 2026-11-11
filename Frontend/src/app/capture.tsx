@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { MascotLoading } from '@/components/common/mascot-loading';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { PressableScale } from '@/components/common/pressable-scale';
@@ -67,6 +68,7 @@ export default function CaptureScreen() {
   const scanLock = useRef(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [torch, setTorch] = useState(false);
   const [scanError, setScanError] = useState<ScanError | null>(null);
   const [candidates, setCandidates] = useState<{ list: RecognitionCandidate[]; photoUri: string } | null>(null);
@@ -131,6 +133,7 @@ export default function CaptureScreen() {
   const startAnalysis = async (photoUri: string) => {
     setCandidates(null);
     setBusy(true);
+    setLoadingMessage('AI가 작품 해설을 준비하고 있어요.');
     showToast('등록되지 않은 작품이라 AI가 살펴보고 있어요');
     try {
       const result = await analyzeArtwork(photoUri);
@@ -142,6 +145,7 @@ export default function CaptureScreen() {
         ? 'AI 해설 사용량이 많아요. 잠시 후 다시 찍어 주세요' : 'AI 해설을 만들지 못했어요. 다시 찍어 주세요', 'error');
     } finally {
       setBusy(false);
+      setLoadingMessage(null);
     }
   };
 
@@ -152,6 +156,7 @@ export default function CaptureScreen() {
   const capture = async () => {
     if (!cameraRef.current || busy) return;
     setBusy(true);
+    setLoadingMessage('사진을 준비하고 있어요.');
     try {
       let photo;
       try {
@@ -165,6 +170,7 @@ export default function CaptureScreen() {
         return;
       }
       showToast('작품을 분석하고 있어요');
+      setLoadingMessage('작품을 찾고 있어요.');
       // 실패 단계와 원인은 개발 모드(Expo Go)에서만 토스트에 붙인다. 배포 빌드에서는 문구만 보인다.
       let stage = '사진 줄이기';
       try {
@@ -187,6 +193,7 @@ export default function CaptureScreen() {
           return;
         }
         stage = '작품 열기';
+        setLoadingMessage('작품 정보를 불러오고 있어요.');
         await openRecognized(best.artwork_id);
       } catch (e) {
         const detail = e instanceof Error ? e.message : String(e);
@@ -200,6 +207,7 @@ export default function CaptureScreen() {
       }
     } finally {
       setBusy(false);
+      setLoadingMessage(null);
     }
   };
 
@@ -337,6 +345,7 @@ export default function CaptureScreen() {
         <TextButton label="여기에 없어요 · AI 해설 듣기" accessibilityHint="찍은 사진으로 AI가 작품을 설명해요" palette={palette}
           onPress={() => { if (candidates) void startAnalysis(candidates.photoUri); }} />
       </BottomSheet>
+      {busy && loadingMessage && <MascotLoading overlay message={loadingMessage} palette={palette} />}
     </SafeAreaView>
   );
 }

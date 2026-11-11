@@ -26,10 +26,14 @@ export function useResource<T>(key: string | null, load: () => Promise<T>) {
   }, [requestKey]);
 
   const current = state && state.key === requestKey ? state : null;
+  const previous = state && state.key !== requestKey ? state : null;
   return {
     data: current?.data,
     error: current?.error,
     loading: requestKey !== null && !current,
+    /** 키가 바뀌어 새 요청을 기다리는 동안 직전 화면을 유지하고 싶을 때만 사용한다. */
+    previousData: previous?.data,
+    previousKey: previous?.key,
     reload: () => setAttempt((n) => n + 1),
   };
 }

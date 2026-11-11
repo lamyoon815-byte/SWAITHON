@@ -8,8 +8,8 @@
 
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState, type ComponentRef } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/common/text';
 import Animated, {
   useAnimatedStyle,
@@ -43,7 +43,6 @@ import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getArtworkByNumber, getMuseumArtworkPage, getMuseums } from '@/lib/api';
 import { spokenNumbers } from '@/lib/spoken-answer';
 import { useVoiceAnswer } from '@/hooks/use-voice-answer';
-import type { Artwork } from '@/types/artwork';
 import type { MuseumNext } from '@/types/museum';
 
 const SearchBarHeight = 64;
@@ -57,6 +56,7 @@ const ArtworkPageSize = 20;
 export default function HomeScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
+  const { width: windowWidth } = useWindowDimensions();
   const browseGray = scheme === 'dark' ? Colors.dark.backgroundSelected : Charcoal;
   const bottomInset = useTabBarInset();
   const reduceMotion = useReducedMotion();
@@ -72,26 +72,29 @@ export default function HomeScreen() {
   const { settings, loaded } = useSettings();
   const museumId = settings.recent_museum_id;
   const museumsRes = useResource('museums', getMuseums);
-  const artworksRes = useResource(museumId, () => getMuseumArtworkPage(museumId!, 0, ArtworkPageSize));
-  // 큰 미술관도 한 번에 20점씩 요청하고 더 보기를 누르면 다음 페이지를 추가한다.
-  const [more, setMore] = useState<{ museumId: string | null; items: Artwork[] }>({ museumId: null, items: [] });
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState<{ museumId: string | null; page: number }>({ museumId: null, page: 1 });
+  const page = pagination.museumId === museumId ? pagination.page : 1;
+  const artworksRes = useResource(museumId ? `artworks:${museumId}:${page}` : null,
+    () => getMuseumArtworkPage(museumId!, (page - 1) * ArtworkPageSize, ArtworkPageSize));
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const listY = useRef(0);
 
   const museum = museumsRes.data?.find((m) => m.id === museumId);
-  const artworks = artworksRes.data && [...artworksRes.data.items, ...(more.museumId === museumId ? more.items : [])];
+  const previousPage = museumId && artworksRes.previousKey?.startsWith(`artworks:${museumId}:`) ? artworksRes.previousData : undefined;
+  const displayedPage = artworksRes.data ?? previousPage;
+  const artworks = displayedPage?.items;
   const works = artworks ?? [];
-  const total = artworksRes.data?.total ?? 0;
-  const loadMore = async () => {
-    if (!museumId || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const page = await getMuseumArtworkPage(museumId, works.length, ArtworkPageSize);
-      setMore((previous) => ({ museumId, items: [...(previous.museumId === museumId ? previous.items : []), ...page.items] }));
-    } catch {
-      showToast('작품을 더 불러오지 못했어요', 'error');
-    } finally {
-      setLoadingMore(false);
-    }
+  const total = displayedPage?.total ?? 0;
+  const pageLoading = !!museumId && !artworksRes.data && !!displayedPage;
+  const totalPages = Math.max(1, Math.ceil(total / ArtworkPageSize));
+  // 저시력 사용자가 숫자를 크게 보고 누를 수 있도록 휴대폰에서는 3개, 넓은 화면에서는 5개만 보여 준다.
+  const visiblePageCount = windowWidth < 480 ? 3 : 5;
+  const firstPage = Math.min(Math.max(1, page - Math.floor(visiblePageCount / 2)), Math.max(1, totalPages - visiblePageCount + 1));
+  const visiblePages = Array.from({ length: Math.min(visiblePageCount, totalPages) }, (_, index) => firstPage + index);
+  const movePage = (next: number) => {
+    if (!museumId || next < 1 || next > totalPages || next === page) return;
+    setPagination({ museumId, page: next });
+    requestAnimationFrame(() => scroll.current?.scrollTo({ y: listY.current, animated: true }));
   };
   const failed = !!museumsRes.error || !!artworksRes.error;
   const retry = () => {
@@ -147,7 +150,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
+      <ScrollView ref={scroll} contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
+      >
         {loaded && (!museumId || museumsRes.data) ? (
           <MuseumCard museum={museum} palette={palette} onChange={() => openPicker()} />
         ) : (
@@ -199,7 +203,7 @@ export default function HomeScreen() {
           />
         </View>
 
-        <View style={[styles.section, sectionSurface(palette)]}>
+        <View onLayout={(event) => { listY.current = event.nativeEvent.layout.y; }} style={[styles.section, sectionSurface(palette)]}>
           <View style={styles.listHeader}>
             <View style={styles.listTitleRow}>
               <Text accessibilityRole="header" style={[styles.listTitle, { color: palette.text }]}>
@@ -269,21 +273,28 @@ export default function HomeScreen() {
             // 목록은 한 덩어리로 묶고(바깥 gap이 행 사이에 끼지 않게), 구분선 위아래 여백을 같게 둔다.
             // 그래야 누를 때 생기는 회색 상자가 위아래 구분선 사이 한가운데에 온다.
             <View>
-              {works.map((a, i) => (
-                <View key={a.id}>
-                  {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
-                  <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
+              <View style={styles.pageItems}>
+                <View style={{ opacity: pageLoading ? 0.24 : 1 }}>
+                  {works.map((a, i) => (
+                    <View key={a.id}>
+                      {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
+                      <ArtworkCard artwork={a} palette={palette} onPress={() => openArtwork(a.id)} />
+                    </View>
+                  ))}
                 </View>
-              ))}
-              {works.length < total && (
-                <View style={styles.moreRow}>
-                  <PillButton
-                    label={loadingMore ? '불러오는 중…' : `더 보기 (${works.length} / ${total})`}
-                    palette={palette}
-                    onPress={() => { void loadMore(); }}
-                  />
-                </View>
-              )}
+                {pageLoading && <View accessibilityRole="progressbar" accessibilityLiveRegion="polite" accessibilityLabel={`${page}페이지 작품을 불러오는 중`}
+                  style={[styles.pageLoading, { backgroundColor: `${palette.surface}F2` }]}
+                >
+                  <ActivityIndicator size="large" color={palette.highlight} />
+                  <Text style={[styles.pageLoadingText, { color: palette.text }]}>{page}페이지 불러오는 중…</Text>
+                </View>}
+              </View>
+              {totalPages > 1 && <View accessibilityRole="toolbar" accessibilityLabel="작품 목록 페이지" style={styles.pagination}>
+                <PageLink label="‹" accessibilityLabel="이전 페이지" disabled={page === 1} palette={palette} onPress={() => movePage(page - 1)} />
+                {visiblePages.map((number) => <PageLink key={number} label={String(number)} accessibilityLabel={`${number}페이지`} selected={number === page}
+                  palette={palette} onPress={() => movePage(number)} />)}
+                <PageLink label="›" accessibilityLabel="다음 페이지" disabled={page === totalPages} palette={palette} onPress={() => movePage(page + 1)} />
+              </View>}
             </View>
           )}
         </View>
@@ -294,6 +305,22 @@ export default function HomeScreen() {
 
 function sectionSurface(palette: Palette) {
   return { backgroundColor: palette.surface, borderColor: palette.outline };
+}
+
+function PageLink({ label, accessibilityLabel, selected = false, disabled = false, palette, onPress }: {
+  label: string;
+  accessibilityLabel: string;
+  selected?: boolean;
+  disabled?: boolean;
+  palette: Palette;
+  onPress: () => void;
+}) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ selected, disabled }}
+    disabled={disabled} hitSlop={4} onPress={onPress} style={({ pressed }) => [styles.pageLink, { opacity: disabled ? 0.3 : pressed ? 0.55 : 1 }]}
+  >
+    <Text style={[styles.pageText, (label === '‹' || label === '›') && styles.pageArrow,
+      { color: selected ? palette.highlight : palette.text, fontWeight: selected ? 900 : 800 }, selected && styles.pageSelected]}>{label}</Text>
+  </Pressable>;
 }
 
 type WayButtonProps = {
@@ -392,6 +419,9 @@ const styles = StyleSheet.create({
     height: 1.5,
     marginVertical: 6,
   },
+  pageItems: { position: 'relative', minHeight: 120 },
+  pageLoading: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, borderRadius: 18 },
+  pageLoadingText: { fontSize: FontSize.label, lineHeight: 28, fontWeight: 800, textAlign: 'center' },
   skeletonCard: {
     height: 96,
     borderRadius: 24,
@@ -499,10 +529,11 @@ const styles = StyleSheet.create({
     fontSize: FontSize.label,
     fontWeight: 800,
   },
-  moreRow: {
-    alignItems: 'center',
-    paddingTop: Spacing.three,
-  },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginHorizontal: -Spacing.three, paddingTop: Spacing.three },
+  pageLink: { width: MinTouchTarget, minHeight: MinTouchTarget, alignItems: 'center', justifyContent: 'center' },
+  pageText: { fontSize: 28, lineHeight: 36, fontVariant: ['tabular-nums'], textAlign: 'center' },
+  pageArrow: { fontSize: 38, lineHeight: 44 },
+  pageSelected: { textDecorationLine: 'underline' },
   skeletonList: {
     gap: Spacing.three,
   },

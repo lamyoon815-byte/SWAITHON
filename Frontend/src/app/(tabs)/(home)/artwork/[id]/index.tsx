@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '@/components/common/back-button';
 import { StrengthControl } from '@/components/artwork/strength-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
+import { MascotLoading } from '@/components/common/mascot-loading';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { PressableScale } from '@/components/common/pressable-scale';
 import {
@@ -31,7 +32,7 @@ import {
   getPalette,
   type Palette,
 } from '@/constants/a11y';
-import { ScreenPadding, Spacing } from '@/constants/theme';
+import { Colors, ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
@@ -48,6 +49,7 @@ export default function ArtworkScreen() {
   const { items: historyItems, loaded: historyLoaded, error: historyError } = useHistory();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
+  const loadingPalette = getPalette('dark', false);
   const { bottom } = useSafeAreaInsets();
   const bottomInset = bottom + Spacing.three;
   const { id, history: historyId } = useLocalSearchParams<{ id: string; history?: string }>();
@@ -117,6 +119,8 @@ export default function ArtworkScreen() {
         <View style={styles.plainHeader}>
           <BackButton label={historyId ? '관람 기록으로' : '작품 목록으로'} palette={palette} />
         </View>
+        {!error && !artwork && <MascotLoading message="작품 정보를 불러오고 있어요." palette={palette} />}
+        {historyId && artwork && !historyLoaded && <MascotLoading message="관람 기록을 불러오고 있어요." palette={palette} />}
         {(!!error || (historyId && historyLoaded)) && (
           <Text style={[styles.message, { color: palette.text }]}>
             {historyId && (historyError || !historyRecord) ? '관람 기록을 불러오지 못했어요. 관람 기록 화면에서 다시 선택해 주세요.' : error instanceof ApiError && error.status === 404
@@ -236,16 +240,17 @@ export default function ArtworkScreen() {
           <Text accessibilityRole="header" style={[styles.descTitle, { color: palette.text }]}>
             작품 설명
           </Text>
+          {!artwork.description && aiDescription && (
+            <View accessible accessibilityLabel="AI가 만든 작품 해설이에요"
+              style={[styles.aiBadge, { borderColor: palette.outline }]}
+            >
+              <SymbolView name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }} size={16} tintColor={palette.textSecondary} />
+              <Text style={[styles.aiBadgeText, { color: palette.textSecondary }]}>AI 해설</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.desc}>
-          {!artwork.description && aiDescription && (
-            <View accessible accessibilityLabel={`AI가 만든 해설이에요. ${aiRes.data?.warning ?? '전문가가 검수하지 않았어요.'}`}
-              style={[styles.aiBadge, { borderColor: palette.outline }]}>
-              <SymbolView name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }} size={16} tintColor={palette.textSecondary} />
-              <Text style={[styles.aiBadgeText, { color: palette.textSecondary }]}>AI 해설 · 미검수</Text>
-            </View>
-          )}
           {description ? (
             <>
               <Text
@@ -280,23 +285,13 @@ export default function ArtworkScreen() {
             </>
           ) : (
             <>
-              {!!artwork.background && (
-                <Text
-                  style={[
-                    styles.descText,
-                    {
-                      color: palette.text,
-                      fontSize: descSize,
-                      lineHeight: descSize * 1.7,
-                    },
-                  ]}>
-                  {artwork.background}
-                </Text>
+              {needsAi && !aiRes.error ? (
+                <View style={styles.aiLoading}>
+                  <MascotLoading compact message="한글 작품 설명을 준비하고 있어요." palette={loadingPalette} />
+                </View>
+              ) : (
+                <Text style={[styles.descPending, { color: palette.textSecondary, fontSize: descSize }]}>아직 해설이 준비되지 않았어요</Text>
               )}
-              <Text
-                style={[styles.descPending, { color: palette.textSecondary, fontSize: descSize }]}>
-                {needsAi && !aiRes.error ? 'AI 해설을 만들고 있어요…' : '아직 해설이 준비되지 않았어요'}
-              </Text>
               {needsAi && !!aiRes.error && (
                 <PressableScale accessibilityRole="button" accessibilityLabel="AI 해설 다시 만들기" onPress={aiRes.reload}
                   style={[styles.aiRetry, { backgroundColor: palette.fill }]}>
@@ -491,13 +486,14 @@ const styles = StyleSheet.create({
   descText: {
     fontWeight: 500,
   },
+  aiLoading: { minHeight: 280, justifyContent: 'center', backgroundColor: Colors.dark.background, borderRadius: 20, overflow: 'hidden' },
   descLabel: {
     marginTop: Spacing.two,
     fontSize: 16,
     fontWeight: 800,
   },
   aiBadge: {
-    alignSelf: 'flex-start',
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -505,7 +501,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1.5,
     borderRadius: 12,
-    marginBottom: Spacing.two,
   },
   aiBadgeText: {
     fontSize: 15,

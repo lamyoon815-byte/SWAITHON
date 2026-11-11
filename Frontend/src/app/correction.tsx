@@ -166,7 +166,7 @@ export default function CorrectionScreen() {
           ))}
         </View>
         <View style={[styles.divider, { backgroundColor: palette.outline }]} />
-        <PressableScale accessibilityRole="button" accessibilityLabel="보정값 다시 맞추기" accessibilityHint="화면 맞추기의 숫자 선택 단계부터 다시 시작해요" accessibilityState={{ disabled }} disabled={disabled} onPress={recalibrate}
+        <PressableScale accessibilityRole="button" accessibilityLabel="보정값 다시 맞추기" accessibilityHint="색각 맞춤 테스트의 숫자 확인 단계부터 다시 시작해요" accessibilityState={{ disabled }} disabled={disabled} onPress={recalibrate}
           pressedScale={0.98} background={`${palette.background}00`} pressedBackground={palette.fill}
           style={[styles.linkRow, { opacity: disabled ? 0.4 : 1 }]}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.linkIcon, { backgroundColor: palette.fill }]}>
