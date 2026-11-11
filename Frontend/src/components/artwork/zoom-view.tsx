@@ -59,7 +59,6 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             source={corrected.source}
             overlay={corrected.overlay}
             overlayAmount={corrected.overlayAmount}
-            waiting={corrected.loading}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
             correction={{ ...profile, strength: amount }}
             original={showOriginal}
