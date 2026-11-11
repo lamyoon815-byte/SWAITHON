@@ -210,7 +210,7 @@ export default function SearchScreen() {
                   {museum ? '여기서 찾아요' : '현재 미술관'}
                 </Text>
                 <Text style={[styles.museumName, { color: palette.text }]}>
-                  {museum ? museum.name : '미술관을 먼저 골라 주세요'}
+                  {museum ? museum.name : museumId ? '미술관 불러오는 중' : '미술관을 먼저 골라 주세요'}
                 </Text>
               </View>
               <PressableScale

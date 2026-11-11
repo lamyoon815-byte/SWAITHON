@@ -101,8 +101,14 @@ export default function HomeScreen() {
   // 음성으로 찾기: 번호("12번", "십이")나 제목·작가 이름을 말하면 현재 미술관에서 찾아 연다.
   const voice = useVoiceAnswer();
   const findByVoice = () => {
-    if (!museum || !artworks) {
+    // 미술관을 고른 적이 없을 때만 고르라고 한다. 고른 미술관의 목록을 받는 중이면 그렇게 알려 준다.
+    if (!museumId) {
       showToast('먼저 미술관을 골라 주세요', 'warning');
+      return;
+    }
+    if (!artworks) {
+      showToast(artworksRes.error ? '작품 목록을 불러오지 못했어요. 다시 시도해 주세요' : '작품 목록을 불러오는 중이에요. 잠시 후 다시 눌러 주세요', 'warning');
+      if (artworksRes.error) artworksRes.reload();
       return;
     }
     voice.toggle({
@@ -117,7 +123,7 @@ export default function HomeScreen() {
         // Only the first pages are loaded; a spoken number may belong to a work further down.
         for (const number of found ? [] : numbers) {
           try {
-            found = await getArtworkByNumber(museum.id, number.padStart(2, '0'));
+            found = await getArtworkByNumber(museumId, number.padStart(2, '0'));
             break;
           } catch {
             // Try the next number that was heard.
