@@ -79,6 +79,8 @@ export default function ZoomScreen() {
         {artwork && (!historyId || (historyLoaded && historyRecord)) ? (
           <CorrectionCanvas
             source={corrected.source}
+            overlay={corrected.overlay}
+            overlayAmount={corrected.overlayAmount}
             accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
             correction={{ ...profile, strength: amount }}
             original={showOriginal}

@@ -138,6 +138,8 @@ export default function ArtworkScreen() {
             onPress={openZoom}>
             <CorrectionCanvas
               source={corrected.source}
+              overlay={corrected.overlay}
+              overlayAmount={corrected.overlayAmount}
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
               correction={{ ...profile, strength }}
               original={original}

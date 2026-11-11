@@ -62,6 +62,11 @@ type Props = {
   correction: CorrectionValues;
   /** true면 보정 없이 원본을 그린다 */
   original?: boolean;
+  /** 서버가 만든 100% 색각·윤곽 보정본. 있으면 원본 위에 overlayAmount 비율로 겹쳐 그려
+   *  보정 강도 슬라이더가 서버 왕복 없이 바로 반영된다. */
+  overlay?: DataSourceParam;
+  /** 0~1. 보통 "내 보정값 적용 비율" */
+  overlayAmount?: number;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
   palette: Palette;
@@ -76,6 +81,8 @@ export function CorrectionCanvas({
   accessibilityLabel,
   correction,
   original = false,
+  overlay,
+  overlayAmount = 1,
   zoomable = false,
   palette,
   style,
@@ -84,6 +91,8 @@ export function CorrectionCanvas({
   // Remember which source failed, so a new source clears the error without an effect.
   const [failedSource, setFailedSource] = useState<DataSourceParam>(null);
   const image = useImage(source || null, () => setFailedSource(source));
+  const overlayImage = useImage(overlay || null);
+  const overlayOpacity = original || !overlayImage ? 0 : clamp(Number.isFinite(overlayAmount) ? overlayAmount : 1, 0, 1);
   const failed = !!source && failedSource === source;
 
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -217,6 +226,20 @@ export function CorrectionCanvas({
               <ColorMatrix matrix={matrix} />
               {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
             </Image>
+            {overlayOpacity > 0 && (
+              <Image
+                image={overlayImage}
+                fit="contain"
+                x={0}
+                y={0}
+                width={size.width}
+                height={size.height}
+                opacity={overlayOpacity}
+                sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }}>
+                <ColorMatrix matrix={matrix} />
+                {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
+              </Image>
+            )}
           </Group>
         </Canvas>
       )}

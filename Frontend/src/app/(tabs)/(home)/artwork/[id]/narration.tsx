@@ -295,6 +295,8 @@ export default function NarrationScreen() {
             <Animated.View style={[styles.followLayer, followStyle]}>
               <CorrectionCanvas
                 source={profileLoaded && !corrected.loading && !corrected.error ? corrected.source : ''}
+                overlay={corrected.overlay}
+                overlayAmount={corrected.overlayAmount}
                 accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
                 correction={{ ...profile, strength }}
                 original={false}
