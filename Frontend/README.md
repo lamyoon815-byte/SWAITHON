@@ -405,7 +405,7 @@ export type VisualProfile = {
 ```ts
 export type DeviceSettings = {
   color_name_guide: boolean;   // 색 이름 안내 (6-1, 8-1)
-  music_autoplay: boolean;     // 배경 음악 자동 재생 (8)
+  background_music: boolean;   // 해설 배경 음악 (8). 기본 켜짐
   font_scale: 'normal' | 'large' | 'xlarge'; // 글씨 크기 (8). 시스템 글꼴 배율에 곱함
   recent_museum_id: string | null;           // 최근 방문 미술관 (1-0)
 };
@@ -584,7 +584,7 @@ BE API 모양을 바꿔야 하면 FE끼리 정하지 말고 BE 담당에게 이�
 | 2 | 캘리브레이션 | [AI 합의 규칙](../docs/ai-calibration.md), 청색판 포함 복수 실패는 직접 고르기. 로컬 필드 `color_type`, `severity`, `edge`, `contrast` 사용 | 구현 |
 | 3 | 로그인·회원가입 | 실제 API 연결. 로그인 → 기기 보기 설정 확인 → 온보딩 또는 홈 | 구현 |
 | 4 | 자동 촬영 세부값 | 촬영 간격, 포기 시간(예: 15초), 셔터음 처리. 실기기에서 정함 | TODO |
-| 5 | 배경 음악 | 2의 "음악 듣기"와 8의 "배경 음악 자동 재생". 음원과 `mood_keywords` 매핑은 누가 준비하는지, P2 유지 여부 | TODO |
+| 5 | 배경 음악 | 해설 화면에서 해설 전체 글로 분위기 10가지 중 하나를 고르고(`POST /narration/mood`), 그 음악(`GET /music/{분위기}`, 음원은 `Backend/music/`)을 해설 뒤에 작게 깖. 기본 켜짐, 해설 화면과 마이페이지(8)에서 끔 | 구현 |
 | 6 | 촬영 셔터 | 디자인의 셔터 버튼과 9.1의 자동 촬영을 같이 둘지 (자동 촬영 + 셔터는 수동 재시도용 등) | TODO |
 
 ## 2026-11-11 인증·보기 설정 반영

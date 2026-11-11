@@ -6,6 +6,7 @@
  * 사실/해석은 색이 아니라 "사실"·"해석" 글자 표시로 구분한다.
  * 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만들어 바로 들을 수 있게 한다(서버가 결과를 저장해 다시 만들지 않는다).
  * 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
+ * 배경 음악이 켜져 있으면(기본 켜짐, 마이페이지와 같은 설정) 해설 전체의 분위기(10가지)에 맞는 음악을 해설 뒤에 작게 깐다.
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
@@ -40,9 +41,11 @@ import {
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
+import { useBackgroundMusic } from '@/hooks/use-background-music';
+import { useSettings } from '@/hooks/use-settings';
 import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
-import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
+import { ApiError, generateNarration, getArtwork, getNarration, getNarrationMood } from '@/lib/api';
 import type { NarrationLength, NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
@@ -101,6 +104,16 @@ export default function NarrationScreen() {
     rate,
     repeat,
   );
+
+  // 배경 음악: 해설 전체 글로 분위기를 한 번 정한다(듣는 범위를 바꿔도 그대로). 꺼져 있으면 묻지 않는다.
+  const { settings, loaded: settingsLoaded, updateSettings } = useSettings();
+  const musicOn = settingsLoaded && settings.background_music;
+  const moodRes = useResource(musicOn && id && all.length > 0 ? `mood:${id}:${ai ? length : 'reviewed'}` : null,
+    () => getNarrationMood(all.map((s) => s.text).join(' '), id, (ai?.description ?? artwork?.description)?.mood_keywords ?? []));
+  const mood = moodRes.data ?? null;
+  useBackgroundMusic(mood?.music_url ?? null, player.playing, musicOn);
+  const musicNote = !musicOn ? '해설 뒤에 분위기에 맞는 음악을 작게 깔아요'
+    : mood ? `${mood.name} 분위기` : moodRes.error ? '음악을 고르지 못했어요' : '분위기에 맞는 음악을 고르는 중이에요…';
 
   const err = narrationRes.error;
   const missing = !ai && noReviewed;
@@ -351,6 +364,31 @@ export default function NarrationScreen() {
         </View>
       )}
 
+      {/* 배경 음악 켜고 끄기(마이페이지 설정과 같은 값). 출처 표시가 필요한 곡이면 출처를 함께 보여 준다. */}
+      {all.length > 0 && (
+        <View style={styles.musicWrap}>
+          <Pressable accessibilityRole="switch" accessibilityLabel={`배경 음악, ${musicNote}`}
+            accessibilityState={{ checked: musicOn, disabled: !settingsLoaded }} disabled={!settingsLoaded}
+            onPress={() => { void updateSettings({ background_music: !musicOn }); }} style={styles.followRow}>
+            <View accessible={false} importantForAccessibility="no-hide-descendants">
+              <SymbolView name={{ ios: 'music.note', android: 'music_note', web: 'music_note' }} size={22} tintColor={palette.text} />
+            </View>
+            <View style={styles.musicTexts}>
+              <Text style={[styles.followLabel, { color: palette.text }]}>배경 음악</Text>
+              <Text style={[styles.musicNote, { color: palette.textSecondary }]}>{musicNote}</Text>
+            </View>
+            <View style={styles.switchBox}>
+              <Switch value={musicOn} disabled={!settingsLoaded} accessible={false} importantForAccessibility="no"
+                onValueChange={(background_music) => { void updateSettings({ background_music }); }}
+                trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
+            </View>
+          </Pressable>
+          {musicOn && !!mood?.credit && (
+            <Text style={[styles.musicNote, { color: palette.textSecondary }]}>음악 출처: {mood.credit}</Text>
+          )}
+        </View>
+      )}
+
       {/* 해설 문장을 세로로 모두 보여 준다. 누르면 재생 바가 그 문장으로 옮겨 가며 거기서부터 읽는다. */}
       <View style={styles.captionWrap} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>
         {total > 0 ? (
@@ -595,6 +633,9 @@ const styles = StyleSheet.create({
   followLabel: { fontSize: FontSize.label, lineHeight: 24, fontWeight: 700, includeFontPadding: false, textAlignVertical: 'center' },
   switchBox: { height: MinTouchTarget, justifyContent: 'center' },
   toolButtons: { flexDirection: 'row', gap: Spacing.two },
+  musicWrap: { gap: 4, paddingHorizontal: ScreenPadding, paddingTop: 4 },
+  musicTexts: { flex: 1, gap: 2 },
+  musicNote: { fontSize: 15, lineHeight: 21, fontWeight: 600 },
   zoomButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 22 },
   zoomText: { fontSize: 16, fontWeight: 800 },
   list: { gap: 10 },

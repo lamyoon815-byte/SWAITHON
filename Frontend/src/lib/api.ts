@@ -258,3 +258,33 @@ export function saveVoiceAnswer(data: {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
   }, false);
 }
+
+export type MoodCategory = 'calm' | 'lyrical' | 'bright' | 'pastoral' | 'sacred' | 'majestic' | 'melancholy' | 'dramatic' | 'dreamy' | 'korean';
+
+export type NarrationMood = {
+  category: MoodCategory;
+  /** 화면에 보일 분위기 이름 (예: "경건·성스러움") */
+  name: string;
+  /** 배경 음악 MP3 전체 주소 (`GET /music/{category}`) */
+  music_url: string;
+  /** 출처 표시가 필요한 곡(CC BY)이면 화면에 보여 줄 문구 */
+  credit: string | null;
+  /** gemini(해설 글 분류) · image(그림으로 미리 분류) · keywords(분위기 단어) · default(평온) */
+  source: 'gemini' | 'image' | 'keywords' | 'default';
+};
+
+const moods = new Map<string, Promise<NarrationMood>>();
+
+/** 해설 전체 글의 분위기(10가지 중 하나)와 배경 음악 주소 (`POST /narration/mood`). 같은 글은 앱이 켜져 있는 동안 다시 묻지 않는다. */
+export function getNarrationMood(text: string, artworkId?: string, moodKeywords: string[] = []): Promise<NarrationMood> {
+  const body = { text: text.slice(0, 6000), artwork_id: artworkId, mood_keywords: moodKeywords.slice(0, 10) };
+  const key = JSON.stringify(body);
+  const cached = moods.get(key);
+  if (cached) return cached;
+  const task = request<NarrationMood>('/narration/mood', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).then((mood) => ({ ...mood, music_url: `${API_URL}${mood.music_url}` }));
+  moods.set(key, task);
+  task.catch(() => moods.delete(key)); // 실패는 저장하지 않아서 다음에 다시 묻는다.
+  return task;
+}

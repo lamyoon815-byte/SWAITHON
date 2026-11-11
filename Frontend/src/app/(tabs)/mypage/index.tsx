@@ -178,12 +178,12 @@ export default function MyPageScreen() {
               <View accessible={false} importantForAccessibility="no-hide-descendants"><SymbolView name={{ ios: 'music.note', android: 'music_note', web: 'music_note' }} size={26} tintColor={palette.text} /></View>
               <View style={styles.rowText}>
                 <Text style={[styles.label, { color: palette.text }]}>배경 음악</Text>
-                <Text style={[styles.description, { color: palette.textSecondary }]}>지정한 음원을 연결하면 재생돼요.</Text>
+                <Text style={[styles.description, { color: palette.textSecondary }]}>해설을 들을 때 분위기에 맞는 음악을 작게 깔아요.</Text>
               </View>
-              <Text style={[styles.value, { color: palette.textSecondary }]}>{settings.music_autoplay ? 'ON' : 'OFF'}</Text>
-              <Switch accessibilityLabel="배경 음악" accessibilityState={{ checked: settings.music_autoplay, disabled: !loaded }} disabled={!loaded} value={settings.music_autoplay}
+              <Text style={[styles.value, { color: palette.textSecondary }]}>{settings.background_music ? 'ON' : 'OFF'}</Text>
+              <Switch accessibilityLabel="배경 음악" accessibilityState={{ checked: settings.background_music, disabled: !loaded }} disabled={!loaded} value={settings.background_music}
                 trackColor={{ false: palette.outline, true: palette.highlight }} thumbColor={palette.text} ios_backgroundColor={palette.outline}
-                onValueChange={(music_autoplay) => { void updateSettings({ music_autoplay }); }} />
+                onValueChange={(background_music) => { void updateSettings({ background_music }); }} />
             </View>
           </View>
           <View style={[styles.card, card]}>
