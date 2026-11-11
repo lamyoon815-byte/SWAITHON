@@ -80,9 +80,13 @@ class GeminiBudget:
             self.pending_krw += self.worst_case_call_krw
 
     def release(self):
-        """응답을 받지 못해 청구되지 않은 호출(연결 실패, HTTP 오류)의 예약을 돌려준다."""
+        """응답을 받지 못해 청구되지 않은 호출(연결 실패, HTTP 오류)의 예약을 돌려준다. 호출 횟수에서도 뺀다."""
         with self.lock:
             self.pending_krw = max(0.0, self.pending_krw - self.worst_case_call_krw)
+            state = self._read()
+            state["calls"] = max(0, state["calls"] - 1)
+            state["calls_today"] = max(0, state["calls_today"] - 1)
+            self._write(state)
 
     def record(self, usage: dict | None):
         """응답의 usageMetadata로 실제 사용 금액을 더하고 예약을 푼다. 값이 없으면 최대 비용으로 보수적으로 기록한다."""

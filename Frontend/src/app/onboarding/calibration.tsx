@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useSettings } from '@/hooks/use-settings';
 import { useSpeech } from '@/hooks/use-speech';
 import { useVoiceAnswer } from '@/hooks/use-voice-answer';
+import { saveVoiceAnswer } from '@/lib/api';
 import { matchSpokenChoice } from '@/lib/spoken-answer';
 import { advanceCalibration, initialCalibration, screeningSuggestion, type CalibrationAction, type CalibrationPhase } from '@/lib/calibration-flow';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
@@ -96,6 +97,8 @@ export default function CalibrationScreen() {
     }
   };
   const voice = useVoiceAnswer();
+  // 음성 답변 기록을 서버에 묶어 저장할 이번 화면 맞추기의 임의 ID (개인정보 없음)
+  const [voiceSessionId] = useState(() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   // 들은 말은 그 문제(frame)에서만 보여 준다. 다음 문제로 넘어가면 사라진다.
   const [heard, setHeard] = useState<{ frame: typeof state; message: string } | null>(null);
   const answerByVoice = () => {
@@ -105,6 +108,11 @@ export default function CalibrationScreen() {
     voice.toggle({
       onText: (text) => {
         const match = matchSpokenChoice(text, plate.choices);
+        // 인식된 글자와 맞춘 보기를 서버 DB에 남긴다. 저장 실패가 화면 맞추기 진행을 막지 않게 한다.
+        void saveVoiceAnswer({
+          session_id: voiceSessionId, step: frame.phase === 'color' ? 'color' : 'screening', choices: plate.choices,
+          transcript: text, choice: match, expected: plate.answer, item: `${frame.phase}-${frame.index}`,
+        }).catch(() => undefined);
         if (match) {
           showToast(`"${match}"(으)로 들었어요`, 'success');
           act({ type: 'answer', value: match });

@@ -130,3 +130,37 @@ FE 화면 6 캘리브레이션, 6-1 내 보정값 확인, 8-1 내 보정값 세�
 | `bedroom-*` | 빈센트 반 고흐, The Bedroom | Art Institute of Chicago (CC0) |
 | `shower-*` | 우타가와 히로시게, Sudden Shower over Shin Ohashi Bridge and Atake | Art Institute of Chicago (CC0) |
 | `symphony-*` | 제임스 맥닐 휘슬러, Symphony in White, No. 1: The White Girl | NGA Open Access (CC0) |
+
+## 8. 말로 답하기와 기록 저장
+
+화면 맞추기의 검사판(1·2단계)은 버튼 대신 말로 답할 수 있고, 그 결과를 서버 DB(`data/voice-answers.sqlite3`)에 남깁니다.
+음성 원본은 저장하지 않습니다.
+
+| 순서 | 하는 곳 | 파일 |
+|---|---|---|
+| 1. 녹음 (최대 6초) | 앱 | `Frontend/src/hooks/use-voice-answer.ts` (`expo-audio`, Expo Go 가능) |
+| 2. 음성 → 글자 | 서버 `POST /transcribe` (OpenAI) | `Backend/ai/transcription.py` |
+| 3. 글자 → 보기 맞추기 ("사십오"·"45번" → 45, "안 보여요" → 숫자가 안 보여요) | 앱 | `Frontend/src/lib/spoken-answer.ts` |
+| 4. 결과 저장 | 서버 `POST /calibration/voice-answers` | `Backend/ai/voice_routes.py`, `Backend/ai/voice_answer.py` |
+
+앱은 `calibration.tsx`의 `answerByVoice`에서 3번이 끝나면 4번을 부릅니다(`api.ts`의 `saveVoiceAnswer`). 저장에 실패해도 화면 맞추기는 그대로 진행됩니다.
+
+### 저장 API
+
+| API | 하는 일 |
+|---|---|
+| `POST /calibration/voice-answers` | 음성 답변 1개의 결과 저장 (로그인 불필요) |
+| `GET /calibration/voice-answers/{session_id}` | 한 회차 기록 조회 |
+| `DELETE /calibration/voice-answers/{session_id}` | 한 회차 기록 삭제 |
+
+| 필드 | 필수 | 내용 |
+|---|---|---|
+| `session_id` | O | 화면 맞추기를 시작할 때 앱이 만든 임의 ID (영문·숫자·`-` 8~64자) |
+| `step` | O | `screening` / `color` / `edge` / `contrast` |
+| `choices` | O | 화면 보기 (`plate.choices`) |
+| `transcript` | O | `/transcribe`가 돌려준 글자 (최대 500자) |
+| `choice` | | 앱이 맞춘 보기. 못 맞췄으면 `null` |
+| `expected` | | 검사판 정답 (`plate.answer`). 보내면 `is_correct`가 저장됩니다 |
+| `item` | | 검사판 구분값 (앱은 `단계-순번`, 예: `screening-0`) |
+
+`choice`와 `expected`는 `choices` 중 하나여야 하고, 정해지지 않은 필드는 받지 않습니다(422). 같은 접속 기준 분당 60회까지입니다.

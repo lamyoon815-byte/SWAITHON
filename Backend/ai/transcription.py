@@ -11,12 +11,13 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-if __package__:
-    from .accounts import RateLimiter
-    from .ai.budget import GeminiBudget
+from .budget import GeminiBudget
+
+# Backend.ai.transcription(패키지 실행)이면 ..accounts, Backend 폴더에서 ai.transcription으로 실행하면 accounts
+if __package__ and "." in __package__:
+    from ..accounts import RateLimiter
 else:
     from accounts import RateLimiter
-    from ai.budget import GeminiBudget
 
 # 10초 안팎의 짧은 답만 받는다. m4a(AAC) 10초는 보통 200KB 아래다.
 MAX_AUDIO_BYTES = 2 * 1024 * 1024

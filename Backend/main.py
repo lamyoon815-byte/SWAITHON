@@ -19,7 +19,10 @@ if __package__:
     from .ai_routes import create_ai_router
     from .ai.budget import GeminiBudget
     from .speech import OpenAISpeechService, create_speech_router
-    from .transcription import OpenAITranscriptionService, create_transcription_router
+    from .ai.transcription import OpenAITranscriptionService, create_transcription_router
+    from .ai.voice_routes import create_voice_router
+    from .ai.voice_answer import VoiceAnswerStore
+    from .ai_routes import client_key
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
     from images import normalize_image, upload_image
@@ -29,7 +32,10 @@ else:
     from ai_routes import create_ai_router
     from ai.budget import GeminiBudget
     from speech import OpenAISpeechService, create_speech_router
-    from transcription import OpenAITranscriptionService, create_transcription_router
+    from ai.transcription import OpenAITranscriptionService, create_transcription_router
+    from ai.voice_routes import create_voice_router
+    from ai.voice_answer import VoiceAnswerStore
+    from ai_routes import client_key
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -97,6 +103,8 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     account_router, current_user = create_account_router(accounts, store)
     application.include_router(account_router)
     application.include_router(create_ai_router(store, accounts, current_user, recognition, gemini, corrector))
+    # 화면 맞추기 음성 답변 기록(인식된 글자·고른 보기). data/voice-answers.sqlite3에 저장
+    application.include_router(create_voice_router(VoiceAnswerStore(store.data_dir / "voice-answers.sqlite3"), client_key))
     application.add_api_route(
         "/health", health_check, methods=["GET"], tags=["서버 상태"],
         summary="서버 상태 확인",

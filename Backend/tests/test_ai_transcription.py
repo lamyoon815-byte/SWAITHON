@@ -7,7 +7,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from Backend.transcription import OpenAITranscriptionService, create_transcription_router
+from Backend.ai.transcription import OpenAITranscriptionService, create_transcription_router
 
 
 class TranscriptionTests(unittest.TestCase):

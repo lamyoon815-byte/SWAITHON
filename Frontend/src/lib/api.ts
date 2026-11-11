@@ -185,3 +185,15 @@ export async function transcribeAnswer(uri: string): Promise<string> {
   }
   return (await request<{ text: string }>('/transcribe', { method: 'POST', body })).text;
 }
+
+export type VoiceAnswerStep = 'screening' | 'color' | 'edge' | 'contrast';
+
+/** 말로 답한 결과(인식된 글자·앱이 맞춘 보기)를 서버 DB에 저장 (`POST /calibration/voice-answers`). 음성 원본은 보내지 않는다. */
+export function saveVoiceAnswer(data: {
+  session_id: string; step: VoiceAnswerStep; choices: string[]; transcript: string;
+  choice: string | null; expected?: string; item?: string;
+}) {
+  return request<{ id: string; is_correct: boolean | null }>('/calibration/voice-answers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  }, false);
+}
