@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from io import BytesIO
 import json
 from pathlib import Path
@@ -102,6 +104,46 @@ class AIRouteTests(unittest.TestCase):
         self.assertIsNone(self.client.get("/artworks/sample").json()["description"])
         self.assertEqual(before, {path.name for path in self.app.state.catalog.images_dir.iterdir()})
 
+    def test_narration_survives_restart_and_cache_hits_do_not_use_ai_limit(self):
+        first = self.client.post("/artworks/sample/narration")
+        self.assertEqual(first.status_code, 200)
+        restarted = create_app(self.root / "data", recognition=FixtureRecognition(), gemini=FixtureGemini())
+        with TestClient(restarted) as client, patch.object(FixtureGemini, "describe", side_effect=AssertionError("must reuse DB")):
+            for _ in range(7):
+                response = client.post("/artworks/sample/narration")
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(response.json(), first.json())
+
+    def test_simultaneous_requests_generate_the_artwork_once(self):
+        barrier = Barrier(4)
+        def request():
+            barrier.wait(timeout=5)
+            return self.client.post("/artworks/sample/narration")
+        with patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                results = list(pool.map(lambda _: request(), range(4)))
+            self.assertTrue(all(result.status_code == 200 for result in results))
+            self.assertTrue(all(result.json() == results[0].json() for result in results))
+            self.assertEqual(describe.call_count, 1)
+
+    def test_narration_metadata_change_invalidates_saved_description(self):
+        self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
+        manifest = json.loads(self.manifest.read_text())
+        manifest[0]["title"] = "새 제목"
+        self.manifest.write_text(json.dumps(manifest))
+        self.app.state.catalog.import_manifest(self.manifest)
+        with patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
+            self.assertEqual(describe.call_count, 1)
+            self.assertEqual(describe.call_args.args[1]["title"], "새 제목")
+
+    def test_failed_narration_is_not_saved(self):
+        with patch.object(FixtureGemini, "describe", return_value=FallbackDescription(**DESCRIPTION)):
+            self.assertTrue(self.client.post("/artworks/sample/narration").json()["fallback"])
+        with patch.object(FixtureGemini, "describe", return_value=Description.model_validate(DESCRIPTION)) as describe:
+            self.assertFalse(self.client.post("/artworks/sample/narration").json()["fallback"])
+            self.assertEqual(describe.call_count, 1)
+
     def test_generated_narration_fallback_is_not_playable(self):
         fallback = FallbackDescription(facts=["해설을 생성하지 못했습니다."], interpretations=[], regions=[], mood_keywords=[])
         with patch.object(FixtureGemini, "describe", return_value=fallback):
@@ -115,8 +157,9 @@ class AIRouteTests(unittest.TestCase):
         self.assertEqual(self.client.post("/artworks/missing/narration").status_code, 404)
         with patch.object(FixtureGemini, "describe", side_effect=HTTPException(503, "AI 설정 필요")):
             self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 503)
-        for _ in range(4):
-            self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
+        with patch.object(FixtureGemini, "describe", return_value=FallbackDescription(**DESCRIPTION)):
+            for _ in range(4):
+                self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 200)
         self.assertEqual(self.client.post("/artworks/sample/narration").status_code, 429)
         # The existing analyze route shares that same limit.
         self.assertEqual(self.client.post("/analyze", files={"image": ("x.png", self.image, "image/png")}).status_code, 429)
