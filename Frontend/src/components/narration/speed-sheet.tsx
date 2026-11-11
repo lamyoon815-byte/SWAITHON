@@ -7,6 +7,7 @@
 import { SymbolView } from 'expo-symbols';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 import Animated, { ReduceMotion, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -93,7 +94,7 @@ export function SpeedSheet({ visible, rate, palette, onSelect, onClose }: Props)
             })}
           </View>
 
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [
@@ -109,7 +110,7 @@ export function SpeedSheet({ visible, rate, palette, onSelect, onClose }: Props)
                 닫기
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
         </Animated.View>
       </View>
     </Modal>

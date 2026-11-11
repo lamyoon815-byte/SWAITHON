@@ -14,13 +14,14 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { router } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Linking, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { ButtonHeight, ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { Scrim, ScreenPadding, Spacing } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
@@ -228,7 +229,7 @@ export default function CaptureScreen() {
                 </View>
               </View>
             ) : null}
-            <Pressable
+            <PressableScale
               accessibilityRole="switch"
               accessibilityLabel="플래시"
               accessibilityState={{ checked: torch }}
@@ -245,7 +246,7 @@ export default function CaptureScreen() {
                 size={26}
                 tintColor={torch ? palette.highlightText : palette.text}
               />
-            </Pressable>
+            </PressableScale>
           </>
         ) : (
           <View style={styles.permission}>
@@ -303,7 +304,7 @@ type BottomButtonProps = {
 
 function BottomButton({ label, a11yLabel, palette, secondary, disabled, onPress }: BottomButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={a11yLabel ?? label}
       accessibilityState={{ disabled }}
@@ -319,7 +320,7 @@ function BottomButton({ label, a11yLabel, palette, secondary, disabled, onPress 
       <Text style={[styles.buttonText, { color: secondary ? palette.text : palette.accentText }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

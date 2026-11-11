@@ -8,20 +8,13 @@
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
-import Animated, {
-  Easing,
-  FadeIn,
-  ReduceMotion,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/common/back-button';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { showToast } from '@/components/common/toast';
 import { ButtonRadius, FontSize, getPalette, type Palette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
@@ -34,7 +27,6 @@ import type { Museum, MuseumNext } from '@/types/museum';
 /** "✓ 선택됨"을 보여 주는 시간. 눌렀다는 느낌은 들고, 기다린다는 느낌은 들지 않을 만큼. */
 const ConfirmMs = 600;
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const NEXT_LABEL: Record<MuseumNext, string> = { number: '작품 찾기', list: '작품 목록' };
 
@@ -108,34 +100,21 @@ type RowProps = {
 };
 
 function MuseumRow({ museum: m, current, justPicked, palette, onPress }: RowProps) {
-  const reduceMotion = useReducedMotion();
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
-
-  const pressIn = () => {
-    if (!reduceMotion) scale.set(withTiming(0.97, { duration: 90 }));
-  };
-  // On release: straight back to size, no overshoot (shrink → restore, nothing in between).
-  const pressOut = () => {
-    if (!reduceMotion) scale.set(withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) }));
-  };
-
   return (
-    <AnimatedPressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${m.name}, ${m.area}, 작품 ${m.count}점`}
       accessibilityState={{ selected: current }}
-      onPressIn={pressIn}
-      onPressOut={pressOut}
       onPress={onPress}
+      pressedScale={0.98}
+      background={justPicked ? palette.fill : palette.surface}
+      pressedBackground={palette.fill}
       style={[
         styles.item,
         {
-          backgroundColor: justPicked ? palette.fill : palette.surface,
           borderColor: current ? palette.accent : palette.fill,
           borderWidth: current ? 3 : 2,
         },
-        pressStyle,
       ]}>
       <View style={styles.itemTexts}>
         <Text style={[styles.name, { color: palette.text }]}>{m.name}</Text>
@@ -171,7 +150,7 @@ function MuseumRow({ museum: m, current, justPicked, palette, onPress }: RowProp
           {justPicked ? '✓ 선택됨' : current ? '✓ 현재' : '선택'}
         </Text>
       </Animated.View>
-    </AnimatedPressable>
+    </PressableScale>
   );
 }
 

@@ -6,8 +6,9 @@
 
 import Slider from '@react-native-community/slider';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 
 import { FontSize, MinTouchTarget, type Palette } from '@/constants/a11y';
 import { Spacing } from '@/constants/theme';
@@ -98,7 +99,7 @@ type StepProps = {
 
 function StepButton({ kind, label, disabled, palette, onPress }: StepProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
@@ -123,7 +124,7 @@ function StepButton({ kind, label, disabled, palette, onPress }: StepProps) {
           tintColor={pressed ? palette.highlightText : palette.text}
         />
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 

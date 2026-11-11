@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
+import { PressableScale } from '@/components/common/pressable-scale';
 
 import {
   ButtonHeight,
@@ -41,7 +42,7 @@ export function BigButton({
   const filled = selected ?? true;
   const color = filled ? palette.accentText : palette.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole={radio ? 'radio' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={radio ? { checked: !!selected, disabled } : { selected, disabled }}
@@ -72,7 +73,7 @@ export function BigButton({
       )}
       <Text style={[styles.label, { color }]}>{label}</Text>
       {radio && <View style={styles.slot} />}
-    </Pressable>
+    </PressableScale>
   );
 }
 

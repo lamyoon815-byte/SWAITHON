@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtworkCard } from '@/components/common/artwork-card';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import {
   ButtonHeight,
   ButtonRadius,
@@ -149,7 +150,7 @@ export default function SearchScreen() {
                   {museum ? museum.name : '미술관을 먼저 골라 주세요'}
                 </Text>
               </View>
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={museum ? `미술관 변경, 지금 ${museum.name}` : '미술관 선택하기'}
                 onPress={pickMuseum}
@@ -168,7 +169,7 @@ export default function SearchScreen() {
                     {museum ? '변경' : '선택'}
                   </Text>
                 )}
-              </Pressable>
+              </PressableScale>
             </View>
           )}
         </View>
@@ -233,14 +234,14 @@ export default function SearchScreen() {
                 <View key={a.id}>
                   {i > 0 && <View style={[styles.divider, { backgroundColor: palette.fill }]} />}
                   <View style={styles.recentRow}>
-                    <Pressable
+                    <PressableScale
                       accessibilityRole="button"
                       accessibilityLabel={`${a.number}번, ${a.title}, ${a.artist}, ${shortDate(a.viewed_at)}에 봄`}
                       onPress={() => openArtwork(a.id)}
-                      style={({ pressed }) => [
-                        styles.recentMain,
-                        pressed && pressedSurface(palette),
-                      ]}>
+                      pressedScale={0.98}
+                      background={palette.surface}
+                      pressedBackground={palette.fill}
+                      style={styles.recentMain}>
                       <View style={[styles.thumb, { backgroundColor: palette.fill }]}>
                         {a.image_url ? (
                           <Image
@@ -267,7 +268,7 @@ export default function SearchScreen() {
                       <Text style={[styles.date, { color: palette.textSecondary }]}>
                         {shortDate(a.viewed_at)}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                     <IconButton
                       ios="xmark"
                       android="close"
@@ -285,7 +286,7 @@ export default function SearchScreen() {
 
         {/* Toolbar right above the keyboard (Naver): cancel on the left, other ways to find on the right. */}
         <View style={styles.toolbar}>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="취소"
             onPress={() => router.back()}
@@ -303,7 +304,7 @@ export default function SearchScreen() {
                 취소
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
           <View style={[styles.tools, toolbarSurface(palette)]}>
             <IconButton
               ios="mic.fill"
@@ -357,7 +358,7 @@ type IconButtonProps = {
 /** 56×56 아이콘 버튼. 아이콘이 작아도 누르는 곳은 최소 터치 영역을 지킨다. */
 function IconButton({ ios, android, label, palette, muted, onPress }: IconButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
@@ -370,7 +371,7 @@ function IconButton({ ios, android, label, palette, muted, onPress }: IconButton
           tintColor={pressed ? palette.highlightText : muted ? palette.textSecondary : palette.text}
         />
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -475,8 +476,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 700,
   },
+  // 위쪽은 목록의 gap(4)이 띄워 주니 아래만 같은 만큼 띄워, 누른 행의 회색 상자가 구분선 사이 가운데에 오게 한다.
   divider: {
     height: 1.5,
+    marginBottom: Spacing.one,
   },
   recentRow: {
     flexDirection: 'row',
@@ -489,6 +492,10 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 72,
     paddingVertical: Spacing.two,
+    // 누를 때 생기는 회색 상자가 썸네일에 딱 붙지 않게 왼쪽으로 조금 넓힌다.
+    marginLeft: -Spacing.two,
+    paddingLeft: Spacing.two,
+    paddingRight: Spacing.one,
     borderRadius: 16,
   },
   thumb: {

@@ -4,14 +4,15 @@
  * 아래 고정 재생판(진행 · 반복 · 이전 · 재생/멈춤 · 다음 · 속도).
  * 전체 문장과 듣는 범위(전체 · 사실 · 해석)는 오른쪽 위 "문장 목록" 시트에서 고른다. 문장을 누르면 거기서부터 읽는다.
  * 사실/해석은 색이 아니라 "사실"·"해석" 글자 표시로 구분한다.
- * 검수 해설이 없으면(409) 등록 원본으로 AI 해설을 생성할 수 있다. 생성 결과는 미검수로 표시한다.
+ * 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만들어 바로 들을 수 있게 한다(서버가 결과를 저장해 다시 만들지 않는다).
+ * 생성 결과는 미검수로 표시한다. 작품·자막 부분은 스크롤되고, 재생판은 아래에 고정된다.
  * 목소리(OpenAI · 기기)도 문장 목록 시트에서 고른다.
  */
 
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/common/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +20,8 @@ import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
+import { SegmentedControl } from '@/components/common/segmented-control';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { SpeedSheet, formatRate } from '@/components/narration/speed-sheet';
 import {
   ButtonGap,
@@ -36,7 +39,7 @@ import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { ApiError, generateNarration, getArtwork, getNarration } from '@/lib/api';
-import type { GeneratedNarration, NarrationMode } from '@/types/narration';
+import type { NarrationMode } from '@/types/narration';
 import { DEFAULT_PROFILE } from '@/types/profile';
 
 const START_RATE = DEFAULT_PROFILE.speech_rate;
@@ -54,20 +57,25 @@ export default function NarrationScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = getPalette(scheme, false);
   const bottomInset = useTabBarInset();
+  const { height: windowHeight } = useWindowDimensions();
   const { id, strength: strengthParam, original: originalParam } = useLocalSearchParams<{ id: string; strength?: string; original?: string }>();
   const strength = strengthParam !== undefined && !Number.isNaN(Number(strengthParam)) ? Number(strengthParam) : profile.strength;
   const { data: artwork } = useResource(id ?? null, () => getArtwork(id!));
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
-  const [generated, setGenerated] = useState<GeneratedNarration | null>(null);
-  const [generation, setGeneration] = useState<{ id: string; busy: boolean; error?: string } | null>(null);
-  const generationLock = useRef(false);
   const [rate, setRate] = useState(START_RATE);
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
 
-  const ai = generated?.artwork_id === id ? generated : null;
-  const generationState = generation?.id === id ? generation : null;
+  // 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만든다. 같은 작품은 앱·서버 모두 저장해 두어 다시 만들지 않는다.
+  const noReviewed = narrationRes.error instanceof ApiError && narrationRes.error.status === 409;
+  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}` : null, () => generateNarration(id!));
+  const ai = aiRes.data ?? null;
+  const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
+    ? 'AI 해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
+    : aiRes.error instanceof ApiError && aiRes.error.status === 503
+      ? 'AI 해설을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : 'AI 해설을 만들지 못했어요. 다시 시도해 주세요.') : null;
   const all = ai?.segments ?? narrationRes.data?.segments ?? [];
   const segments = all.filter(
     (s) => mode === 'both' || (mode === 'facts' ? s.type === 'fact' : s.type === 'interpretation'),
@@ -79,7 +87,7 @@ export default function NarrationScreen() {
   );
 
   const err = narrationRes.error;
-  const missing = !ai && err instanceof ApiError && err.status === 409;
+  const missing = !ai && noReviewed;
   const failed = !ai && !!err && !missing;
   const loading = !ai && !narrationRes.data && !err;
   const total = segments.length;
@@ -87,23 +95,6 @@ export default function NarrationScreen() {
   const atFirst = player.index <= 0;
   const atLast = player.index >= total - 1;
 
-  const createNarration = async () => {
-    if (!id || generationLock.current) return;
-    generationLock.current = true;
-    setGeneration({ id, busy: true });
-    try {
-      const result = await generateNarration(id);
-      player.reset();
-      setGenerated(result);
-      setGeneration({ id, busy: false });
-    } catch (error) {
-      setGeneration({ id, busy: false, error: error instanceof ApiError && error.status === 429
-        ? 'AI 해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
-        : error instanceof ApiError && error.status === 503
-          ? 'AI 해설을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.'
-          : 'AI 해설을 만들지 못했어요. 다시 시도해 주세요.' });
-    } finally { generationLock.current = false; }
-  };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -118,20 +109,23 @@ export default function NarrationScreen() {
           )}
         </View>
         {all.length > 0 ? (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="문장 목록과 듣는 범위"
             onPress={() => setListOpen(true)}
-            style={({ pressed }) => [styles.headerButton, { backgroundColor: pressed ? palette.highlight : palette.fill }]}>
-            {({ pressed }) => (
-              <SymbolView name={{ ios: 'list.bullet', android: 'format_list_bulleted', web: 'format_list_bulleted' }} size={24} weight="semibold" tintColor={pressed ? palette.highlightText : palette.text} />
-            )}
-          </Pressable>
+            // 아이콘만 보이고 동그란 배경은 없다. 누르는 영역은 56×56 그대로, 누를 때만 옅은 배경이 생긴다.
+            pressedScale={0.9}
+            background={`${palette.background}00`}
+            pressedBackground={palette.fill}
+            style={styles.headerButton}>
+            <SymbolView name={{ ios: 'list.bullet', android: 'format_list_bulleted', web: 'format_list_bulleted' }} size={28} weight="semibold" tintColor={palette.text} />
+          </PressableScale>
         ) : <View style={styles.headerSpacer} />}
       </View>
 
-      {/* 작품: 남는 공간을 모두 쓴다. */}
-      <View style={styles.stage}>
+      <ScrollView style={styles.body} contentContainerStyle={[styles.bodyContent, { paddingBottom: total > 0 ? 0 : bottomInset }]}>
+      {/* 작품: 남는 공간을 모두 쓴다(최소 화면 높이의 40%). 글이 길면 화면 전체가 스크롤된다. */}
+      <View style={[styles.stage, { minHeight: Math.max(220, windowHeight * 0.4) }]}>
         {artwork ? (
           <CorrectionCanvas
             source={artwork.image_url}
@@ -159,9 +153,7 @@ export default function NarrationScreen() {
                 {player.index + 1} / {total}
               </Text>
             </View>
-            <ScrollView style={styles.captionScroll} showsVerticalScrollIndicator>
-              <Text lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
-            </ScrollView>
+            <Text lineBreakStrategyIOS="hangul-word" style={[styles.captionText, { color: palette.text }]}>{current.text}</Text>
             {player.preparing && <Text accessibilityLiveRegion="polite" style={[styles.status, { color: palette.textSecondary }]}>음성을 준비하고 있어요…</Text>}
             {!!player.error && <Text accessibilityRole="alert" style={[styles.status, { color: palette.text }]}>{player.error}</Text>}
             {ai && <Text style={[styles.status, { color: palette.textSecondary }]}>{ai.warning}</Text>}
@@ -177,20 +169,22 @@ export default function NarrationScreen() {
                 ? '해설을 불러오는 중이에요'
                 : failed
                   ? '해설을 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
-                  : '아직 검수된 해설이 없어요'}
+                  : aiError ? '아직 검수된 해설이 없어요' : 'AI 해설을 만들고 있어요…'}
             </Text>
             {failed && <PillButton label="다시 시도" palette={palette} onPress={narrationRes.reload} />}
             {missing && <>
               <Text lineBreakStrategyIOS="hangul-word" style={[styles.emptyText, { color: palette.textSecondary }]}>
-                작품 사진과 정보를 바탕으로 AI 해설을 만들 수 있어요. 생성한 해설은 미검수임을 표시해 드려요.
+                작품 사진과 정보를 바탕으로 만든 해설이에요. 전문가가 검수하지 않았다는 표시를 함께 보여 드려요.
               </Text>
-              {generationState?.error && <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{generationState.error}</Text>}
-              <PillButton label={generationState?.busy ? 'AI 해설을 만들고 있어요…' : 'AI 해설 생성하기'}
-                palette={palette} onPress={createNarration} disabled={generationState?.busy} />
+              {aiError ? <>
+                <Text accessibilityRole="alert" style={[styles.emptyText, { color: palette.text }]}>{aiError}</Text>
+                <PillButton label="다시 만들기" palette={palette} onPress={aiRes.reload} />
+              </> : <ActivityIndicator color={palette.text} accessibilityLabel="AI 해설을 만드는 중" />}
             </>}
           </View>
         )}
       </View>
+      </ScrollView>
 
       {total > 0 && (
         <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.outline, paddingBottom: bottomInset + Spacing.two }]}>
@@ -216,7 +210,7 @@ export default function NarrationScreen() {
               palette={palette}
               onPress={() => player.goTo(player.index - 1)}
             />
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={player.playing ? '해설 멈추기' : '해설 듣기'}
               onPress={player.playing ? player.pause : player.play}
@@ -226,7 +220,7 @@ export default function NarrationScreen() {
                 size={32}
                 tintColor={palette.accentText}
               />
-            </Pressable>
+            </PressableScale>
             <RoundButton
               ios="forward.end.fill"
               android="skip_next"
@@ -235,7 +229,7 @@ export default function NarrationScreen() {
               palette={palette}
               onPress={() => player.goTo(player.index + 1)}
             />
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`재생 속도 ${formatRate(rate)}. 누르면 속도를 고를 수 있어요`}
               onPress={() => setSpeedOpen(true)}
@@ -245,41 +239,20 @@ export default function NarrationScreen() {
                   {rate === 1 ? '1배' : `${rate}배`}
                 </Text>
               )}
-            </Pressable>
+            </PressableScale>
           </View>
         </View>
       )}
 
       <BottomSheet visible={listOpen} title="문장 목록" palette={palette} onClose={() => setListOpen(false)}>
         <Text style={[styles.sheetLabel, { color: palette.textSecondary }]}>듣는 범위</Text>
-        <View accessibilityRole="radiogroup" accessibilityLabel="듣는 범위" style={styles.modes}>
-          {MODES.map((m) => {
-            const on = m.mode === mode;
-            return (
-              <Pressable
-                key={m.mode}
-                accessibilityRole="radio"
-                accessibilityLabel={`${m.label} 듣기`}
-                accessibilityState={{ checked: on }}
-                onPress={() => {
-                  if (on) return;
-                  player.reset();
-                  setMode(m.mode);
-                }}
-                style={({ pressed }) => [
-                  styles.mode,
-                  on
-                    ? { backgroundColor: palette.highlight, borderColor: palette.highlight }
-                    : { backgroundColor: palette.surface, borderColor: palette.outline },
-                  pressed && !on && { backgroundColor: palette.fill },
-                ]}>
-                {/* The ✓ slot is always there, so selecting never moves the label. */}
-                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={16} weight="bold" tintColor={palette.highlightText} style={{ opacity: on ? 1 : 0 }} />
-                <Text style={[styles.modeText, { color: on ? palette.highlightText : palette.text }]}>{m.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          accessibilityLabel="듣는 범위"
+          palette={palette}
+          value={mode}
+          onChange={(next) => { player.reset(); setMode(next); }}
+          options={MODES.map((m) => ({ value: m.mode, label: m.label, accessibilityLabel: `${m.label} 듣기` }))}
+        />
         {total === 0 ? (
           <Text style={[styles.note, { color: palette.textSecondary }]}>
             {mode === 'facts' ? '사실 문장이 없어요' : '해석 문장이 없어요'}
@@ -288,7 +261,7 @@ export default function NarrationScreen() {
           const now = i === player.index;
           const kind = s.type === 'fact' ? '사실' : '해석';
           return (
-            <Pressable
+            <PressableScale
               key={`${mode}-${i}`}
               accessibilityRole="button"
               accessibilityLabel={`${i + 1}번째 문장, ${kind}. ${s.text}`}
@@ -298,11 +271,10 @@ export default function NarrationScreen() {
                 setListOpen(false);
                 player.playFrom(i);
               }}
-              style={({ pressed }) => [
-                styles.sentence,
-                now ? { backgroundColor: palette.highlight, borderColor: palette.highlight } : { backgroundColor: palette.background, borderColor: palette.outline },
-                pressed && !now && { backgroundColor: palette.fill },
-              ]}>
+              pressedScale={0.98}
+              background={now ? palette.highlight : palette.background}
+              pressedBackground={now ? palette.highlight : palette.fill}
+              style={[styles.sentence, { borderColor: now ? palette.highlight : palette.outline }]}>
               <View style={styles.sentenceTop}>
                 <Text style={[styles.sentenceNo, { color: now ? palette.highlightText : palette.textSecondary }]}>{i + 1}</Text>
                 <View style={[styles.tag, { borderColor: now ? palette.highlightText : palette.outline }]}>
@@ -310,7 +282,7 @@ export default function NarrationScreen() {
                 </View>
               </View>
               <Text lineBreakStrategyIOS="hangul-word" style={[styles.sentenceText, { color: now ? palette.highlightText : palette.text }]}>{s.text}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
         <View style={styles.sheetClose}>
@@ -352,7 +324,7 @@ type RoundButtonProps = {
 
 function RoundButton({ ios, android, label, disabled = false, role = 'button', checked = false, palette, onPress }: RoundButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole={role}
       accessibilityLabel={label}
       accessibilityState={role === 'switch' ? { checked, disabled } : { disabled }}
@@ -372,7 +344,7 @@ function RoundButton({ ios, android, label, disabled = false, role = 'button', c
           tintColor={pressed || checked ? palette.highlightText : palette.text}
         />
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -388,7 +360,7 @@ function PillButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ disabled, busy: disabled }}
       disabled={disabled}
@@ -398,7 +370,7 @@ function PillButton({
         { backgroundColor: palette.accent, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
       <Text style={[styles.pillText, { color: palette.accentText }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -422,14 +394,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerSpacer: { width: MinTouchTarget },
-  stage: { flex: 1, minHeight: 200, paddingHorizontal: ScreenPadding },
+  body: { flex: 1 },
+  bodyContent: { flexGrow: 1 },
+  stage: { flex: 1, paddingHorizontal: ScreenPadding },
   canvas: { height: '100%', borderRadius: 20, borderWidth: 1.5 },
   canvasPlaceholder: { flex: 1 },
   captionWrap: { paddingHorizontal: ScreenPadding, paddingVertical: Spacing.three },
   caption: { gap: 10, paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1.5, borderRadius: 20 },
   captionTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   captionCount: { marginLeft: 'auto', fontSize: 16, fontWeight: 700, fontVariant: ['tabular-nums'] },
-  captionScroll: { maxHeight: 132 },
   captionText: { fontSize: FontSize.body, fontWeight: 600, lineHeight: 32 },
   status: { fontSize: 16, lineHeight: 24, fontWeight: 600 },
   sheetLabel: { fontSize: 16, fontWeight: 700 },

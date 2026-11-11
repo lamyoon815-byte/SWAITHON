@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
@@ -9,6 +9,7 @@ import { CALIBRATION } from '@/assets/images/calibration';
 import { BackButton } from '@/components/common/back-button';
 import { BigButton } from '@/components/common/big-button';
 import { BottomActionBar } from '@/components/common/bottom-action-bar';
+import { SegmentedControl } from '@/components/common/segmented-control';
 import { CorrectionCanvas } from '@/components/common/correction-canvas';
 import { Text } from '@/components/common/text';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
@@ -73,15 +74,8 @@ export default function CorrectionResultScreen() {
             </View>
           </View>
           {calibration && <>
-            <View accessibilityRole="tablist" style={[styles.segmented, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
-              {([['color', '색 보정'], ['edge', '윤곽선']] as const).map(([key, label]) => {
-                const active = preview === key;
-                return <Pressable key={key} accessibilityRole="tab" accessibilityLabel={`${label} 미리보기`} accessibilityState={{ selected: active }} onPress={() => setPreview(key)}
-                  style={({ pressed }) => [styles.segment, { backgroundColor: active ? palette.highlight : 'transparent', opacity: pressed ? 0.7 : 1 }]}>
-                  <Text style={[styles.segmentText, { color: active ? palette.highlightText : palette.textSecondary }]}>{label}</Text>
-                </Pressable>;
-              })}
-            </View>
+            <SegmentedControl accessibilityLabel="미리보기 항목" palette={palette} value={preview} onChange={setPreview}
+              options={[{ value: 'color', label: '색 보정', accessibilityLabel: '색 보정 미리보기' }, { value: 'edge', label: '윤곽선', accessibilityLabel: '윤곽선 미리보기' }] as const} />
             <Text style={[styles.note, { color: palette.textSecondary }]}>색 보정과 윤곽선은 각각의 그림으로 확인해요.</Text>
           </>}
           <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
@@ -117,9 +111,6 @@ const styles = StyleSheet.create({
   check: { width: 13, height: 8, borderLeftWidth: 2, borderBottomWidth: 2, transform: [{ translateY: -2 }, { rotate: '-45deg' }] },
   previewWrapper: { position: 'relative' },
   preview: { height: 150, borderRadius: 16, borderWidth: 1.5 },
-  segmented: { flexDirection: 'row', borderWidth: 1.5, borderRadius: 14, padding: 4, gap: 4 },
-  segment: { flex: 1, minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
-  segmentText: { fontSize: FontSize.label, fontWeight: 700, textAlign: 'center' },
   badge: { position: 'absolute', top: Spacing.two, left: Spacing.two, borderRadius: 8, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
   badgeText: { fontSize: FontSize.label, fontWeight: 600 },
   card: { borderWidth: 1.5, borderRadius: 24, paddingHorizontal: Spacing.three, paddingTop: Spacing.three },

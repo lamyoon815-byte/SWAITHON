@@ -8,8 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { SegmentedControl } from '@/components/common/segmented-control';
 import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
+import { PressableScale } from '@/components/common/pressable-scale';
 import { Avatar } from '@/components/mypage/avatar';
 import { ButtonRadius, FontSize, MinTouchTarget, getPalette, type Palette } from '@/constants/a11y';
 import { NARRATION_OPTIONS } from '@/constants/narration';
@@ -119,12 +121,12 @@ export default function MyPageScreen() {
         <View style={[styles.card, card, styles.profileCard]}>
           {user ? (
             <View style={styles.profileRow}>
-              <Pressable accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" onPress={() => openSheet('photo')} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+              <PressableScale accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" onPress={() => openSheet('photo')} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
                 <Avatar uri={avatar} name={user.nickname} palette={palette} />
                 <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.cameraBadge, { backgroundColor: palette.text, borderColor: palette.surface }]}>
                   <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'photo_camera' }} size={14} tintColor={palette.background} />
                 </View>
-              </Pressable>
+              </PressableScale>
               <View style={styles.profileTexts}>
                 <Text numberOfLines={1} style={[styles.profileName, { color: palette.text }]}>{user.nickname}</Text>
                 <Text numberOfLines={1} style={[styles.profileEmail, { color: palette.textSecondary }]}>{user.email}</Text>
@@ -162,11 +164,11 @@ export default function MyPageScreen() {
         {user && (
           <>
             <View style={[styles.sectionDivider, { backgroundColor: palette.outline }]} />
-            <Pressable accessibilityRole="button" accessibilityLabel="로그아웃" onPress={() => setConfirmLogout(true)}
-              style={({ pressed }) => [styles.logout, pressed && { backgroundColor: palette.fill }]}>
+            <PressableScale accessibilityRole="button" accessibilityLabel="로그아웃" onPress={() => setConfirmLogout(true)}
+              pressedScale={0.98} background={`${palette.background}00`} pressedBackground={palette.fill} style={styles.logout}>
               <SymbolView name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }} size={22} tintColor={palette.danger} />
               <Text style={[styles.logoutText, { color: palette.danger }]}>로그아웃</Text>
-            </Pressable>
+            </PressableScale>
           </>
         )}
       </ScrollView>
@@ -178,11 +180,13 @@ export default function MyPageScreen() {
                     <SheetRow label="사진 찍기" icon={{ ios: 'camera', android: 'photo_camera' }} palette={palette} onPress={() => { void pickPhoto('camera'); }} />
                     {avatar && <SheetRow label="기본 이미지로" icon={{ ios: 'person.crop.circle', android: 'account_circle' }} palette={palette} onPress={() => { void resetPhoto(); }} />}
                   </>
-                ) : shown === 'font' ? FONT_OPTIONS.map((option) => (
-                  <View style={styles.buttonRow} key={option.value}>
-                    <BigButton label={option.label} radio selected={settings.font_scale === option.value} palette={palette} onPress={() => { void selectFont(option.value); }} />
-                  </View>
-                )) : shown === 'narration' ? (
+                ) : shown === 'font' ? (
+                  <>
+                    <SegmentedControl accessibilityLabel="글씨 크기" palette={palette} value={settings.font_scale}
+                      onChange={(next) => { void selectFont(next); }} options={FONT_OPTIONS} />
+                    <Text lineBreakStrategyIOS="hangul-word" style={[styles.description, { color: palette.textSecondary }]}>고르면 바로 앱 전체 글씨에 적용돼요.</Text>
+                  </>
+                ) : shown === 'narration' ? (
                   <View style={styles.narrationOptions} accessibilityRole="radiogroup" accessibilityLabel="해설 방식 선택">
                     {profileError ? (
                       <>
@@ -256,13 +260,13 @@ export default function MyPageScreen() {
 /** 시트 안의 가벼운 선택 행: 아이콘 + 글자. 테두리·배경 없이, 누를 때만 배경이 생긴다. */
 function SheetRow({ label, icon, palette, onPress }: { label: string; icon: { ios: SFSymbol; android: AndroidSymbol }; palette: Palette; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
-      style={({ pressed }) => [styles.sheetRow, pressed && { backgroundColor: palette.fill }]}>
+    <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
+      pressedScale={0.98} background={`${palette.surface}00`} pressedBackground={palette.fill} style={styles.sheetRow}>
       <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.sheetRowIcon, { backgroundColor: palette.fill }]}>
         <SymbolView name={{ ...icon, web: icon.android }} size={22} tintColor={palette.text} />
       </View>
       <Text style={[styles.sheetRowLabel, { color: palette.text }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -278,7 +282,9 @@ type RowProps = {
 
 function SettingRow({ label, description, value, icon, palette, onPress, disabled }: RowProps) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={[label, description, value].filter(Boolean).join(', ')} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.row, pressed && { backgroundColor: palette.fill }]}>
+    // 카드 안의 행이라 크기는 그대로 두고 회색만 스르륵 (카드 테두리는 움직이지 않는다).
+    <PressableScale accessibilityRole="button" accessibilityLabel={[label, description, value].filter(Boolean).join(', ')} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+      pressedScale={1} background={palette.surface} pressedBackground={palette.fill} style={styles.row}>
       {icon && <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><SymbolView name={{ ...icon, web: icon.android }} size={26} tintColor={palette.text} /></View>}
       <View style={styles.rowText}>
         <Text style={[styles.label, { color: palette.text }]}>{label}</Text>
@@ -286,7 +292,7 @@ function SettingRow({ label, description, value, icon, palette, onPress, disable
       </View>
       {value && <Text style={[styles.value, { color: palette.textSecondary }]}>{value}</Text>}
       <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={20} weight="semibold" tintColor={palette.text} /></View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
