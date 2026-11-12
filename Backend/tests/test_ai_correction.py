@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from Backend.ai.correction import (ERROR_SHIFT, LUMA, MACHADO_2009, apply_contrast, correct_array, correct_image, cvd_matrix,
-                                   daltonize, emphasize_edges, linear_to_srgb, simulate, srgb_to_linear, tone_curve, tone_mid)
+from Backend.ai.correction import (ERROR_SHIFT, LUMA, MACHADO_2009, apply_contrast, confusion_weight, correct_array, correct_image,
+                                   cvd_matrix, daltonize, emphasize_edges, linear_to_srgb, simulate, srgb_to_linear, tone_curve, tone_mid)
 from Backend.ai.profile import AIProfile
 
 
@@ -41,15 +41,28 @@ class CorrectionTests(unittest.TestCase):
 
     def test_daltonize_restores_red_green_difference(self):
         for color_type in ("protan", "deutan"):
+            # 그림 전체 보정: 떨어진 두 점도 구분이 커진다
             before = lab_distance(simulate(self.red_green, color_type, 1.0), (30, 10), (30, 70))
+            full = daltonize(self.red_green, color_type, 1.0)
+            self.assertGreater(lab_distance(simulate(full, color_type, 1.0), (30, 10), (30, 70)), before * 1.3, color_type)
+            # 서버 보정(헷갈리는 곳만): 빨강·초록이 서로 짝이 되므로 떨어진 두 점도 그림 전체 보정과 똑같이 보정된다
             corrected = correct_array(self.red_green, {"color_type": color_type, "severity": 1.0})
-            after = lab_distance(simulate(corrected, color_type, 1.0), (30, 10), (30, 70))
-            self.assertGreater(after, before * 1.3, color_type)
+            np.testing.assert_allclose(corrected[:, :30], full[:, :30], atol=1e-3)
+            np.testing.assert_allclose(corrected[:, 50:], full[:, 50:], atol=1e-3)
+
+    def test_color_without_a_confusing_partner_is_left_alone(self):
+        # 빨강만 있는 그림: 헷갈릴 짝 색이 없으므로 원본 그대로 (그림 전체 보정은 색을 바꾼다)
+        red = np.zeros((40, 60, 3), dtype=np.float32)
+        red[:] = (0.75, 0.25, 0.2)
+        for color_type in ("protan", "deutan"):
+            self.assertGreater(float(np.abs(daltonize(red, color_type, 1.0) - red).max()), 0.05)
+            np.testing.assert_allclose(correct_array(red, {"color_type": color_type, "severity": 1.0}), red, atol=1e-3)
 
     def test_all_active_types_are_applied_in_fixed_order_and_zero_is_an_identity(self):
         rgb = np.random.default_rng(42).uniform(0.15, 0.65, (12, 15, 3)).astype(np.float32)
         colors = {"protan": 0.4, "deutan": 0.6, "tritan": 0.8}
-        expected = daltonize(daltonize(daltonize(rgb, "protan", 0.4), "deutan", 0.6), "tritan", 0.8)
+        selective = lambda image, color, level: daltonize(image, color, level, confusion_weight(image, color))
+        expected = daltonize(selective(selective(rgb, "protan", 0.4), "deutan", 0.6), "tritan", 0.8)
         for selected in colors:
             actual = correct_array(rgb, {"color_type": selected, "severity": colors[selected], "color_severities": dict(reversed(list(colors.items())))})
             np.testing.assert_array_equal(actual, expected)
@@ -59,7 +72,7 @@ class CorrectionTests(unittest.TestCase):
             self.assertGreater(float(np.abs(actual - expected).mean()), 0.001)
         np.testing.assert_array_equal(correct_array(rgb, {"color_type": "tritan", "color_severities": {}}), rgb)
         np.testing.assert_array_equal(correct_array(rgb, {"color_type": "normal", "color_severities": colors}), rgb)
-        np.testing.assert_array_equal(correct_array(rgb, {"color_type": "deutan", "color_severities": {"protan": 0, "deutan": 0.6, "tritan": 0}}), daltonize(rgb, "deutan", 0.6))
+        np.testing.assert_array_equal(correct_array(rgb, {"color_type": "deutan", "color_severities": {"protan": 0, "deutan": 0.6, "tritan": 0}}), selective(rgb, "deutan", 0.6))
 
     def test_preview_matrices_match_the_existing_server_algorithm(self):
         tables = json.loads((Path(__file__).resolve().parents[2] / "Frontend/src/lib/color-correction-matrices.json").read_text())
@@ -210,6 +223,43 @@ class TritanMatrixTests(unittest.TestCase):
                 _, untouched, corrected = boundary_recovery(rgb, after, "tritan")
                 self.assertGreater(corrected, untouched + 0.3, stem)
             # 침실처럼 헷갈리는 경계가 적은 그림(약 5%)은 새 행렬의 이득이 거의 없다(정윤 측정과 같음). 그래서 검사하지 않는다.
+
+
+
+class SelectiveCorrectionTests(unittest.TestCase):
+    """적색약·녹색약 '헷갈리는 곳만 보정': 독립 모델(Viénot 1999)로 효과는 거의 지키고 색 변화는 줄이는지."""
+
+    @staticmethod
+    def artwork(stem):
+        with Image.open(Path(__file__).resolve().parents[1] / "data" / "artworks" / f"{stem}.jpg") as image:
+            image = image.convert("RGB")
+            image.thumbnail((600, 600))
+            return np.asarray(image, dtype=np.float32) / 255
+
+    def test_keeps_most_benefit_with_less_color_change(self):
+        from Backend.ai.cvd_eval import mean_delta_e, pair_recovery
+        for stem in ("aic_the-bedroom", "nga_woman-with-a-parasol"):
+            rgb = self.artwork(stem)
+            for color in ("protan", "deutan"):
+                full = daltonize(rgb, color, 1.0)
+                selective = correct_array(rgb, {"color_type": color, "color_severities": {color: 1.0}})
+                _, untouched = pair_recovery(rgb, rgb, color)
+                _, full_seen = pair_recovery(rgb, full, color)
+                _, selective_seen = pair_recovery(rgb, selective, color)
+                # 떨어진 색 쌍 기준 효과의 90% 이상 유지, 색 변화는 0.85배 미만
+                self.assertGreater(selective_seen - untouched, 0.9 * (full_seen - untouched), (stem, color))
+                self.assertLess(mean_delta_e(rgb, selective), 0.85 * mean_delta_e(rgb, full), (stem, color))
+
+    def test_plates_match_whole_picture_correction(self):
+        """검사판(숫자·바탕 두 색)은 두 색이 서로 짝이라 그림 전체 보정과 같다. 그래서 기존 검사판을 그대로 쓴다."""
+        from Backend.ai.calibration_assets import PLATE_NUMBERS, PLATE_SEED
+        from Backend.ai.plates import make_plate, number_contrast
+        for color in ("protan", "deutan"):
+            plate, dots = make_plate(color, PLATE_NUMBERS[color][0], PLATE_SEED[color])
+            for level in (0.2, 0.6, 1.0):
+                full = number_contrast(simulate(daltonize(plate, color, level), color, 1.0), dots)
+                selective = number_contrast(simulate(correct_array(plate, {"color_type": color, "severity": level}), color, 1.0), dots)
+                self.assertAlmostEqual(selective, full, delta=0.5, msg=(color, level))
 
 
 if __name__ == "__main__":

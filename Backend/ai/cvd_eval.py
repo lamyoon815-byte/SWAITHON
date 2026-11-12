@@ -44,26 +44,49 @@ def mean_delta_e(before, after):
     return float(np.linalg.norm(lab(after) - lab(before), axis=-1).mean())
 
 
-def boundary_recovery(original, corrected, color_type: str, severity: float = 1.0, pairs: int = 40000, seed: int = 0):
-    """색 경계 구분도 (독립 모델 기준).
+def boundary_recovery(original, corrected, color_type: str, severity: float = 1.0):
+    """색 경계 구분도 (독립 모델 기준, 정윤의 round2.py와 같은 정의).
 
-    가까운 픽셀 쌍(최대 4px 떨어짐)을 무작위로 뽑아, 정상 시각의 색 차이(ΔE)를 100%로 놓고 색각이상 시각에서
-    몇 %가 보이는지 쌍마다 계산해 100%에서 자른 뒤 평균한다. 정상 시각에서 ΔE 10 이상이면서 색각이상 시각에서
-    절반 아래로 줄어드는 '헷갈리는 쌍'만 센다. 반환: (헷갈리는 쌍 비율, 보정 전 구분도, 보정 후 구분도)
+    가로·세로로 이웃한 모든 픽셀 쌍 중 정상 시각에서 ΔE 5 이상인데 독립 모델 시뮬레이션에서 60% 미만으로 줄어드는
+    '헷갈리는 경계'만 골라, 정상 시각 차이를 100%로 놓고 보정 뒤 색각이상 시각에서 몇 %가 보이는지 쌍마다 구해
+    100%에서 자른 뒤 평균한다(넘치면 과보정이라 자른다). 측정은 그림을 긴 변 600px로 줄여서 한다.
+    반환: (헷갈리는 경계 비율, 보정 전 구분도, 보정 후 구분도)
     """
     import cv2
     lab = lambda x: cv2.cvtColor(np.clip(x, 0, 1).astype(np.float32), cv2.COLOR_RGB2LAB)
-    rng = np.random.default_rng(seed)
-    height, width = original.shape[:2]
-    ys, xs = rng.integers(0, height, pairs), rng.integers(0, width, pairs)
-    y2 = np.clip(ys + rng.integers(-4, 5, pairs), 0, height - 1)
-    x2 = np.clip(xs + rng.integers(-4, 5, pairs), 0, width - 1)
-    difference = lambda image: np.linalg.norm(image[ys, xs] - image[y2, x2], axis=1)
-    normal = difference(lab(original))
-    before = difference(lab(simulate_independent(original, color_type, severity)))
-    after = difference(lab(simulate_independent(corrected, color_type, severity)))
-    confusing = (normal >= 10) & (before < 0.5 * normal)
-    if not confusing.any():
+
+    def neighbours(image):
+        values = lab(image)
+        return (np.linalg.norm(values[:, 1:] - values[:, :-1], axis=2),
+                np.linalg.norm(values[1:] - values[:-1], axis=2))
+
+    normal = neighbours(original)
+    before = neighbours(simulate_independent(original, color_type, severity))
+    after = neighbours(simulate_independent(corrected, color_type, severity))
+    lost = [(n >= 5) & (b < 0.6 * n) for n, b in zip(normal, before)]
+    count = sum(int(m.sum()) for m in lost)
+    total = sum(m.size for m in lost)
+    if count == 0:
         return 0.0, 1.0, 1.0
-    seen = lambda value: float(np.mean(np.minimum(value[confusing] / normal[confusing], 1.0)))
-    return float(confusing.mean()), seen(before), seen(after)
+    seen = lambda pairs: float(np.mean(np.minimum(np.concatenate([p[m] / n[m] for p, n, m in zip(pairs, normal, lost)]), 1.0)))
+    return count / total, seen(before), seen(after)
+
+
+def pair_recovery(original, corrected, color_type: str, pairs: int = 30000, seed: int = 0):
+    """떨어진 색까지 포함한 구분 회복률: 무작위 픽셀 쌍 기준 (correction_demo.py와 같은 정의, 독립 모델).
+
+    정상 시각에서 확실히 다른 색(ΔE > 15)인데 독립 모델 시뮬레이션에서 차이가 절반 미만인 쌍 중,
+    보정 후 차이가 정상의 절반 이상으로 돌아온 비율. (구분이 사라진 쌍 비율, 회복률)을 반환한다.
+    boundary_recovery는 붙은 픽셀만 보므로, 서로 떨어진 빨강·초록 같은 경우는 이 함수로 잰다.
+    """
+    import cv2
+    flat = lambda image: cv2.cvtColor(np.clip(image, 0, 1).astype(np.float32), cv2.COLOR_RGB2LAB).reshape(-1, 3)
+    index = np.random.default_rng(seed).integers(0, original.shape[0] * original.shape[1], size=(pairs, 2))
+    distance = lambda image: np.linalg.norm(flat(image)[index[:, 0]] - flat(image)[index[:, 1]], axis=1)
+    normal = distance(original)
+    lost = (normal > 15) & (distance(simulate_independent(original, color_type)) < 0.5 * normal)
+    if not lost.any():
+        return 0.0, float("nan")
+    back = distance(simulate_independent(corrected, color_type)) >= 0.5 * normal
+    return float(lost.mean()), float((back & lost).sum() / lost.sum())
+

@@ -8,6 +8,8 @@
    사용자가 구분할 수 있는 채널로 옮겨 더한다(달토나이제이션, Fidaner et al. 2005 방식).
    청색약은 잃은 S 원뿔 신호를 청색약도 온전히 가진 L−M(적록) 대립 축으로 옮기는 행렬을 원뿔 공간에서 유도해 쓴다.
    Machado 행렬은 선형 RGB 기준이므로 sRGB → 선형 → 보정 → sRGB로 변환한다.
+   적색약·녹색약은 헷갈리는 색과 경계에만 보정을 건다(confusion_weight: 경계 기준 + 색 기준, '헷갈리는 곳만 보정').
+   청색약은 그림 전체에 적용한다. 앱 미리보기 셰이더(color-correction.ts)는 그림 전체 방식이라 적·녹색약 미리보기는 조금 더 강하게 보인다.
 2. 밝기·대비 (brightness -50~50, contrast 0.5~2)
    대비: 시그모이드 대비(ImageMagick sigmoidal-contrast와 같은 곡선)를 밝기(luma)에만 적용하고 색은 비율로 유지한다.
    곡선의 중심은 '그림의 평균 밝기가 바뀌지 않는 점'으로 정한다. 그래서 어두운 그림이 통째로 검게 뭉개지거나
@@ -87,8 +89,8 @@ def tritan_error_shift(gain: float = TRITAN_GAIN):
     결과 행렬은 오차의 S 성분 하나에만 반응한다(rank 1).
     gain 0.3: 균일한 sRGB 색 격자에서 독립 모델(Brettel 1997)로 잰 회복률 중앙값이 예전 행렬과 같아지는 값.
     실제 작품에서는 효과를 조금 포기하고 원본 색감을 지키는 선택이다(세기 1.0, 독립 모델 기준):
-    - 정윤 측정(불화·호쿠사이·침실): 구분도 2~11%p 낮음, 색 변화(ΔE) 35~43% 적음
-    - cvd_eval.boundary_recovery 측정(수련·농가·침실·호쿠사이·그랑드 자트): 구분도 3~17%p 낮음, 색 변화 22~43% 적음
+    - cvd_eval.boundary_recovery(정윤 round2.py와 같은 정의) 기준, 불화·수련·농가·침실·호쿠사이·그랑드 자트:
+      구분도 1~11%p 낮음, 색 변화(ΔE) 22~43% 적음
     """
     white = LMS_FROM_LINEAR_RGB @ np.ones(3)
     to = np.zeros((3, 3))
@@ -146,14 +148,98 @@ def simulate(rgb, color_type: str, severity: float):
     return linear_to_srgb(linear)
 
 
-def daltonize(rgb, color_type: str, severity: float):
+def daltonize(rgb, color_type: str, severity: float, weight=None):
+    """weight(H×W, 0~1)가 있으면 픽셀마다 그 비율만큼만 보정한다(없으면 그림 전체를 보정)."""
     if color_type == "normal" or severity <= 0:
         return rgb
     linear = srgb_to_linear(rgb)
     simulated = linear @ cvd_matrix(color_type, severity).T
     error = linear - simulated  # 이 사용자에게 보이지 않는 색 정보
-    corrected = linear + error @ ERROR_SHIFT[color_type].T
-    return linear_to_srgb(corrected)
+    shift = error @ ERROR_SHIFT[color_type].T
+    if weight is not None:
+        shift = shift * weight[..., None]
+    return linear_to_srgb(linear + shift)
+
+
+# '헷갈리는 곳만 보정'(적색약·녹색약) 설정.
+# 두 가지 기준을 합친다. 둘 중 하나라도 해당하면 보정한다.
+#  1) 경계 기준: 붙어 있는 두 픽셀의 색 경계가 사라지는 곳 (정윤 round2.py 2차 방식과 같은 값)
+#  2) 색 기준: 그림 안에 '헷갈리는 짝 색'이 충분히 있는 색 (떨어져 있는 빨강·초록도 잡는다)
+# 판정은 보정 세기와 상관없이 가장 강한 색각이상(시뮬레이션 1.0)으로 한다. 세기는 '얼마나'만 정하고
+# '어디를'은 바꾸지 않는다. 그래서 검사판(숫자·바탕 두 색)은 그림 전체 보정과 결과가 같다(ΔE 차이 0.1 이하).
+CONFUSION_SIZE = 600         # 긴 변 600px 사본에서 판정한다(측정과 같은 해상도여야 수치가 같다)
+CONFUSION_MIN_DELTA_E = 5    # 경계 기준: 정상 시각에서 이웃 픽셀 색 차이가 ΔE 5 이상인 경계만
+CONFUSION_LOST_RATIO = 0.6   # 색각이상 시각에서 그 차이가 60% 미만으로 줄면 '헷갈린다'
+CONFUSION_BLUR = 0.006       # 경계 기준: 그림 긴 변의 0.6%만큼 흐려 주변까지 부드럽게
+CONFUSION_GAIN = 3           # 경계 기준: 밀도 × 3을 0~1로 자른 값만큼 보정 (드문 경계는 약하고 좁게)
+COLOR_BIN = 4                # 색 기준: CIELAB을 ΔE 4 크기 칸으로 나눠 그림 속 색을 센다
+COLOR_MIN_DELTA_E = 10       # 색 기준: 정상 시각에서 ΔE 10 이상 다른 색끼리만 짝으로 본다
+COLOR_NEED = 0.05            # 색 기준: 헷갈리는 짝 색이 그림의 5% 이상이면 그 색을 100% 보정(적으면 비례)
+COLOR_BLUR = 1.5             # 색 기준: 600px 사본에서 1.5px 흐려 칸 경계의 얼룩을 없앤다
+
+
+def _confusion_lab(small, color_type):
+    lab_of = lambda image: cv2.cvtColor(np.clip(image, 0, 1).astype(np.float32), cv2.COLOR_RGB2LAB)
+    seen = linear_to_srgb(np.clip(srgb_to_linear(small) @ cvd_matrix(color_type, 1.0).T, 0, 1))
+    return lab_of(small), lab_of(seen)
+
+
+def _boundary_weight(normal, seen):
+    """경계 기준: 이웃 픽셀 사이의 색 경계가 색각이상 시각에서 사라지는 곳."""
+    mask = np.zeros(normal.shape[:2], dtype=np.float32)
+    for axis in (1, 0):  # 가로·세로 이웃
+        a = [slice(None), slice(None)]
+        b = [slice(None), slice(None)]
+        a[axis], b[axis] = slice(1, None), slice(None, -1)
+        before = np.linalg.norm(normal[tuple(a)] - normal[tuple(b)], axis=2)
+        after = np.linalg.norm(seen[tuple(a)] - seen[tuple(b)], axis=2)
+        lost = ((before >= CONFUSION_MIN_DELTA_E) & (after < CONFUSION_LOST_RATIO * before)).astype(np.float32)
+        mask[tuple(a)] += lost
+        mask[tuple(b)] += lost
+    mask = cv2.GaussianBlur(np.minimum(mask, 1), (0, 0), max(normal.shape[:2]) * CONFUSION_BLUR)
+    return np.clip(mask * CONFUSION_GAIN, 0, 1)
+
+
+def _color_weight(small, color_type, normal):
+    """색 기준: 그림 속 각 색에 대해, 그 색과 헷갈리는 다른 색이 그림에서 차지하는 비율로 보정 비율을 정한다."""
+    flat = normal.reshape(-1, 3)
+    cells = np.floor((flat + np.array([0, 128, 128], dtype=np.float32)) / COLOR_BIN).astype(np.int64)
+    key = (cells[:, 0] * 1000 + cells[:, 1]) * 1000 + cells[:, 2]
+    _, index, count = np.unique(key, return_inverse=True, return_counts=True)
+    index = index.ravel()
+    colors = np.zeros((len(count), 3), dtype=np.float64)
+    np.add.at(colors, index, small.reshape(-1, 3))
+    colors = (colors / count[:, None]).astype(np.float32)[None]   # 칸마다 평균 sRGB
+    normal_c, seen_c = (lab[0] for lab in _confusion_lab(colors, color_type))
+    share = count / count.sum()
+    partner = np.zeros(len(count))
+    for start in range(0, len(count), 512):  # 칸 수가 많아도 메모리를 넘지 않게 나눠 계산
+        before = np.linalg.norm(normal_c[start:start + 512, None] - normal_c[None], axis=2)
+        after = np.linalg.norm(seen_c[start:start + 512, None] - seen_c[None], axis=2)
+        confused = (before >= COLOR_MIN_DELTA_E) & (after < CONFUSION_LOST_RATIO * before)
+        partner[start:start + 512] = confused @ share
+    weight = np.clip(partner / COLOR_NEED, 0, 1)[index].reshape(small.shape[:2]).astype(np.float32)
+    return cv2.GaussianBlur(weight, (0, 0), COLOR_BLUR)
+
+
+def confusion_weight(rgb, color_type: str):
+    """적색약·녹색약 보정을 걸 곳의 비율(0~1, H×W). 경계 기준과 색 기준 중 큰 값.
+
+    그림 전체를 보정하면 헷갈리지 않는 색까지 모두 바뀌어 작품 색감이 훼손된다. 그래서 헷갈리는 색과 경계에만 보정한다.
+    등록 작품 21점, 세기 1.0, 독립 모델(Viénot 1999) 평가(2026-11-12):
+    - 떨어진 색 쌍의 구분 회복: 그림 전체 보정 효과의 97% 유지 (경계 기준만 쓰면 41%)
+    - 붙은 경계의 구분 회복: 그림 전체 보정 효과의 83% 유지 (중앙값)
+    - 평균 색 변화(ΔE): 그림 전체 보정의 52% (작품마다 6~99% 절감, 중앙값 47% 절감)
+    """
+    height, width = rgb.shape[:2]
+    ratio = min(1.0, CONFUSION_SIZE / max(height, width))
+    small = rgb if ratio == 1 else cv2.resize(rgb, (max(1, round(width * ratio)), max(1, round(height * ratio))),
+                                              interpolation=cv2.INTER_AREA)
+    normal, seen = _confusion_lab(small, color_type)
+    mask = np.maximum(_boundary_weight(normal, seen), _color_weight(small, color_type, normal))
+    if ratio != 1:
+        mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_LINEAR)
+    return mask.astype(np.float32)
 
 
 LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)  # Rec.709 밝기 가중치
@@ -305,9 +391,14 @@ def correct_array(rgb, profile: dict):
     if colors is None:
         colors = {color_type: float(profile.get("severity", 0))}
     # 편집 순서와 무관하게 같은 결과를 만든다. 0인 종류는 원본을 그대로 통과한다.
+    # 적색약·녹색약은 헷갈리는 곳만, 청색약은 그림 전체(헷갈리는 곳만 보정은 청색약에서 효과가 없었다).
     if color_type != "normal":
         for color in ("protan", "deutan", "tritan"):
-            rgb = daltonize(rgb, color, float(colors.get(color, 0)))
+            severity = float(colors.get(color, 0))
+            if severity <= 0:
+                continue
+            weight = confusion_weight(rgb, color) if color != "tritan" else None
+            rgb = daltonize(rgb, color, severity, weight)
     rgb = brightness_contrast(rgb, float(profile.get("brightness", 0)), float(profile.get("contrast", 1)))
     rgb = sharpen(rgb, float(profile.get("sharpness", 0)))
     rgb = emphasize_edges(rgb, float(profile.get("edge", 0)))
