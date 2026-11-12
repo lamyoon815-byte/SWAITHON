@@ -143,7 +143,7 @@ export default function HomeScreen() {
           }
         }
         if (found) {
-          showToast(`"${found.title}" 작품을 열어요`, 'success');
+          showToast('작품을 열어요', 'success');
           openArtwork(found.id);
         } else {
           showToast(text ? `"${text}"(으)로 들었어요. 맞는 작품을 찾지 못했어요` : '잘 들리지 않았어요. 다시 말해 주세요', 'warning');
@@ -167,8 +167,8 @@ export default function HomeScreen() {
           <View style={[styles.skeletonCard, { backgroundColor: palette.fill }]} />
         )}
 
-        {/* Long, fully round search bar (Naver). Only the number search lives in it; the other
-            ways to find get their own row below, so the bar is not crammed with icons. */}
+        {/* Long search bar with the same corner radius as every other box on this screen. Only the
+            number search lives in it; the other ways to find get their own row below. */}
         <AnimatedPressable
           accessibilityRole="search"
           accessibilityLabel="작품 번호로 찾기"
@@ -183,7 +183,7 @@ export default function HomeScreen() {
           ]}>
           <SymbolView
             name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
-            size={22}
+            size={24}
             weight="semibold"
             tintColor={palette.text}
           />
@@ -344,7 +344,10 @@ type WayButtonProps = {
   onPressOut?: () => void;
 };
 
-/** 검색창 아래 반반 칸. 아이콘은 가는 선 모양으로 작게, 옅은 원 안에 여유 있게 둔다. */
+/**
+ * 검색창 아래 반반 칸. 아이콘을 글자 위에 두어 글자가 칸 너비를 다 쓴다(옆에 두면 반 칸에서 글자가 줄어든다).
+ * 글씨를 키우면 줄이지 않고 두 줄로 넘긴다.
+ */
 function WayButton({ ios, android, label, hint, palette, onPress, onPressIn, onPressOut }: WayButtonProps) {
   return (
     <PressableScale
@@ -369,15 +372,13 @@ function WayButton({ ios, android, label, hint, palette, onPress, onPressIn, onP
             ]}>
             <SymbolView
               name={{ ios, android, web: android }}
-              size={20}
+              size={26}
               weight="medium"
               tintColor={pressed ? palette.highlight : palette.text}
             />
           </View>
           <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
+            numberOfLines={2}
             style={[styles.wayLabel, { color: pressed ? palette.highlightText : palette.text }]}>
             {label}
           </Text>
@@ -409,6 +410,9 @@ function PillButton({
   );
 }
 
+// Every box on the home screen (museum card, search bar, ways, list) shares this radius.
+const BoxRadius = 24;
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -423,7 +427,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: Spacing.three,
     borderWidth: 1.5,
-    borderRadius: 24,
+    borderRadius: BoxRadius,
   },
   divider: {
     height: 1.5,
@@ -443,11 +447,11 @@ const styles = StyleSheet.create({
     minHeight: SearchBarHeight,
     paddingHorizontal: 22,
     borderWidth: 2,
-    borderRadius: SearchBarHeight / 2,
+    borderRadius: BoxRadius,
   },
   searchHint: {
     flexShrink: 1,
-    fontSize: FontSize.label,
+    fontSize: FontSize.body,
     fontWeight: 700,
   },
   // Two equal halves under the search bar.
@@ -458,26 +462,27 @@ const styles = StyleSheet.create({
   way: {
     flexGrow: 1,
     flexBasis: 0,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: Spacing.two,
     minHeight: MinTouchTarget + 8,
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 10,
     borderWidth: 1.5,
-    borderRadius: 20,
+    borderRadius: BoxRadius,
   },
   wayIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   wayLabel: {
-    flexShrink: 1,
-    fontSize: 16,
+    fontSize: FontSize.label,
+    lineHeight: 24,
     fontWeight: 700,
+    textAlign: 'center',
   },
   listHeader: {
     flexDirection: 'row',
@@ -507,7 +512,7 @@ const styles = StyleSheet.create({
     fontWeight: 800,
   },
   listTitle: {
-    fontSize: 22,
+    fontSize: FontSize.heading,
     fontWeight: 800,
   },
   count: {
