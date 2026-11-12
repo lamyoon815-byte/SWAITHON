@@ -52,6 +52,7 @@ import type { NarrationLength, NarrationMode } from '@/types/narration';
 import { markFeedbackPending } from '@/lib/pending-feedback';
 import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
+import { FOLLOW_FILL, FOLLOW_MAX } from '@/lib/follow-zoom';
 
 // 재생판 위 페이드. 기본(40)의 1/3쯤으로 짧게 두어 문장 목록을 덜 가린다.
 const PLAYER_FADE = 14;
@@ -184,10 +185,9 @@ export default function NarrationScreen() {
     let scale = 1, tx = 0, ty = 0;
     if (followRegion && frameW > 0 && frameH > 0) {
       const [x, y, w, h] = followRegion.bbox;
-      // 영역이 화면의 85%쯤 차도록, 최대 3배까지.
-      // 영역 박스 전체가 화면 안에 들어오는 배율까지만 확대한다(가로·세로 모두 88% 이내, 최대 3배).
+      // 영역 박스 전체가 화면 안에 들어오는 배율까지만 확대한다(lib/follow-zoom의 비율과 최대 배율).
       // 세로로 긴 영역처럼 거의 확대할 수 없으면 확대 없이 그쪽으로만 옮긴다(옮길 여유가 없으면 그대로).
-      scale = Math.max(1, Math.min(3, 0.88 / w, 0.88 / h));
+      scale = Math.max(1, Math.min(FOLLOW_MAX, FOLLOW_FILL / w, FOLLOW_FILL / h));
       const cx = (x + w / 2) * frameW;
       const cy = (y + h / 2) * frameH;
       const maxX = ((scale - 1) * frameW) / 2;

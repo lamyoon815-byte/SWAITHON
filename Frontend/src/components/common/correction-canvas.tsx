@@ -39,6 +39,7 @@ import { MascotLoading } from '@/components/common/mascot-loading';
 import { useCanvasImage } from '@/hooks/use-canvas-image';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
+import { FOLLOW_FILL, FOLLOW_MAX } from '@/lib/follow-zoom';
 import { colorCorrectionUniforms, getColorCorrectionEffect } from '@/lib/color-correction';
 import { getSharpenEffect } from '@/lib/sharpen';
 import { getToneEffect, lumaHistogram, toneUniforms } from '@/lib/tone-curve';
@@ -49,9 +50,6 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 const DOUBLE_TAP_SCALE = 3;
 const BUTTON_STEP = 1.5;
-/** 따라 확대: 영역이 화면의 88% 안에 들어오는 배율까지, 최대 3배 (해설 화면과 같은 규칙) */
-const FOCUS_FILL = 0.88;
-const FOCUS_MAX = 3;
 
 function clamp(v: number, lo: number, hi: number) {
   'worklet';
@@ -254,7 +252,7 @@ export function CorrectionCanvas({
     const r = Math.min(W / imageW, H / imageH);
     const pw = imageW * r, ph = imageH * r;
     const ox = (W - pw) / 2, oy = (H - ph) / 2;
-    const s = clamp(Math.min(FOCUS_MAX, (FOCUS_FILL * W) / Math.max(1, fw * pw), (FOCUS_FILL * H) / Math.max(1, fh * ph)), MIN_SCALE, MAX_SCALE);
+    const s = clamp(Math.min(FOLLOW_MAX, (FOLLOW_FILL * W) / Math.max(1, fw * pw), (FOLLOW_FILL * H) / Math.max(1, fh * ph)), MIN_SCALE, MAX_SCALE);
     const cx = ox + (fx + fw / 2) * pw;
     const cy = oy + (fy + fh / 2) * ph;
     scale.set(move(s));
