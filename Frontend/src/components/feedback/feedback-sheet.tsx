@@ -14,6 +14,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { BigButton } from '@/components/common/big-button';
 import { BottomSheet } from '@/components/common/bottom-sheet';
+import { FaceIcon } from '@/components/feedback/face-icon';
 import { PressableScale } from '@/components/common/pressable-scale';
 import { Text } from '@/components/common/text';
 import { TextButton } from '@/components/common/text-button';
@@ -32,17 +33,17 @@ type Step = 'rate' | 'voice' | 'sending' | 'done';
 const CHOICES: { value: FeedbackSatisfaction; label: string }[] = [
   { value: 'good', label: '좋았어요' },
   { value: 'okay', label: '보통이에요' },
-  { value: 'bad', label: '아쉬웠어요' },
+  { value: 'bad', label: '별로예요' },
 ];
 
 const TITLES: Record<Step, string> = {
   rate: '감상은 어떠셨어요?',
   voice: '더 바라는 점이 있나요?',
   sending: '의견을 살펴보고 있어요',
-  done: '의견 고마워요',
+  done: '소중한 의견 감사합니다',
 };
 
-const RATE_PROMPT = '이번 작품 감상은 어떠셨어요? 좋았어요, 보통이에요, 아쉬웠어요 중에서 골라 주세요.';
+const RATE_PROMPT = '이번 작품 감상은 어떠셨어요? 좋았어요, 보통이에요, 별로예요 중에서 골라 주세요.';
 const VOICE_PROMPT = '바꾸고 싶은 점이 있으면 말하기 버튼을 누른 채로 말하고, 다 말하면 손을 떼 주세요. 없으면 말하지 않고 보내기를 눌러 주세요.';
 /** 결과 안내를 다 읽은 뒤 팝업을 닫기 전 잠깐 기다린다. */
 const CLOSE_DELAY_MS = 800;
@@ -109,8 +110,9 @@ export function FeedbackSheet({ item, palette, onClose }: Props) {
     voice.startHolding({
       onText: (text) => {
         const said = text.trim();
+        // 별말이 없으면(서버가 무음·지어낸 문장을 빈 글자로 바꿈) 의견 없이 넘긴다. 보정은 바꾸지 않는다.
         if (!said) {
-          showToast('말씀을 알아듣지 못했어요. 다시 말해 주세요', 'warning');
+          void send();
           return;
         }
         // 확인 단계 없이 바로 저장·적용한다.
@@ -134,7 +136,8 @@ export function FeedbackSheet({ item, palette, onClose }: Props) {
           </Text>
           <View style={styles.choices}>
             {CHOICES.map((choice) => (
-              <BigButton key={choice.value} label={choice.label} palette={palette} onPress={() => rate(choice.value)} />
+              <BigButton key={choice.value} label={choice.label} palette={palette} onPress={() => rate(choice.value)}
+                icon={(color) => <FaceIcon face={choice.value} color={color} size={38} />} alignLabelTo="보통이에요" />
             ))}
           </View>
           <TextButton label="다음에 할게요" palette={palette} onPress={close} />
@@ -177,9 +180,12 @@ export function FeedbackSheet({ item, palette, onClose }: Props) {
 
       {step === 'done' && result && (
         <>
-          <Text accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.big, { color: palette.text }]}>
-            {result.message}
-          </Text>
+          {/* 바꾼 설정이 없으면 제목(소중한 의견 감사합니다)만 보인다. */}
+          {result.message.replace(/\.$/, '') !== TITLES.done && (
+            <Text accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.big, { color: palette.text }]}>
+              {result.message}
+            </Text>
+          )}
           {changed.map((suggestion) => (
             <View key={suggestion.field} style={[styles.changed, { borderColor: palette.outline }]}>
               <View accessible={false} importantForAccessibility="no-hide-descendants">

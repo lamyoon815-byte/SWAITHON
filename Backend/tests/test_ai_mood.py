@@ -88,7 +88,7 @@ class MoodRouteTests(unittest.TestCase):
         response = self.client.post("/narration/mood", json={"text": TEXT, "mood_keywords": ["경건"]})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json(), {"category": "calm", "name": "평온·고요", "energy": "lively", "energy_name": "움직임 있는 곡",
-                                           "music_url": "/music/calm/lively", "credit": None, "source": "gemini"})
+                                           "music_url": "/music/calm/lively", "music_volume": 0.933, "credit": None, "source": "gemini"})
         korean = TestClient(create_app(self.data / "k", gemini=FakeGemini({"category": "korean", "energy": "lively"})))
         self.assertEqual(korean.post("/narration/mood", json={"text": "아리랑"}).json()["credit"],
                          "군밤타령, 한국저작권위원회, 공유마당, CC BY 4.0")

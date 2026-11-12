@@ -44,7 +44,7 @@ test('opening and closing fullscreen keeps the narrator and music active without
     '@/hooks/use-narration-player': { useNarrationPlayer: () => player },
     '@/hooks/use-background-music': { useBackgroundMusic: (...args) => music.push(args) },
     '@/hooks/use-resource': { useResource: (key) => ({ data: key === 'sample' ? artwork : key?.startsWith('narration:') ? { segments }
-      : key?.startsWith('mood:') ? { music_url: 'music.wav', name: '평온' } : undefined }) },
+      : key?.startsWith('mood:') ? { music_url: 'music.wav', music_volume: 0.4, name: '평온' } : undefined }) },
     '@/lib/api': { ApiError: class ApiError extends Error {} },
     '@/lib/calibration': { correctionStrength: (v) => v, viewingFromProfile: (v) => v },
     '@/lib/follow-zoom': { FOLLOW_FILL: 0.92, FOLLOW_MAX: 6 },
@@ -92,8 +92,8 @@ test('opening and closing fullscreen keeps the narrator and music active without
   assert.ok(music.every(([, active, enabled]) => active && enabled));
   player.playing = false; player.paused = true;
   render();
-  assert.deepEqual(music.at(-1), ['music.wav', false, true, true]);
+  assert.deepEqual(music.at(-1), ['music.wav', false, true, true, 0.4]);
   player.playing = true; player.paused = false;
   render();
-  assert.deepEqual(music.at(-1), ['music.wav', true, true, false]);
+  assert.deepEqual(music.at(-1), ['music.wav', true, true, false, 0.4]);
 });

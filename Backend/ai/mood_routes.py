@@ -26,12 +26,35 @@ class MoodInput(BaseModel):
     mood_keywords: list[str] = Field(default_factory=list, max_length=10)
 
 
+# 곡마다 녹음 음량이 30dB 넘게 달라, 모두 같은 음량(25%)으로 틀면 조용한 곡(짐노페디 등)은 해설에 묻혀 안 들렸다.
+# 값: 각 MP3를 디코딩해 0.5초 구간 RMS의 중앙값(dBFS)으로 잰 음량(2026-11-12). 곡 파일을 바꾸면 다시 잰다.
+MUSIC_LOUDNESS_DBFS = {
+    "01_calm.mp3": -35.0, "01_calm_lively.mp3": -35.4, "02_lyrical.mp3": -17.7, "02_lyrical_lively.mp3": -23.8,
+    "03_bright.mp3": -29.0, "03_bright_soft.mp3": -48.3, "04_pastoral.mp3": -28.9, "04_pastoral_lively.mp3": -20.6,
+    "05_sacred.mp3": -22.0, "05_sacred_soft.mp3": -30.5, "06_majestic.mp3": -26.2, "06_majestic_soft.mp3": -37.6,
+    "07_melancholy.mp3": -32.4, "07_melancholy_lively.mp3": -25.7, "08_dramatic.mp3": -32.5, "08_dramatic_soft.mp3": -41.0,
+    "09_dreamy.mp3": -30.9, "09_dreamy_lively.mp3": -30.2, "10_korean.mp3": -17.8, "10_korean_lively.mp3": -19.6,
+}
+# 해설 음성(중앙 약 -24dBFS)보다 약 12dB 작게, 배경으로 또렷이 들리는 크기로 맞춘다(16dB도 시험 후 12dB로 결정).
+MUSIC_TARGET_DBFS = -36.0
+DEFAULT_MUSIC_VOLUME = 0.25
+
+
+def music_volume(filename: str) -> float:
+    """곡을 이 음량(0~1)으로 틀면 어떤 곡이든 비슷한 크기로 들린다. 1을 넘을 수 없어 아주 조용한 곡은 목표보다 작다."""
+    loudness = MUSIC_LOUDNESS_DBFS.get(filename)
+    if loudness is None:
+        return DEFAULT_MUSIC_VOLUME
+    return round(min(1.0, 10 ** ((MUSIC_TARGET_DBFS - loudness) / 20)), 3)
+
+
 class NarrationMood(BaseModel):
     category: MoodCategory
     name: str
     energy: Energy
     energy_name: str
     music_url: str
+    music_volume: float = Field(default=DEFAULT_MUSIC_VOLUME, ge=0, le=1, description="이 곡을 틀 음량(0~1). 곡마다 녹음 음량이 달라 서버가 맞춰 준다")
     credit: str | None = None
     source: Literal["gemini", "image", "keywords", "default"]
 
@@ -55,7 +78,8 @@ def create_mood_router(catalog, gemini, client_key, music_root: Path = MUSIC_ROO
                                         mood_keywords=data.mood_keywords, artwork_id=data.artwork_id, cache=cache)
         track = next(c for c in CATEGORIES if c["key"] == result["category"])["tracks"][result["energy"]]
         # CC BY 곡은 앱 화면에 출처를 보여 줘야 한다.
-        return {**result, "music_url": f"/music/{result['category']}/{result['energy']}", "credit": track.get("attribution")}
+        return {**result, "music_url": f"/music/{result['category']}/{result['energy']}", "credit": track.get("attribution"),
+                "music_volume": music_volume(files[(result["category"], result["energy"])].name)}
 
     @router.get("/music/{category}", response_class=FileResponse, summary="분위기별 기본 배경 음악 MP3")
     def default_music(category: MoodCategory):

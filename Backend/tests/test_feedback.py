@@ -83,7 +83,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertFalse(result["interpreted"])
         self.assertEqual(result["suggestions"], [])
         self.assertEqual(self.gemini.comments, [])
-        self.assertIn("고마워요", result["message"])
+        self.assertEqual(result["message"], "소중한 의견 감사합니다.")
         with self.app.state.accounts.connect() as connection:
             row = connection.execute("SELECT satisfaction, comment, intent_json FROM feedback").fetchone()
         self.assertEqual(tuple(row), ("good", None, None))
@@ -142,7 +142,7 @@ class FeedbackTests(unittest.TestCase):
         result = self.submit()
         self.assertFalse(result["interpreted"])
         self.assertEqual(result["suggestions"], [])
-        self.assertIn("저장했어요", result["message"])
+        self.assertEqual(result["message"], "소중한 의견 감사합니다.")
         no_intent = self.client.post(f"/me/feedback/{result['id']}/apply", json={"fields": ["contrast"]}, headers=self.headers)
         self.assertEqual(no_intent.status_code, 409)
 

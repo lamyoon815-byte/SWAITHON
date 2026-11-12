@@ -56,10 +56,13 @@ function setup() {
 const URL_A = 'https://api.example/music/calm';
 const URL_B = 'https://api.example/music/sacred';
 
-test('해설이 재생되면 음악을 반복 재생하며 작은 소리까지 천천히 키운다', () => {
+test('해설이 재생되면 음악을 반복 재생하며 작은 소리까지 키운다', () => {
   const { lib, music, players, advance } = setup();
   music.update(URL_A, false);
-  assert.equal(players.length, 0); // 해설을 틀기 전에는 음악을 받지 않는다.
+  // 해설과 동시에 나오도록 곡은 미리 받아 두지만 소리는 내지 않는다.
+  assert.equal(players.length, 1);
+  assert.equal(players[0].playing, false);
+  assert.equal(players[0].volume, 0);
   music.update(URL_A, true);
   assert.equal(players.length, 1);
   assert.equal(players[0].loop, true);
@@ -131,4 +134,14 @@ test('explicit pause immediately freezes music and resumes the same player at th
   assert.equal(current.playing, true);
   assert.equal(current.currentTime, 42.5);
   assert.equal(current.plays, 2);
+});
+
+test('a quiet track plays at the louder volume the server gives', () => {
+  const { music, players, advance, lib } = setup();
+  music.update(URL_A, true, false, 0.9); advance(lib.FADE_IN_MS);
+  assert.ok(Math.abs(players[0].volume - 0.9) < 1e-9);
+  music.update(URL_A, true, false, 5); // 1을 넘는 값은 1로 막는다(다음 재생부터)
+  music.update(URL_A, false); advance(lib.LINGER_MS + lib.FADE_OUT_MS);
+  music.update(URL_A, true, false, 5); advance(lib.FADE_IN_MS);
+  assert.ok(Math.abs(players[0].volume - 1) < 1e-9);
 });

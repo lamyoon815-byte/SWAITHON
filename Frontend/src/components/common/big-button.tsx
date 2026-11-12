@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/text';
 import { PressableScale } from '@/components/common/pressable-scale';
@@ -27,6 +28,10 @@ type Props = {
    * 선택되면 글자 앞에 ✓ 아이콘이 보인다. `label`에는 ✓를 넣지 않는다.
    */
   radio?: boolean;
+  /** 글자 앞 장식 아이콘. 버튼 글자색을 받아 그린다(색으로 구분하지 않도록 같은 색). 스크린리더는 읽지 않는다 */
+  icon?: (color: string) => ReactNode;
+  /** 여러 버튼의 아이콘을 세로로 맞출 때: 이 글자(가장 긴 글자) 너비만큼 글자 칸을 잡고 왼쪽 정렬한다 */
+  alignLabelTo?: string;
 };
 
 export function BigButton({
@@ -38,6 +43,8 @@ export function BigButton({
   accessibilityHint,
   accessibilityLabel,
   radio,
+  icon,
+  alignLabelTo,
 }: Props) {
   const filled = selected ?? true;
   const color = filled ? palette.accentText : palette.text;
@@ -71,7 +78,15 @@ export function BigButton({
           />
         </View>
       )}
-      <Text style={[styles.label, { color }]}>{label}</Text>
+      {!radio && icon && <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.icon}>{icon(color)}</View>}
+      {alignLabelTo ? (
+        <View>
+          <Text accessible={false} importantForAccessibility="no" style={[styles.label, styles.sizer]}>{alignLabelTo}</Text>
+          <Text style={[styles.label, styles.aligned, { color }]}>{label}</Text>
+        </View>
+      ) : (
+        <Text style={[styles.label, { color }]}>{label}</Text>
+      )}
       {radio && <View style={styles.slot} />}
     </PressableScale>
   );
@@ -95,6 +110,9 @@ const styles = StyleSheet.create({
     width: CheckSize,
     alignItems: 'center',
   },
+  icon: { marginRight: 8 },
+  sizer: { opacity: 0 },
+  aligned: { position: 'absolute', left: 0, top: 0, textAlign: 'left' },
   label: {
     flexShrink: 1,
     fontSize: FontSize.button,

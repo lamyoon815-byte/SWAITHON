@@ -63,6 +63,23 @@ class TranscriptionTests(unittest.TestCase):
         self.assertEqual(client.post("/transcribe", data={"purpose": "other"},
                                      files={"audio": ("a.m4a", b"x", "audio/m4a")}).status_code, 422)
 
+    def test_feedback_silence_and_hint_echo_become_empty(self):
+        """아무 말도 안 하면 힌트·흔한 지어낸 문장이 돌아온다. 그 글자로 보정이 바뀌면 안 된다."""
+        def feedback(text):
+            client = self.client(payload={"text": text, "usage": {"type": "tokens", "input_tokens": 10, "output_tokens": 3}})
+            response = client.post("/transcribe", data={"purpose": "feedback"},
+                                   files={"audio": ("answer.m4a", b"fake-m4a", "audio/m4a")})
+            self.assertEqual(response.status_code, 200)
+            return response.json()["text"], self.calls[-1][1].decode()
+
+        from Backend.ai.transcription import FEEDBACK_PROMPT
+        echo, body = feedback(FEEDBACK_PROMPT)
+        self.assertEqual(echo, "")
+        self.assertNotIn("예:", body)  # 예문이 있으면 무음에서 그 예문을 받아 적는다
+        for silent in ("", "음", "시청해 주셔서 감사합니다.", "감사합니다"):
+            self.assertEqual(feedback(silent)[0], "", silent)
+        self.assertEqual(feedback(" 색이 너무 진해요 ")[0], "색이 너무 진해요")
+
     def test_upstream_error_releases_reservation(self):
         response = self.send(self.client(status=500, payload={"error": "boom"}))
         self.assertEqual(response.status_code, 502)

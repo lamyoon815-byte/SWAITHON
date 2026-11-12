@@ -31,7 +31,24 @@ PROMPT = "시력 확인 그림의 숫자를 말합니다. 예: 45, 29, 73, 86, �
 # 작품 음성 검색(purpose=artwork): 등록 작품의 제목·작가 이름을 받아쓰기 맥락으로 준다.
 ARTWORK_PROMPT = "미술관에서 찾고 싶은 작품의 제목, 작가 이름 또는 명패 번호를 말합니다."
 # 감상 피드백(purpose=feedback): 방금 본 보정 화면과 들은 해설에 대한 자유로운 의견.
-FEEDBACK_PROMPT = "미술 감상 앱에서 방금 본 화면과 들은 해설에 대한 의견을 말합니다. 예: 색이 너무 진해요, 설명이 길어요, 말이 빨라요, 위치를 더 알려 주세요."
+# 예문을 넣지 않는다. 아무 말도 하지 않으면 받아쓰기 모델이 힌트의 예문을 그대로 돌려줘서
+# 사용자가 하지 않은 말로 보정이 바뀌었다(2026-11-12).
+FEEDBACK_PROMPT = "미술 감상 앱 사용자가 작품 화면과 음성 해설에 대한 의견을 짧게 말합니다."
+# 조용한 녹음에서 받아쓰기 모델이 흔히 지어내는 문장. 의견으로 쓰지 않는다.
+SILENCE_PHRASES = ("시청해주셔서감사합니다", "시청해주셔서고맙습니다", "구독과좋아요", "감사합니다", "고맙습니다",
+                   "mbc뉴스", "kbs뉴스", "자막제공", "자막by", "다음영상에서만나요", "thankyouforwatching", "thankyou")
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"[\s.,!?·~'\"()\-]", "", text).lower()
+
+
+def clean_feedback(text: str, prompt: str = FEEDBACK_PROMPT) -> str:
+    """무음·힌트 되풀이·흔한 지어낸 문장이면 빈 글자로 바꾼다. 앱은 빈 글자를 '의견 없음'으로 보낸다."""
+    said = _squash(text)
+    if len(said) < 2 or said in _squash(prompt) or said in SILENCE_PHRASES:
+        return ""
+    return text.strip()
 MAX_HINT_CHARS = 400
 
 
@@ -178,6 +195,7 @@ def create_transcription_router(service, catalog=None):
         filename = re.sub(r"[^a-zA-Z0-9._-]", "_", audio.filename or "answer.m4a")[:60] or "answer.m4a"
         prompt = (await run_in_threadpool(artwork_prompt, catalog) if purpose == "artwork"
                   else FEEDBACK_PROMPT if purpose == "feedback" else PROMPT)
-        return {"text": await service.transcribe(content, filename, content_type, prompt)}
+        text = await service.transcribe(content, filename, content_type, prompt)
+        return {"text": clean_feedback(text, prompt) if purpose == "feedback" else text}
 
     return router

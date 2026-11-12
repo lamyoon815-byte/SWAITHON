@@ -126,3 +126,17 @@ class MoodMusicTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MusicVolumeTests(unittest.TestCase):
+    def test_every_track_has_loudness_and_quiet_tracks_play_louder(self):
+        from Backend.ai.mood_music import all_tracks, music_file
+        from Backend.ai.mood_routes import MUSIC_LOUDNESS_DBFS, music_volume
+        names = {Path(music_file(index, category, energy)).name for index, category, energy, _ in all_tracks()}
+        self.assertEqual(names, set(MUSIC_LOUDNESS_DBFS))
+        # 짐노페디(-35dBFS)는 크게, 구아리랑(-17.8dBFS)은 작게 틀어 둘이 비슷하게 들린다.
+        self.assertGreater(music_volume("01_calm.mp3"), 0.8)
+        self.assertLess(music_volume("10_korean.mp3"), 0.15)
+        self.assertGreater(music_volume("01_calm.mp3"), music_volume("10_korean.mp3") * 5)
+        self.assertEqual(music_volume("03_bright_soft.mp3"), 1.0)  # 1을 넘을 수 없다
+        self.assertEqual(music_volume("unknown.mp3"), 0.25)

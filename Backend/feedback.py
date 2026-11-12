@@ -159,18 +159,16 @@ def suggestions_for(intent: FeedbackIntent, profile: VisualProfile) -> list[Feed
     return out
 
 
+THANKS = "소중한 의견 감사합니다."
+
+
 def _message(satisfaction: str, comment: str | None, interpreted: bool, suggestions: list, applied: bool = False) -> str:
+    """바꾼 설정이 없으면 짧게 감사만 전한다(음성으로 읽으므로 길게 설명하지 않는다)."""
     if suggestions and applied:
         return "말씀하신 대로 바꿨어요. 다음 감상부터 적용돼요."
     if suggestions:
         return "말씀해 주신 내용으로 이렇게 바꿔 볼까요?"
-    if comment and not interpreted:
-        return "의견은 잘 저장했어요. 지금은 내용을 살펴보지 못했어요. 내 보정값에서 직접 바꿀 수도 있어요."
-    if satisfaction == "good":
-        return "좋게 봐 주셔서 고마워요. 다음 작품도 지금 설정으로 보여 드릴게요."
-    if comment:
-        return "의견은 잘 저장했어요. 바꿀 설정은 찾지 못했어요. 내 보정값에서 직접 바꿀 수도 있어요."
-    return "의견 고마워요. 불편한 점을 말로 알려 주시면 설정을 바꿔 드릴 수 있어요."
+    return THANKS
 
 
 class FeedbackStore:

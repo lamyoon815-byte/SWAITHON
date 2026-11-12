@@ -123,7 +123,8 @@ export default function NarrationScreen() {
   const moodRes = useResource(musicOn && id && all.length > 0 ? `mood:${id}:${ai ? length : 'reviewed'}` : null,
     () => getNarrationMood(all.map((s) => s.text).join(' '), id, (ai?.description ?? artwork?.description)?.mood_keywords ?? []));
   const mood = moodRes.data ?? null;
-  useBackgroundMusic(mood?.music_url ?? null, player.playing || player.preparing, musicOn, player.paused);
+  // 음성을 준비하는 동안이 아니라 실제로 읽기 시작할 때 음악도 함께 시작한다.
+  useBackgroundMusic(mood?.music_url ?? null, player.playing && !player.preparing, musicOn, player.paused, mood?.music_volume);
 
 
   const err = narrationRes.error;

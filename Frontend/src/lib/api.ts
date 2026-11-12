@@ -319,6 +319,8 @@ export type NarrationMood = {
   energy_name: string;
   /** 배경 음악 MP3 전체 주소 (`GET /music/{category}/{energy}`) */
   music_url: string;
+  /** 이 곡을 틀 음량(0~1). 곡마다 녹음 음량이 달라 서버가 맞춰 준다(예전 서버는 없음 → 기본 25%) */
+  music_volume?: number;
   /** 출처 표시가 필요한 곡(CC BY)이면 화면에 보여 줄 문구 */
   credit: string | null;
   /** gemini(해설 글 분류) · image(그림으로 미리 분류) · keywords(분위기 단어) · default(평온) */
