@@ -102,7 +102,7 @@ export default function CalibrationScreen() {
     if (action.type === 'answer' && next.phase !== phase && (
       (phase === 'color' && next.result.severity === 0)
       || ((phase === 'edge' || phase === 'contrast') && action.value === 'not-visible')
-    )) showToast('편한 강도를 찾지 못해 이 항목은 보정 없음으로 두었어요. 내 보정값에서 다시 조절할 수 있어요.', 'info');
+    )) showToast('이 항목은 보정 없이 두었어요. 내 보정값에서 바꿀 수 있어요', 'info');
     lastAction.current = state;
     setFrames((previous) => [...previous, next]);
     scroll.current?.scrollTo({ y: 0, animated: false });
@@ -119,7 +119,7 @@ export default function CalibrationScreen() {
     } catch {
       savingLock.current = false;
       setSaving(false);
-      showToast('설정을 저장하지 못했어요. 선택한 값은 유지돼요. 다시 시도해 주세요.', 'error');
+      showToast('설정을 저장하지 못했어요. 다시 시도해 주세요', 'error');
     }
   };
   const voice = useVoiceAnswer();

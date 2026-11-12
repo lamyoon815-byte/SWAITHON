@@ -114,7 +114,7 @@ export default function CaptureScreen() {
       // Leave the camera off the back stack: back from the artwork goes to the list, not here.
       router.dismissAll();
       router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
-      showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
+      showToast(museum ? `작품을 찾았어요\n현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         router.replace({ pathname: '/not-found', params: { mode: 'qr' satisfies CaptureMode } });
@@ -131,7 +131,7 @@ export default function CaptureScreen() {
     if (artwork.museum_id) await updateSettings({ recent_museum_id: artwork.museum_id });
     router.dismissAll();
     router.push({ pathname: '/artwork/[id]', params: { id: artwork.id } });
-    showToast(museum ? `작품을 찾았어요. 현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
+    showToast(museum ? `작품을 찾았어요\n현재 미술관: ${museum.name}` : '작품을 찾았어요', 'success');
   };
 
   /** 등록되지 않은 작품: 같은 사진으로 AI 해설을 만들어 해설 화면으로 간다. */
