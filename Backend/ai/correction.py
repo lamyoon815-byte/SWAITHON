@@ -6,6 +6,7 @@
 1. 색각이상 색 보정 (color_severities; 이전 설정은 color_type, severity)
    Machado(2009) 모델로 '이 사용자에게 보이는 색'을 계산하고, 원본과의 차이(구분되지 않는 색 정보)를
    사용자가 구분할 수 있는 채널로 옮겨 더한다(달토나이제이션, Fidaner et al. 2005 방식).
+   청색약은 잃은 S 원뿔 신호를 청색약도 온전히 가진 L−M(적록) 대립 축으로 옮기는 행렬을 원뿔 공간에서 유도해 쓴다.
    Machado 행렬은 선형 RGB 기준이므로 sRGB → 선형 → 보정 → sRGB로 변환한다.
 2. 밝기·대비 (brightness -50~50, contrast 0.5~2)
    대비: 시그모이드 대비(ImageMagick sigmoidal-contrast와 같은 곡선)를 밝기(luma)에만 적용하고 색은 비율로 유지한다.
@@ -70,14 +71,39 @@ MACHADO_2009 = {
 }
 
 
+# 선형 RGB → LMS 원뿔 반응 (Viénot, Brettel & Mollon 1999, Smith–Pokorny 원뿔 기준)
+LMS_FROM_LINEAR_RGB = np.array([[17.8824, 43.5161, 4.11935],
+                                [3.45565, 27.1554, 3.86714],
+                                [0.0299566, 0.184309, 1.46709]], dtype=np.float64)
+TRITAN_GAIN = 0.3
+
+
+def tritan_error_shift(gain: float = TRITAN_GAIN):
+    """청색약 오차 이동 행렬을 원뿔(LMS) 공간에서 유도한다.
+
+    청색약은 S 원뿔 신호(파랑-노랑)를 잃지만 L−M(적록) 대립 채널은 온전하다. 그래서 잃은 S 원뿔 대비(ΔS/S_white)를
+    원뿔 대비 기준 L−M 축으로 옮긴다: ΔL/L_white = +gain/2 · ΔS/S_white, ΔM/M_white = −gain/2 · ΔS/S_white, S는 그대로.
+    (0이 되는 것은 원뿔 대비 기준 ΔL/L_w + ΔM/M_w이며, 화면 휘도는 옮긴 성분 크기의 약 3%만 바뀐다.)
+    결과 행렬은 오차의 S 성분 하나에만 반응한다(rank 1).
+    gain 0.3: 균일한 sRGB 색 격자에서 독립 모델(Brettel 1997)로 잰 회복률 중앙값이 예전 행렬과 같아지는 값.
+    실제 작품에서는 효과를 조금 포기하고 원본 색감을 지키는 선택이다(세기 1.0, 독립 모델 기준):
+    - 정윤 측정(불화·호쿠사이·침실): 구분도 2~11%p 낮음, 색 변화(ΔE) 35~43% 적음
+    - cvd_eval.boundary_recovery 측정(수련·농가·침실·호쿠사이·그랑드 자트): 구분도 3~17%p 낮음, 색 변화 22~43% 적음
+    """
+    white = LMS_FROM_LINEAR_RGB @ np.ones(3)
+    to = np.zeros((3, 3))
+    to[0, 2] = gain * white[0] / white[2] / 2
+    to[1, 2] = -gain * white[1] / white[2] / 2
+    return (np.linalg.inv(LMS_FROM_LINEAR_RGB) @ to @ LMS_FROM_LINEAR_RGB).astype(np.float32)
+
+
 # 달토나이제이션 오차 이동 행렬: 구분되지 않는 색 차이를 사용자가 볼 수 있는 채널로 옮긴다.
 # 적색약·녹색약(Fidaner et al. 2005): 빨강 쪽 오차를 초록·파랑 채널로 옮긴다.
-# 청색약: 파랑-노랑 정보를 청색약도 구분할 수 있는 빨강-초록 축으로 옮긴다(파랑 오차를 빨강에 +, 초록에 -).
-#   같은 크기(0.7)의 후보 3가지를 등록 작품 21점의 '구분이 사라진 색 쌍 복원율'로 비교해 고른 값이다.
+# 청색약: tritan_error_shift() (원뿔 공간에서 유도). 예전 값 [[1,0,0.7],[0,1,-0.7],[0,0,0]]은 근거 없는 후보라 교체했다.
 ERROR_SHIFT = {
     "protan": np.array([[0, 0, 0], [0.7, 1, 0], [0.7, 0, 1]], dtype=np.float32),
     "deutan": np.array([[0, 0, 0], [0.7, 1, 0], [0.7, 0, 1]], dtype=np.float32),
-    "tritan": np.array([[1, 0, 0.7], [0, 1, -0.7], [0, 0, 0]], dtype=np.float32),
+    "tritan": tritan_error_shift(),
 }
 JPEG_QUALITY = 92
 

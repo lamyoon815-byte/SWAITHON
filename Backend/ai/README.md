@@ -168,13 +168,13 @@ CLIP 본체는 고정하고 임베딩 뒤의 작은 잔차 어댑터만 대조 �
 
 `correct_image(content, profile)`가 같은 크기의 JPEG를 반환합니다. 처리 순서는 아래와 같습니다.
 
-1. 색각 보정(`color_type`, `severity`): Machado(2009) 색각이상 시뮬레이션 행렬로 사용자가 잃는 색 차이를 계산하고, 그 차이를 사용자가 구분할 수 있는 색 방향으로 옮깁니다(Daltonization). `severity`는 0~1 사이 표 값을 보간합니다.
+1. 색각 보정(`color_type`, `severity`): Machado(2009) 색각이상 시뮬레이션 행렬로 사용자가 잃는 색 차이를 계산하고, 그 차이를 사용자가 구분할 수 있는 색 방향으로 옮깁니다(Daltonization). `severity`는 0~1 사이 표 값을 보간합니다. 적색약·녹색약의 이동 행렬은 Fidaner et al.(2005), 청색약은 잃은 S 원뿔 신호를 원뿔 대비 기준 L−M(적록) 축으로 옮기도록 원뿔(LMS) 공간에서 유도한 행렬입니다(`tritan_error_shift`). 평가는 보정에 쓴 Machado가 아닌 독립 모델(적·녹색약 Viénot 1999, 청색약 Brettel 1997, `ai/cvd_eval.py`)로 합니다.
 2. 밝기·대비(`brightness`, `contrast`): 대비는 시그모이드 곡선(ImageMagick `sigmoidal-contrast`와 같은 식)을 밝기(luma)에만 적용하고, 곡선 중심은 그림의 평균 밝기가 바뀌지 않는 점으로 정합니다. 검정·흰색이 잘리지 않아 어두운 그림이 검게 뭉개지지 않습니다. 앱 Skia(`Frontend/src/lib/tone-curve.ts`)와 같은 식입니다. 밝기는 CIELAB L*에 더합니다.
 3. 선명도(`sharpness`): 언샤프 마스크.
 4. 선 굵기·윤곽(`edge`): 가는 어두운 선(Black-hat 형태학 연산)을 찾아 두껍게 하되 바탕이 어두우면 약하게 하고, Canny로 찾은 경계 근처에 양극성 윤곽(Peli et al., 2004: 경계의 밝은 쪽은 밝게, 어두운 쪽은 어둡게)을 더합니다. 평균 밝기가 유지되고, 어두운 곳은 원래 밝기의 절반보다 어두워지지 않습니다.
 
 검증용 비교 이미지와 수치: `Backend\.venv\Scripts\python.exe Backend\ai\correction_demo.py` → `Backend/data/eval/correction/`
-(등록 작품 21점, 색각이상 시뮬레이션에서 구분이 사라진 색 쌍 중 보정 후 다시 구분되는 비율: 적색약 66%, 녹색약 64%, 청색약 84%)
+(주의: 이 스크립트의 회복률은 보정에 쓴 Machado 모델로 다시 잰 값이라 실제보다 높게 나옵니다. 발표·비교에는 `ai/cvd_eval.py`의 독립 모델 수치를 씁니다.)
 
 ### 음성 인식 (`POST /transcribe`, `ai/transcription.py`)
 

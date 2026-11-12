@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 from Backend.ai.correction import (ERROR_SHIFT, LUMA, MACHADO_2009, apply_contrast, correct_array, correct_image, cvd_matrix,
-                                   daltonize, emphasize_edges, simulate, tone_curve, tone_mid)
+                                   daltonize, emphasize_edges, linear_to_srgb, simulate, srgb_to_linear, tone_curve, tone_mid)
 from Backend.ai.profile import AIProfile
 
 
@@ -163,6 +163,53 @@ class DarkImageTests(unittest.TestCase):
         self.assertLess(float(out[60, 57, 0]), 0.2 - 0.02)      # 어두운 쪽은 더 어둡게
         self.assertAlmostEqual(float(out[60, 5, 0]), 0.2, delta=1e-3)    # 경계에서 먼 곳은 그대로
         self.assertAlmostEqual(float(out[60, 115, 0]), 0.6, delta=1e-3)
+
+
+
+class TritanMatrixTests(unittest.TestCase):
+    """청색약 오차 이동 행렬: 원뿔 공간에서 유도한 값인지, 예전 행렬보다 색을 덜 바꾸는지 (독립 모델로 평가)."""
+
+    def test_matrix_is_lms_derivation(self):
+        from Backend.ai.correction import LMS_FROM_LINEAR_RGB, TRITAN_GAIN, tritan_error_shift
+        shift = ERROR_SHIFT["tritan"]
+        np.testing.assert_allclose(shift, tritan_error_shift(TRITAN_GAIN), atol=1e-6)
+        self.assertEqual(np.linalg.matrix_rank(shift.astype(np.float64), tol=1e-6), 1)  # 오차의 S 성분 하나에만 반응
+        # 열 방향 = LMS 행렬의 S 행 (S 원뿔 성분만 옮긴다)
+        s_row = LMS_FROM_LINEAR_RGB[2] / LMS_FROM_LINEAR_RGB[2, 0]
+        np.testing.assert_allclose(shift[0] / shift[0, 0], s_row, rtol=1e-3)
+        # 옮긴 결과는 S를 바꾸지 않는다 (원뿔 대비 기준 L−M 축으로만 이동)
+        moved = LMS_FROM_LINEAR_RGB @ shift.astype(np.float64) @ np.array([0.1, -0.2, 0.3])
+        self.assertAlmostEqual(float(moved[2]), 0.0, places=6)
+        white = LMS_FROM_LINEAR_RGB @ np.ones(3)
+        self.assertAlmostEqual(float(moved[0] / white[0] + moved[1] / white[1]), 0.0, places=6)
+        np.testing.assert_allclose(np.round(shift, 4), [[0.0262, 0.1612, 1.2830], [-0.0068, -0.0417, -0.3317], [0.0003, 0.0019, 0.0155]], atol=1e-4)
+
+    def test_independent_simulators(self):
+        from Backend.ai.cvd_eval import simulate_independent
+        gray = np.full((4, 4, 3), 0.5, dtype=np.float32)
+        image = np.random.default_rng(3).random((8, 8, 3)).astype(np.float32)
+        for color in ("protan", "deutan", "tritan"):
+            np.testing.assert_allclose(simulate_independent(gray, color), gray, atol=0.01)  # 무채색은 그대로
+            np.testing.assert_allclose(simulate_independent(image, color, 0.0), image, atol=0.002)
+
+    def test_new_matrix_changes_colors_less_and_still_helps(self):
+        from Backend.ai.cvd_eval import boundary_recovery, mean_delta_e
+        old = np.array([[1, 0, 0.7], [0, 1, -0.7], [0, 0, 0]], dtype=np.float32)
+        root = Path(__file__).resolve().parents[1] / "data" / "artworks"
+        for stem in ("aic_water-lilies", "aic_the-bedroom"):
+            with Image.open(root / f"{stem}.jpg") as image:
+                image = image.convert("RGB")
+                image.thumbnail((400, 400))
+                rgb = np.asarray(image, dtype=np.float32) / 255
+            linear = srgb_to_linear(rgb)
+            error = linear - linear @ cvd_matrix("tritan", 1.0).T
+            before = linear_to_srgb(linear + error @ old.T)
+            after = daltonize(rgb, "tritan", 1.0)
+            self.assertLess(mean_delta_e(rgb, after), 0.7 * mean_delta_e(rgb, before), stem)
+            if stem == "aic_water-lilies":  # 헷갈리는 경계가 많은 그림(10%)에서는 구분이 크게 늘어난다
+                _, untouched, corrected = boundary_recovery(rgb, after, "tritan")
+                self.assertGreater(corrected, untouched + 0.3, stem)
+            # 침실처럼 헷갈리는 경계가 적은 그림(약 5%)은 새 행렬의 이득이 거의 없다(정윤 측정과 같음). 그래서 검사하지 않는다.
 
 
 if __name__ == "__main__":
