@@ -15,6 +15,7 @@ import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
 import { ApiError, login, register } from '@/lib/api';
 import { saveSession } from '@/store/auth';
+import { updateSettings } from '@/store/settings';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** New passwords: 8~128 characters with at least one English letter and one digit (same rule as the server). */
@@ -46,8 +47,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     lock.current = true; setBusy(true);
     try {
       const result = signup ? await register(email, password, nickname) : await login(email, password);
+      // 같은 기기에서 이전 계정이 소개를 완료했어도 새 회원은 소개부터 시작한다.
+      if (signup) await updateSettings({ onboarding_completed: false });
       await saveSession(result);
-      // Root protected routes select calibration or the home screen after the session changes.
+      // 보호 경로가 홈으로 전환된 뒤 FirstLaunch가 소개로 연결한다.
     } catch (err) {
       showToast(err instanceof ApiError
         ? err.status === 401 ? '이메일 또는 비밀번호가 맞지 않아요.'

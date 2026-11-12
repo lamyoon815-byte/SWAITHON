@@ -11,8 +11,8 @@ export function FirstLaunch() {
   const checked = useRef(false);
   useEffect(() => {
     if (!loaded || !navigation?.key || checked.current) return;
-    checked.current = true;
     if (pathname !== '/') return;
+    checked.current = true;
     if (!settings.onboarding_completed) router.replace('/onboarding');
   }, [loaded, navigation?.key, pathname, settings.onboarding_completed]);
   return null;
