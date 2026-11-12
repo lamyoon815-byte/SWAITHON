@@ -56,21 +56,22 @@ export default function CalibrationScreen() {
     : phase === 'color' && result.color_type !== 'normal' ? CALIBRATION.color[result.color_type].plates[index] : undefined;
   const source = plate?.image ?? (phase === 'edge' ? CALIBRATION.edge.images[index] : undefined);
   const imageReady = source === undefined || (readySource === source && failedSource !== source);
-  const colorLevels = CALIBRATION.color[result.color_type === 'normal' ? 'protan' : result.color_type].levels;
+  const previewType = result.color_type === 'normal' ? 'protan' : result.color_type;
+  const colorLevels = CALIBRATION.color[previewType].levels;
   const progress = phase === 'screening' ? `색각 확인 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
-    : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
+    : phase === 'color-choice' ? '색 보정 강도 선택' : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
       : phase === 'edge' ? `윤곽선 · 문제 ${index + 1} / ${CALIBRATION.edge.levels.length}`
         : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '맞춤 보정 테스트 완료';
   const progressRatio = phase === 'screening' ? (index / CALIBRATION.screening.plates.length) * 0.25
-    : phase === 'manual' ? 0.25
+    : phase === 'color-choice' ? 0.5 : phase === 'manual' ? 0.25
       : phase === 'color' ? 0.25 + (index / colorLevels.length) * 0.25
         : phase === 'edge' ? 0.5 + (index / CALIBRATION.edge.levels.length) * 0.25
           : phase === 'contrast' ? 0.75 + (index / CALIBRATION.contrast.levels.length) * 0.25 : 1;
   const progressPercent = Math.round(progressRatio * 100);
   const question = plate ? '어떤 숫자가 보이나요?' : phase === 'manual' ? '가장 또렷한 그림을 골라 주세요'
-    : phase === 'edge' ? '윤곽선이 또렷하게 보이나요?' : phase === 'contrast' ? '밝은 부분이 구분되나요?' : '보기 설정을 찾았어요';
+    : phase === 'color-choice' ? '편하게 보이는 강도를 골라 주세요' : phase === 'edge' ? '윤곽선이 또렷하게 보이나요?' : phase === 'contrast' ? '밝은 부분이 구분되나요?' : '보기 설정을 찾았어요';
   const description = plate ? '그림 속 숫자를 음성으로 말해 주세요. 숫자가 보이지 않으면 “안 보여요”라고 말해 주세요.' : phase === 'manual' ? '같은 검사판을 서로 다르게 보정했어요. 숫자가 가장 잘 보이는 그림을 눌러 주세요. 색 이름은 몰라도 괜찮아요.'
-    : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast'
+    : phase === 'color-choice' ? '숫자로 보정 강도를 정하기 어려웠어요. 같은 작품의 원본과 보정본을 비교하고, 구분하기 편한 그림을 눌러 주세요.' : phase === 'edge' ? CALIBRATION.edge.question : phase === 'contrast'
       ? `같은 그림에서 대비만 단계별로 높이고 있어요. 흰 옷과 뒤쪽 흰 커튼의 경계를 비교해 주세요. 현재 대비 ${CALIBRATION.contrast.levels[index].toFixed(1)}배예요.`
       : '설정을 확인하고 감상을 시작해 보세요.';
   const questionPhase = phase === 'screening' || phase === 'color' || phase === 'edge' || phase === 'contrast';
@@ -100,7 +101,7 @@ export default function CalibrationScreen() {
     const next = advanceCalibration(state, action);
     if (next === state) return;
     if (action.type === 'answer' && next.phase !== phase && (
-      (phase === 'color' && next.result.severity === 0)
+      (phase === 'color' && next.phase === 'edge' && next.result.severity === 0)
       || ((phase === 'edge' || phase === 'contrast') && action.value === 'not-visible')
     )) showToast('이 항목은 보정 없이 두었어요. 내 보정값에서 바꿀 수 있어요', 'info');
     lastAction.current = state;
@@ -309,6 +310,18 @@ export default function CalibrationScreen() {
           <View style={styles.buttonRow}><BigButton label="다 비슷해요" selected={false} palette={palette} disabled={disabled}
             accessibilityHint="색 보정 없이 다음 단계로 가요. 마이페이지에서 나중에 바꿀 수 있어요" onPress={() => act({ type: 'choose', value: 'normal' })} /></View>
         </View>}
+        {phase === 'color-choice' && result.color_type !== 'normal' && <View style={styles.manual}>
+          {[0, ...colorLevels].map((strength, i) => (
+            <PressableScale key={strength} accessibilityRole="button"
+              accessibilityLabel={strength === 0 ? '원본, 색 보정 적용 안 함' : `색 보정 ${Math.round(strength * 100)}%`}
+              accessibilityHint="이 그림이 편하게 보이면 눌러서 저장할 강도를 선택해 주세요"
+              accessibilityState={{ disabled }} disabled={disabled} onPress={() => act({ type: 'strength', value: strength })}
+              style={({ pressed }) => [styles.compareCard, { backgroundColor: palette.surface, borderColor: pressed ? palette.highlight : palette.outline }]}>
+              <Image source={CALIBRATION.preview[previewType].artwork[i]} contentFit="contain" transition={0} style={styles.compareImage} />
+              <Text style={[styles.compareLabel, { color: palette.text }]}>{strength === 0 ? '원본 · 보정 적용 안 함' : `색 보정 ${Math.round(strength * 100)}%`}</Text>
+            </PressableScale>
+          ))}
+        </View>}
         {(phase === 'edge' || phase === 'contrast') && <View style={styles.manual}>
           <View style={styles.buttonRow}><BigButton label="잘 보여요" palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'visible' })} /></View>
           <View style={styles.buttonRow}><BigButton label="아직 잘 안 보여요" selected={false} palette={palette} disabled={disabled || !imageReady || (phase === 'contrast' && Platform.OS === 'web')} onPress={() => act({ type: 'answer', value: 'not-visible' })} /></View>
@@ -321,7 +334,7 @@ export default function CalibrationScreen() {
           <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={[styles.resultTitle, { color: palette.highlight }]}>{question}</Text>
           <View style={styles.resultRows}>
             {[
-              { name: '색 보정', value: result.color_type === 'normal' || result.severity === 0 ? '필요 없어요' : `${CALIBRATION_COLOR_LABELS[result.color_type]} ${Math.round(result.severity * 100)}%` },
+              { name: '색 보정', value: result.color_type === 'normal' || result.severity === 0 ? '적용 안 함' : `${CALIBRATION_COLOR_LABELS[result.color_type]} ${Math.round(result.severity * 100)}%` },
               { name: '윤곽선 강조', value: result.edge === 0 ? '그대로' : `${Math.round(result.edge * 100)}%` },
               { name: '대비', value: result.contrast === 1 ? '그대로' : `${result.contrast.toFixed(1)}배` },
             ].map((row) => (

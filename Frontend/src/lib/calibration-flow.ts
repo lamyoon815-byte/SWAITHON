@@ -1,14 +1,14 @@
 import { CALIBRATION } from '@/assets/images/calibration';
 import type { CalibrationColorType, CalibrationResult } from '@/types/calibration';
 
-export type CalibrationPhase = 'screening' | 'manual' | 'color' | 'edge' | 'contrast' | 'complete';
+export type CalibrationPhase = 'screening' | 'manual' | 'color' | 'color-choice' | 'edge' | 'contrast' | 'complete';
 export type CalibrationState = {
   phase: CalibrationPhase;
   index: number;
   answers: string[];
   result: CalibrationResult;
 };
-export type CalibrationAction = { type: 'answer'; value: string } | { type: 'choose'; value: CalibrationColorType } | { type: 'skip' };
+export type CalibrationAction = { type: 'answer'; value: string } | { type: 'choose'; value: CalibrationColorType } | { type: 'strength'; value: number } | { type: 'skip' };
 
 export function initialCalibration(): CalibrationState {
   return { phase: 'screening', index: 0, answers: [], result: { color_type: 'normal', severity: 0, edge: 0, contrast: 1 } };
@@ -33,7 +33,7 @@ export function advanceCalibration(state: CalibrationState, action: CalibrationA
   if (action.type === 'skip') {
     switch (state.phase) {
       case 'screening': case 'manual': return next(state, 'edge', { color_type: 'normal', severity: 0 });
-      case 'color': return next(state, 'edge', { severity: 0 });
+      case 'color': case 'color-choice': return next(state, 'edge', { severity: 0 });
       case 'edge': return next(state, 'contrast', { edge: 0 });
       case 'contrast': return next(state, 'complete', { contrast: 1 });
       default: return state;
@@ -42,6 +42,11 @@ export function advanceCalibration(state: CalibrationState, action: CalibrationA
   if (state.phase === 'manual' && action.type === 'choose') {
     if (!['normal', 'protan', 'deutan', 'tritan'].includes(action.value)) return state;
     return next(state, action.value === 'normal' ? 'edge' : 'color', { color_type: action.value, severity: 0 });
+  }
+  if (state.phase === 'color-choice' && action.type === 'strength' && state.result.color_type !== 'normal') {
+    const levels = CALIBRATION.color[state.result.color_type].levels;
+    if (action.value !== 0 && !levels.includes(action.value)) return state;
+    return next(state, 'edge', { severity: action.value });
   }
   if (action.type !== 'answer') return state;
   if (state.phase === 'screening') {
@@ -60,9 +65,9 @@ export function advanceCalibration(state: CalibrationState, action: CalibrationA
     const plate = series.plates[state.index];
     if (!plate?.choices.includes(action.value)) return state;
     if (action.value === plate.answer) return next(state, 'edge', { severity: series.levels[state.index] });
-    // 마지막까지 보이지 않은 강도를 개인 맞춤값(최댓값)으로 확정하지 않는다.
+    // 숫자를 끝까지 못 읽어도 보정을 끄지 않고, 작품을 비교해 직접 강도를 고르게 한다.
     return state.index === series.levels.length - 1
-      ? next(state, 'edge', { severity: 0 }) : { ...state, index: state.index + 1 };
+      ? next(state, 'color-choice') : { ...state, index: state.index + 1 };
   }
   if (state.phase === 'edge' || state.phase === 'contrast') {
     if (!['visible', 'not-visible'].includes(action.value)) return state;

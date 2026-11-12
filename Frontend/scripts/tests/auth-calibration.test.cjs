@@ -408,16 +408,38 @@ test('single-photo correction preview covers every color/edge combination with o
   assert.equal(unique.size, 96);
 });
 
-test('failed calibration steps never auto-select maximum correction', () => {
-  let state = flow.advanceCalibration({ ...flow.initialCalibration(), phase: 'manual' }, { type: 'choose', value: 'deutan' });
-  while (state.phase === 'color') {
-    const plate = manifest.color.deutan.plates[state.index];
-    state = flow.advanceCalibration(state, { type: 'answer', value: plate.choices.find((choice) => choice !== plate.answer) });
+test('wrong screening and color answers offer a choice and persist the selected correction', async () => {
+  for (const colorType of ['protan', 'deutan', 'tritan']) {
+    let state = manifest.screening.plates.reduce((current, plate) => flow.advanceCalibration(current, {
+      type: 'answer', value: plate.color_type === colorType ? manifest.screening.not_visible : plate.answer,
+    }), flow.initialCalibration());
+    assert.equal(state.phase, 'color');
+    while (state.phase === 'color') {
+      const plate = manifest.color[colorType].plates[state.index];
+      state = flow.advanceCalibration(state, { type: 'answer', value: plate.choices.find((choice) => choice !== plate.answer) });
+    }
+    assert.equal(state.phase, 'color-choice', 'failed answers must not silently disable correction');
+    for (const invalid of [-1, 0.3, 1.2, NaN]) {
+      assert.equal(flow.advanceCalibration(state, { type: 'strength', value: invalid }), state);
+    }
+    assert.equal(flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' }), state);
+    assert.equal(flow.advanceCalibration(state, { type: 'strength', value: 0 }).result.severity, 0);
+    assert.equal(flow.advanceCalibration(state, { type: 'skip' }).phase, 'edge');
+    for (const strength of manifest.color[colorType].levels) {
+      let chosen = flow.advanceCalibration(state, { type: 'strength', value: strength });
+      assert.equal(chosen.phase, 'edge');
+      while (chosen.phase !== 'complete') chosen = flow.advanceCalibration(chosen, { type: 'answer', value: 'not-visible' });
+      assert.equal(chosen.result.severity, strength);
+      assert.equal(chosen.result.edge, 0);
+      assert.equal(chosen.result.contrast, 1);
+      const { store, profiles } = profileStore();
+      await tick();
+      await store.saveCalibration(chosen.result);
+      assert.equal(profiles.get('user-1').calibration.color_type, colorType);
+      assert.equal(profiles.get('user-1').calibration.severity, strength);
+      assert.equal(calibration.serverCorrection(calibration.viewingFromProfile(profiles.get('user-1'))).severity, strength);
+    }
   }
-  while (state.phase !== 'complete') state = flow.advanceCalibration(state, { type: 'answer', value: 'not-visible' });
-  assert.equal(state.result.severity, 0);
-  assert.equal(state.result.edge, 0);
-  assert.equal(state.result.contrast, 1);
 });
 
 test('the first successful color, edge and contrast levels are preserved exactly', () => {
