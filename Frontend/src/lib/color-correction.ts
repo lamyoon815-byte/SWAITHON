@@ -3,6 +3,8 @@ import type { ColorSeverities } from '@/types/calibration';
 import matrices from './color-correction-matrices.json';
 
 // I + ERROR_SHIFT × (I - MACHADO_2009), from Backend/ai/correction.py.
+// This preview applies protan/deutan to the whole picture. The server applies them only to confusable
+// colours and boundaries (correction.confusion_weight), so the server result changes other colours less.
 // Each stage uses the same linear RGB conversion and clipping as the server.
 export const COLOR_CORRECTION_SHADER = `
 uniform shader image;

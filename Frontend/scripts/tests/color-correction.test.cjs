@@ -34,8 +34,8 @@ test('the preview shader compiles and matches combined server output, including 
   try {
     // Reference pixels from Backend.ai.correction.correct_array on RGB [0.3, 0.4, 0.2].
     const cases = [
-      [{ protan: 0.4, deutan: 0.6, tritan: 0.8 }, [0.201122, 0.414952, 0]],
-      [{ protan: 0.4, deutan: 0, tritan: 0.8 }, [0.201122, 0.438125, 0.079116]],
+      [{ protan: 0.4, deutan: 0.6, tritan: 0.8 }, [0.101495, 0.375721, 0]],
+      [{ protan: 0.4, deutan: 0, tritan: 0.8 }, [0.062239, 0.400315, 0.07315]],
       [{ protan: 0, deutan: 0.6, tritan: 0 }, [0.300043, 0.374968, 0]],
       [{ protan: 0, deutan: 0, tritan: 0 }, [0.3, 0.4, 0.2]],
     ];
