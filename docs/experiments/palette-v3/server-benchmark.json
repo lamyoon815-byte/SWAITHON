@@ -1,0 +1,83 @@
+{
+  "at_utc": "2026-11-12T22:05:49.362331+00:00",
+  "source": "Backend\\data\\eval\\not_artwork\\KakaoTalk_20261111_000942431_12.jpg",
+  "source_sha256": "e78f683044bcd7915ded30edb1f4161a257f29e01ec3216f73fa473f2639b33b",
+  "mode": "cluster",
+  "limit_seconds": 3.0,
+  "stopped": true,
+  "scope": "input normalization + correct_image + output validation/normalization; no disk/network/DB time",
+  "startup": "modules imported; native tables initialized on the first timed call; no warmup",
+  "python": "3.12.16",
+  "cpu": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
+  "numpy": "2.5.4",
+  "opencv": "5.0.0",
+  "opencv_threads": 18,
+  "thread_environment": {
+    "OPENBLAS_NUM_THREADS": null,
+    "OMP_NUM_THREADS": null,
+    "MKL_NUM_THREADS": null
+  },
+  "native": true,
+  "cases": [
+    {
+      "input": "1280px input",
+      "width": 960,
+      "height": 1280,
+      "color": "protan",
+      "severity": 1,
+      "seconds": 0.8489891000062926,
+      "core_seconds": 0.7974680999905104,
+      "plans": [
+        {
+          "analysis_shape": [
+            1000,
+            750
+          ],
+          "reason": "too_few_lost_pairs"
+        }
+      ],
+      "output_bytes": 334783,
+      "output_sha256": "b8274af57dac819f6929e0a9917f1c10c5c28c82516ba79874319d48f10f304c"
+    },
+    {
+      "input": "1280px input",
+      "width": 960,
+      "height": 1280,
+      "color": "deutan",
+      "severity": 1,
+      "seconds": 0.6400295000057667,
+      "core_seconds": 0.5878690999961691,
+      "plans": [
+        {
+          "analysis_shape": [
+            1000,
+            750
+          ],
+          "reason": "too_few_lost_pairs"
+        }
+      ],
+      "output_bytes": 334783,
+      "output_sha256": "b8274af57dac819f6929e0a9917f1c10c5c28c82516ba79874319d48f10f304c"
+    },
+    {
+      "input": "original input",
+      "width": 3024,
+      "height": 4032,
+      "color": "protan",
+      "severity": 1,
+      "seconds": 3.228341399997589,
+      "core_seconds": 2.6773734000016702,
+      "plans": [
+        {
+          "analysis_shape": [
+            1000,
+            750
+          ],
+          "reason": "too_few_lost_pairs"
+        }
+      ],
+      "output_bytes": 2344871,
+      "output_sha256": "1f977dd100d90b9cefbe75c75400d2eed5ea895cdada1343a105e627a4063b3c"
+    }
+  ]
+}

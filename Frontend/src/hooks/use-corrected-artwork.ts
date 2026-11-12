@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ApiError, cachedCorrectedImage, getCorrectedImage } from '@/lib/api';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ApiError, cachedCorrectedImage, getCorrectedImage, getCorrectionModeSnapshot, subscribeCorrectionMode } from '@/lib/api';
 import { serverCorrection, type ViewingProfile } from '@/lib/calibration';
 import { useProfile } from '@/hooks/use-profile';
 import { getAccessToken } from '@/store/auth';
@@ -15,11 +15,12 @@ export const SCREEN_SIDE = 1280;
  */
 export function useCorrectedArtwork(id: string | undefined, source: string | undefined, values: ViewingProfile, original = false, strength = 1, maxSide: number | undefined = SCREEN_SIDE) {
   const { loaded, error: profileError, reloadProfile } = useProfile();
+  const mode = useSyncExternalStore(subscribeCorrectionMode, getCorrectionModeSnapshot, getCorrectionModeSnapshot);
   const full = serverCorrection(values, 1);
   // Start as soon as the artwork id is known; the original image URL is not needed for the request.
   const active = loaded && !profileError && !!id && !original && (full.severity > 0 || full.edge > 0
     || Object.values(full.color_severities ?? {}).some((value) => value > 0));
-  const key = active ? JSON.stringify([getAccessToken(), values.revision, id, full, maxSide ?? null]) : null;
+  const key = active ? JSON.stringify([getAccessToken(), values.revision, mode, id, full, maxSide ?? null]) : null;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ key: string; source?: string; error?: unknown } | null>(null);
   useEffect(() => {

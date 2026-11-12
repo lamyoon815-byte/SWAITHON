@@ -121,24 +121,50 @@ export async function logout() {
 const correctedImages = new Map<string, string>();
 const pendingCorrections = new Map<string, Promise<string>>();
 let correctionEpoch = 0;
+export type CorrectionMode = 'selective' | 'cluster';
+let correctionMode: CorrectionMode | undefined;
+const correctionModeListeners = new Set<() => void>();
+
+export const getCorrectionModeSnapshot = () => correctionMode;
+export function subscribeCorrectionMode(listener: () => void) {
+  correctionModeListeners.add(listener);
+  return () => { correctionModeListeners.delete(listener); };
+}
+
+async function refreshCorrectionMode(): Promise<CorrectionMode> {
+  // Check before a cache hit too: a server restart can change mode without a
+  // profile edit. Do not persist or time-cache this configuration response.
+  const value = await request<{ mode: unknown }>('/correction/config');
+  if (value.mode !== 'selective' && value.mode !== 'cluster') {
+    throw new ApiError(502, '서버 보정 모드를 확인하지 못했어요.');
+  }
+  if (value.mode !== correctionMode) {
+    correctionMode = value.mode;
+    correctedImages.clear();
+    correctionModeListeners.forEach((listener) => listener());
+  }
+  return value.mode;
+}
 
 /** Already corrected image for exactly this account, profile revision and strength, without waiting. */
 export function cachedCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1, maxSide?: number): string | undefined {
   const token = getAccessToken();
-  if (!token || !profile.revision) return undefined;
-  const key = JSON.stringify([API_URL, token, correctionEpoch, artworkId, profile.revision, serverCorrection(profile, correctionStrength(strength)), maxSide ?? null]);
+  if (!token || !profile.revision || !correctionMode) return undefined;
+  const key = JSON.stringify([API_URL, token, correctionEpoch, correctionMode, artworkId, profile.revision, serverCorrection(profile, correctionStrength(strength)), maxSide ?? null]);
   return correctedImages.get(key);
 }
 
 /** maxSide: screen-sized picture (smaller download); leave it out for the zoom screen's full resolution. */
-export function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1, maxSide?: number): Promise<string> {
+export async function getCorrectedImage(artworkId: string, profile: ViewingProfile, strength = 1, maxSide?: number): Promise<string> {
   strength = correctionStrength(strength);
   const token = getAccessToken();
   if (!token) return Promise.reject(new ApiError(401, '로그인이 필요해요.'));
   if (!profile.revision) return Promise.reject(new ApiError(409, '보정값을 다시 불러와 주세요.'));
   const epoch = correctionEpoch;
+  const mode = await refreshCorrectionMode();
+  if (epoch !== correctionEpoch || token !== getAccessToken()) throw new ApiError(409, '보정값이 변경되었어요.');
   const correction = serverCorrection(profile, strength);
-  const key = JSON.stringify([API_URL, token, epoch, artworkId, profile.revision, correction, maxSide ?? null]);
+  const key = JSON.stringify([API_URL, token, epoch, mode, artworkId, profile.revision, correction, maxSide ?? null]);
   const cached = correctedImages.get(key);
   if (cached) return Promise.resolve(cached);
   const pending = pendingCorrections.get(key);
@@ -162,8 +188,13 @@ export function getCorrectedImage(artworkId: string, profile: ViewingProfile, st
     if (res.headers.get('X-Correction-Profile-Revision') !== profile.revision || epoch !== correctionEpoch) {
       throw new ApiError(409, '보정값이 변경되었어요. 다시 불러와 주세요.');
     }
+    if (res.headers.get('X-Correction-Mode') !== mode || getCorrectionModeSnapshot() !== mode) {
+      throw new ApiError(409, '서버 보정 모드가 변경되었어요. 다시 불러와 주세요.');
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
-    if (epoch !== correctionEpoch) throw new ApiError(409, '보정값이 변경되었어요.');
+    if (epoch !== correctionEpoch || getCorrectionModeSnapshot() !== mode || token !== getAccessToken()) {
+      throw new ApiError(409, '보정값이나 서버 보정 모드가 변경되었어요.');
+    }
     // Data URLs work as Skia and expo-image sources on phone, without temporary file lifecycle issues.
     let binary = '';
     for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));

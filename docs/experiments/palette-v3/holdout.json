@@ -1,0 +1,148 @@
+{
+  "created": "2026-11-13T01:29:11.204845+09:00",
+  "selection": "sha256(palette-v3-final: + object_id), first 12 local paintings excluding previously evaluated works",
+  "excluded_object_ids": [
+    "11624",
+    "12198",
+    "1236",
+    "14",
+    "166432",
+    "41626",
+    "46506",
+    "46681",
+    "52178",
+    "52260",
+    "52622",
+    "55818",
+    "59887",
+    "61366",
+    "61379",
+    "72328",
+    "87",
+    "89681",
+    "95"
+  ],
+  "available_paintings": 318,
+  "artworks": [
+    {
+      "object_id": "1204",
+      "number": "1942.9.65",
+      "title": "Philemon and Baucis",
+      "artist": "Rembrandt van Rijn",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/ff5b1370-fd8e-4289-855d-a5a662ce2397",
+      "path": "Backend/data/finetune/train_images/1204.jpg",
+      "sha256": "011a2136bbac6aa9e86873fa4f894497e9fae8eaa1968f99c3d057a767f34db2"
+    },
+    {
+      "object_id": "32691",
+      "number": "1946.7.13",
+      "title": "Madame Le Fèvre de Caumartin as Hebe",
+      "artist": "Jean-Marc Nattier",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/f9b02d1b-69f0-4aa7-a798-c2948cf17b7c",
+      "path": "Backend/data/finetune/train_images/32691.jpg",
+      "sha256": "00f1de9eac21ba8603190d0e32076fb3c66c68375e9502172eb4f9fe75f39baf"
+    },
+    {
+      "object_id": "162261",
+      "number": "2013.62.1",
+      "title": "View of Medinet El-Fayoum",
+      "artist": "Jean-Léon Gérôme",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/45927cd3-b962-4cf4-b1ae-e85120baf240",
+      "path": "Backend/data/finetune/train_images/162261.jpg",
+      "sha256": "5ff273402570ca3da083d856778111729a1f9a1fe290d77751259fcf8825af23"
+    },
+    {
+      "object_id": "43441",
+      "number": "1955.11.10",
+      "title": "Emancipation Proclamation",
+      "artist": "A.A. Lamb",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/c1059816-1dc7-4af1-a5b3-26772de84b08",
+      "path": "Backend/data/finetune/train_images/43441.jpg",
+      "sha256": "64d60d2ca1b54ce3498ed49a92e455f5f20530af030eee569c5e0e305d1a1625"
+    },
+    {
+      "object_id": "1133",
+      "number": "1942.8.39",
+      "title": "Benjamin West",
+      "artist": "after Benjamin West",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/29245604-af41-4b8c-83e7-ee5806a69983",
+      "path": "Backend/data/finetune/train_images/1133.jpg",
+      "sha256": "378999d0e7080d21986ce24dbb40f5b1415842852def5ba9b31c41636b4d3dc3"
+    },
+    {
+      "object_id": "50396",
+      "number": "1965.16.88",
+      "title": "Three Iowa Indians",
+      "artist": "George Catlin",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/3e11c2b5-d94c-4da9-a5d4-823fa1f9e885",
+      "path": "Backend/data/finetune/train_images/50396.jpg",
+      "sha256": "e3473c9a353cdf68aaf6e77f14b746bf659e005d5c32fb7ab46f212652138c97"
+    },
+    {
+      "object_id": "42406",
+      "number": "1953.5.3",
+      "title": "Clement Bonnell",
+      "artist": "William Bonnell",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/632a0341-d349-4110-906b-ccf1aa60c2dc",
+      "path": "Backend/data/finetune/train_images/42406.jpg",
+      "sha256": "6150499e9dbdde682fa61075af73a8035190e5102ee0f59a5d1e4b65f3b2d09c"
+    },
+    {
+      "object_id": "204932",
+      "number": "1939.1.261.a-c",
+      "title": "Madonna and Child, with Saints Peter and John the Evangelist, and Man of Sorrows [entire triptych]",
+      "artist": "Nardo di Cione",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/a8576cf2-9196-4b68-b8cb-49b8d152133a",
+      "path": "Backend/data/finetune/train_images/204932.jpg",
+      "sha256": "3652c70623ec545fcf1cd770992a07c7d5a0223b668919fd986a58a3bb48f561"
+    },
+    {
+      "object_id": "50306",
+      "number": "1965.15.7",
+      "title": "Mary Cuthbert (Mrs. James Cuthbert) (?)",
+      "artist": "Jeremiah Theus",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/2d9c553e-f90d-4fb2-8156-c307888922a8",
+      "path": "Backend/data/finetune/train_images/50306.jpg",
+      "sha256": "b3cfb8941083f22df5d2b966d35e23c8e8ea0620cd9965c865b1ba7631e0c234"
+    },
+    {
+      "object_id": "52243",
+      "number": "1970.17.99",
+      "title": "Vase of Flowers on a Mantelpiece",
+      "artist": "Edouard Vuillard",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/0acda9d3-8c2f-4698-8af4-52ff72d7ccfb",
+      "path": "Backend/data/finetune/train_images/52243.jpg",
+      "sha256": "0a92c801486f527f8ec49d0325254a4af4d3a2942d880e0b7c42c2341b3c09d9"
+    },
+    {
+      "object_id": "46589",
+      "number": "1963.10.114",
+      "title": "A Young Woman Reading",
+      "artist": "Gustave Courbet",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/28b9e23a-3c0d-4e93-8349-b1aae8f87aee",
+      "path": "Backend/data/finetune/train_images/46589.jpg",
+      "sha256": "c573290a20712e1b4ad216063b5afc5955a81f5728945f957511a0aa9177c16a"
+    },
+    {
+      "object_id": "56747",
+      "number": "1978.80.20",
+      "title": "Susanna Truax",
+      "artist": "American 18th Century",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/58792a79-2b43-4846-8148-34964326ca26",
+      "path": "Backend/data/finetune/train_images/56747.jpg",
+      "sha256": "9eb603db302c653ba76c9a396af9a7e62163614eb35c1737f374f1e89dc4a9ca"
+    }
+  ]
+}

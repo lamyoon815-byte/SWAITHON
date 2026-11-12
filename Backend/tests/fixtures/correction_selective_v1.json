@@ -1,0 +1,159 @@
+{
+  "original_source_sha256": "02a0fb45c671c9f8ce734800ddb07fdad4d635add3e4fc8d4c2b5a533495959f",
+  "seed": 20261113,
+  "shape": [
+    48,
+    64,
+    3
+  ],
+  "input": "rng.integers(0,256,dtype=uint8).astype(float32)/255; JPEG quality=92",
+  "cases": [
+    {
+      "profile": {},
+      "array_sha256": "1cf8b020ade2d45f304150b10e3e040ebaa169d15fa7b80ee246fc8826b2ae9c",
+      "jpeg_sha256": "d3b79c65793a8b87d2a926366a3ae94ab4f571817012f21f4d4a7c270d26c42b"
+    },
+    {
+      "profile": {
+        "color_type": "normal",
+        "color_severities": {
+          "protan": 1,
+          "deutan": 1,
+          "tritan": 1
+        }
+      },
+      "array_sha256": "1cf8b020ade2d45f304150b10e3e040ebaa169d15fa7b80ee246fc8826b2ae9c",
+      "jpeg_sha256": "d3b79c65793a8b87d2a926366a3ae94ab4f571817012f21f4d4a7c270d26c42b"
+    },
+    {
+      "profile": {
+        "contrast": 1.5,
+        "brightness": -12,
+        "sharpness": 0.8,
+        "edge": 0.4
+      },
+      "array_sha256": "550f3ca0939dd624246271ffe59c2d02f237e7803c666b77612d9e075d8732d0",
+      "jpeg_sha256": "7f3b521736ab2d602e8414805f4237706d86a1c31960f3b16e0f46fed56c3eb4"
+    },
+    {
+      "profile": {
+        "color_type": "protan",
+        "severity": 0.0
+      },
+      "array_sha256": "1cf8b020ade2d45f304150b10e3e040ebaa169d15fa7b80ee246fc8826b2ae9c",
+      "jpeg_sha256": "d3b79c65793a8b87d2a926366a3ae94ab4f571817012f21f4d4a7c270d26c42b"
+    },
+    {
+      "profile": {
+        "color_type": "protan",
+        "severity": 0.2
+      },
+      "array_sha256": "81ed3df87fdf883fe790af634b1dbc6c88c3138fc778f3c3397d668ced9bdac4",
+      "jpeg_sha256": "60c8651b8c05d869e9023b80ceae913ba2c4a1af7339fb55ff95e2edb1cdc24b"
+    },
+    {
+      "profile": {
+        "color_type": "protan",
+        "severity": 0.6
+      },
+      "array_sha256": "4e95d82a05f23f78a9218170872cd55a87e8201f47baf61f423afc4f03cc4478",
+      "jpeg_sha256": "a2656710fe4383e2e54f1afc7431f4f57e1243dc7c1d4f755bfa2d798480982d"
+    },
+    {
+      "profile": {
+        "color_type": "protan",
+        "severity": 1.0
+      },
+      "array_sha256": "4794d99d6e83530719d46c2554f780a4c7a185c04902ae648ee924ff5a8d4df9",
+      "jpeg_sha256": "7eaf5ab2c7b7eb230433afd2b9f39f4c664e6d4f4a7cdc5064fc233e9d32781e"
+    },
+    {
+      "profile": {
+        "color_type": "deutan",
+        "severity": 0.0
+      },
+      "array_sha256": "1cf8b020ade2d45f304150b10e3e040ebaa169d15fa7b80ee246fc8826b2ae9c",
+      "jpeg_sha256": "d3b79c65793a8b87d2a926366a3ae94ab4f571817012f21f4d4a7c270d26c42b"
+    },
+    {
+      "profile": {
+        "color_type": "deutan",
+        "severity": 0.2
+      },
+      "array_sha256": "3eedaf103bfa8af173a3addfe1df77a41d6c425188d31f26e91be82d2f2ea022",
+      "jpeg_sha256": "234ae8467c45f1c5d7d61fc408df187055f2f92e39f0c8f57705d5b2b2f9474b"
+    },
+    {
+      "profile": {
+        "color_type": "deutan",
+        "severity": 0.6
+      },
+      "array_sha256": "5e25fc3ccec9504e075a577231e608fe373ac5898bd8af714b6724feae238be9",
+      "jpeg_sha256": "189d41049f3d2c4b4a43b52ce56e9469f31469ae9722096ab9a510c1a70d06b0"
+    },
+    {
+      "profile": {
+        "color_type": "deutan",
+        "severity": 1.0
+      },
+      "array_sha256": "cd1e205f64b3839e33b07d7b9e8f13366e56462d5988f88349dddbd1f1a6ed9f",
+      "jpeg_sha256": "c3a88baf9fa5e6c5cac203fe05ef18a135679ec79a78280ba218c40d163a3def"
+    },
+    {
+      "profile": {
+        "color_type": "tritan",
+        "severity": 0.0
+      },
+      "array_sha256": "1cf8b020ade2d45f304150b10e3e040ebaa169d15fa7b80ee246fc8826b2ae9c",
+      "jpeg_sha256": "d3b79c65793a8b87d2a926366a3ae94ab4f571817012f21f4d4a7c270d26c42b"
+    },
+    {
+      "profile": {
+        "color_type": "tritan",
+        "severity": 0.2
+      },
+      "array_sha256": "b2f70a4879aa70f5c18672f46fc20a2b553fa59723d68f985e003f114a49dc24",
+      "jpeg_sha256": "770b3de0f4f4e6c06202076f251ce42285f02786a0a408f6aa85634d29423c32"
+    },
+    {
+      "profile": {
+        "color_type": "tritan",
+        "severity": 0.6
+      },
+      "array_sha256": "168466b3ea9c2cde93c8b086db934f44778a1f4151bf58609cea53d2aa676697",
+      "jpeg_sha256": "3c6ef7bb7163d2f31cdf5e9337e6224a886507c714279e26fa5ea551b28582cc"
+    },
+    {
+      "profile": {
+        "color_type": "tritan",
+        "severity": 1.0
+      },
+      "array_sha256": "e61f03e84c31829cff4395d86f82e0849ac0cc6d0ae89b56098226b2826e3ec8",
+      "jpeg_sha256": "237f24effbad60d997dd62a31d78ba33c6b9a5a0cd50d5c532662f6b60bdac80"
+    },
+    {
+      "profile": {
+        "color_type": "deutan",
+        "color_severities": {
+          "tritan": 0.8,
+          "deutan": 0.6,
+          "protan": 0.4
+        }
+      },
+      "array_sha256": "a1dfc621bf5f05ec7448b854e98840d2c5fdc4c9f8e5e7f1634dac7c6ff73d58",
+      "jpeg_sha256": "edbb5a547a3a4319400d9acacdcd4741040ecd221f78664ea3cde41d980333fc"
+    },
+    {
+      "profile": {
+        "color_type": "protan",
+        "severity": 0.8,
+        "contrast": 1.5,
+        "brightness": -12,
+        "sharpness": 0.8,
+        "edge": 0.4
+      },
+      "array_sha256": "fbf82afed6826fbfbbb59f8f1e5fa4a2af005b642b89180c01bb033cc8cf5a68",
+      "jpeg_sha256": "6a6dba574272b8befb34156236091cdaa21307a25e00c0e5f2c2b8e00a04c37f"
+    }
+  ]
+}

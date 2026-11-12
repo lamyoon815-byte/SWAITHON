@@ -1,4 +1,5 @@
 from io import BytesIO
+from contextlib import closing
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -84,7 +85,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(result["suggestions"], [])
         self.assertEqual(self.gemini.comments, [])
         self.assertEqual(result["message"], "소중한 의견 감사합니다.")
-        with self.app.state.accounts.connect() as connection:
+        with closing(self.app.state.accounts.connect()) as connection:
             row = connection.execute("SELECT satisfaction, comment, intent_json FROM feedback").fetchone()
         self.assertEqual(tuple(row), ("good", None, None))
 

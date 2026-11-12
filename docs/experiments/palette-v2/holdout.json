@@ -1,0 +1,126 @@
+{
+  "selection": "sha256(palette-v2-final: + object_id), first 12 local Painting records",
+  "available_paintings": 330,
+  "artworks": [
+    {
+      "object_id": "52260",
+      "number": "1970.17.116",
+      "title": "Roses in a Vase",
+      "artist": "French 19th Century",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/5f1d5f48-8378-47b8-bea6-af40486aac4f",
+      "path": "Backend/data/finetune/train_images/52260.jpg",
+      "sha256": "77e40b161df10402dd63ee28f9b6c1015b239140e5995cbd46f4632a22c8c50f"
+    },
+    {
+      "object_id": "166432",
+      "number": "2014.136.119",
+      "title": "A Pastoral Visit",
+      "artist": "Richard Norris Brooke",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/e5b06963-1e7c-43c7-8920-fe6761f8c24d",
+      "path": "Backend/data/finetune/train_images/166432.jpg",
+      "sha256": "5c64ceb7fb00ec7fe15931b16588950c51528ab8ee914d5e12ed34542f7e1a2b"
+    },
+    {
+      "object_id": "89681",
+      "number": "1994.59.9",
+      "title": "View of the Louvre",
+      "artist": "Stanislas Lépine",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/3238d41c-6d94-49dc-8b3a-3d069210d022",
+      "path": "Backend/data/finetune/train_images/89681.jpg",
+      "sha256": "69d1c494c4c4fef2526ae3516e200ef1bd702e7783fbaecb70b96db7020b986b"
+    },
+    {
+      "object_id": "41626",
+      "number": "1952.5.16",
+      "title": "Saint John the Evangelist",
+      "artist": "Master of Saint Francis",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/1776edff-237b-411e-b28e-940e253398c1",
+      "path": "Backend/data/finetune/train_images/41626.jpg",
+      "sha256": "c5325f94cdc432426ea7ddaa46484151b6990eab50e2779397c27c613afc884c"
+    },
+    {
+      "object_id": "95",
+      "number": "1937.1.88",
+      "title": "Señora Sabasa Garcia",
+      "artist": "Francisco Goya",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/f3ce4ceb-a752-4880-8615-0e6a87f34679",
+      "path": "Backend/data/finetune/train_images/95.jpg",
+      "sha256": "bc2bc7469f7ee68e8e9f53db8ebb8302f94575790bbf2c0955170816e11b4a15"
+    },
+    {
+      "object_id": "61366",
+      "number": "1983.1.16",
+      "title": "Entrance to the Harbor, Le Havre",
+      "artist": "Eugène Boudin",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/05d1b6ea-8357-4fe6-a2ca-2db4fff480c6",
+      "path": "Backend/data/finetune/train_images/61366.jpg",
+      "sha256": "ee8dc58e6fff145db635c866781e1834b4da16d1c1d7617094fc8a292ea3c238"
+    },
+    {
+      "object_id": "59887",
+      "number": "1980.61.7",
+      "title": "Steamship \"Erie\"",
+      "artist": "American 19th Century",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/de2f2512-0f1b-4629-ad7b-756c581ea58e",
+      "path": "Backend/data/finetune/train_images/59887.jpg",
+      "sha256": "027448ba73ef7f1df632f54cced09dc666e572adb351bc1d7eb75a1c5d20957f"
+    },
+    {
+      "object_id": "14",
+      "number": "1937.1.12",
+      "title": "Claudia Quinta",
+      "artist": "Neroccio de' Landi",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/4823046d-8c2c-4ae0-bc6f-c9fcae27ff2b",
+      "path": "Backend/data/finetune/train_images/14.jpg",
+      "sha256": "61c99d9579827a26d38bcb43b3be63f6fdf0de8edc0e88de7ad73eb3436d0927"
+    },
+    {
+      "object_id": "52622",
+      "number": "1971.55.1",
+      "title": "Ill-Matched Lovers",
+      "artist": "Quentin Massys",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/b7eac90c-768a-4d70-806f-5215154ed23f",
+      "path": "Backend/data/finetune/train_images/52622.jpg",
+      "sha256": "e4a1947ef9d880bd8fd788187f5cae7639645de95e81312b5cd3b316ac8dc78c"
+    },
+    {
+      "object_id": "87",
+      "number": "1937.1.80",
+      "title": "Pope Innocent X",
+      "artist": "Circle of Diego Velázquez",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/da9c1054-627f-4caf-bbdc-4faf97a779a8",
+      "path": "Backend/data/finetune/train_images/87.jpg",
+      "sha256": "714bc113ce89d0995e6070a25878de95b91e6a856ae66e79eb8cb1fad01631a8"
+    },
+    {
+      "object_id": "55818",
+      "number": "1976.36.1",
+      "title": "The Sanctuary of Hercules",
+      "artist": "Arnold Böcklin",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/f5309c2c-13a0-41d9-89d6-9659ad0534ec",
+      "path": "Backend/data/finetune/train_images/55818.jpg",
+      "sha256": "0e4a23a9199dd5cc83f5b37a995eeeecfe9f015c16dbc5ceaa32814d48ce3e6e"
+    },
+    {
+      "object_id": "46506",
+      "number": "1963.10.31",
+      "title": "Roulin's Baby",
+      "artist": "Vincent van Gogh",
+      "classification": "Painting",
+      "iiif": "https://api.nga.gov/iiif/c78b52c9-ca48-4e92-8a82-0efec04599f2",
+      "path": "Backend/data/finetune/train_images/46506.jpg",
+      "sha256": "9f3efacae6a04c83debc097ac72a853d6f9323903c625977a5b45db7a138bf23"
+    }
+  ]
+}

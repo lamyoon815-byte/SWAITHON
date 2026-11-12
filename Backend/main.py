@@ -102,7 +102,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,
-            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After", "X-Voice-Cache-Key", "X-Correction-Profile-Revision"])
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After", "X-Voice-Cache-Key", "X-Correction-Profile-Revision", "X-Correction-Mode"])
 
     @application.middleware("http")
     async def private_cache_control(request: Request, call_next):

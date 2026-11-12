@@ -95,8 +95,9 @@ test('artwork correction loads when another type is active and skips requests wh
     const timers = [];
     const calls = [];
     const { useCorrectedArtwork } = load('hooks/use-corrected-artwork.ts', {
-      react: { useEffect: (effect) => effect(), useState: (initial) => [initial, () => {}] },
+      react: { useEffect: (effect) => effect(), useState: (initial) => [initial, () => {}], useSyncExternalStore: (_subscribe, snapshot) => snapshot() },
       '@/lib/api': { ApiError: class extends Error {}, cachedCorrectedImage: () => undefined,
+        subscribeCorrectionMode: () => () => {}, getCorrectionModeSnapshot: () => 'selective',
         getCorrectedImage: async (...args) => { calls.push(args); return 'corrected'; } },
       '@/lib/calibration': calibration,
       '@/hooks/use-profile': { useProfile: () => ({ loaded: true, error: false, reloadProfile: () => {} }) },
@@ -487,16 +488,26 @@ test('a stale 401 cannot clear a new session even when credential writes overlap
   assert.equal(JSON.parse(storage.raw).token, 'new-session-token');
 });
 
-function apiClient(respond, token = 'saved-token') {
+function apiClient(respond, token = 'saved-token', mode = 'selective') {
   const calls = [];
+  const configCalls = [];
   let cleared = false;
   const api = load('lib/api.ts', {
     'expo-file-system': { File: class {} }, 'react-native': { Platform: { OS: 'ios' } },
-    'expo/fetch': { fetch: async (url, init) => { calls.push({ url, init }); return respond(url, init); } },
+    'expo/fetch': { fetch: async (url, init) => {
+      if (url.endsWith('/correction/config')) {
+        configCalls.push({ url, init });
+        return { ok: true, status: 200, json: async () => ({ mode: typeof mode === 'function' ? mode() : mode }) };
+      }
+      calls.push({ url, init });
+      const response = await respond(url, init);
+      if (response.headers && !response.headers.has('X-Correction-Mode')) response.headers.set('X-Correction-Mode', 'selective');
+      return response;
+    } },
     '@/store/auth': { getAccessToken: () => typeof token === 'function' ? token() : token, clearSession: async () => { cleared = true; } },
     '@/lib/calibration': calibration,
   });
-  return { api, calls, cleared: () => cleared };
+  return { api, calls, configCalls, cleared: () => cleared };
 }
 
 test('home artwork pages request 20 at a time with correct offsets while other callers retain the 100-item default', async () => {
@@ -560,6 +571,63 @@ test('a correction made from a different DB version is never returned or cached'
   await assert.rejects(api.getCorrectedImage('sample', profile), /보정값이 변경/);
   await api.getCorrectedImage('sample', profile);
   assert.equal(calls.length, 2);
+});
+
+test('server mode is checked before cache reuse and mode changes regenerate images', async () => {
+  let mode = 'selective';
+  const revision = 'a'.repeat(64);
+  const { api, calls, configCalls } = apiClient(() => ({ ok: true, status: 200,
+    headers: new Headers({ 'X-Correction-Profile-Revision': revision, 'X-Correction-Mode': mode }),
+    arrayBuffer: async () => new Uint8Array([mode === 'cluster' ? 9 : 1]).buffer }), 'saved-token', () => mode);
+  const profile = { ...calibration.DEFAULT_VIEWING, color_type: 'deutan', severity: .6, revision };
+  const selective = await api.getCorrectedImage('sample', profile);
+  assert.equal(await api.getCorrectedImage('sample', profile), selective);
+  assert.equal(calls.length, 1);
+  mode = 'cluster';
+  const cluster = await api.getCorrectedImage('sample', profile);
+  assert.notEqual(cluster, selective);
+  assert.equal(calls.length, 2);
+  assert.equal(api.cachedCorrectedImage('sample', profile), cluster);
+  assert.equal(api.getCorrectionModeSnapshot(), 'cluster');
+  assert.equal(configCalls.length, 3);
+  mode = 'selective';
+  assert.equal(await api.getCorrectedImage('sample', profile), selective);
+  assert.equal(calls.length, 3);
+});
+
+test('an image response for the wrong server mode is never cached', async () => {
+  const revision = 'a'.repeat(64);
+  const { api, calls } = apiClient(() => ({ ok: true, status: 200,
+    headers: new Headers({ 'X-Correction-Profile-Revision': revision, 'X-Correction-Mode': 'selective' }),
+    arrayBuffer: async () => new Uint8Array([1]).buffer }), 'saved-token', 'cluster');
+  const profile = { ...calibration.DEFAULT_VIEWING, edge: .2, revision };
+  await assert.rejects(api.getCorrectedImage('sample', profile), /모드가 변경/);
+  await assert.rejects(api.getCorrectedImage('sample', profile), /모드가 변경/);
+  assert.equal(calls.length, 2);
+  assert.equal(api.cachedCorrectedImage('sample', profile), undefined);
+});
+
+test('mode changes notify image hooks and invalidate a response still in flight', async () => {
+  let mode = 'selective';
+  let release;
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const revision = 'a'.repeat(64);
+  const { api } = apiClient((url, init) => init.body.get('artwork_id') === 'old'
+    ? blocked : { ok: true, status: 200, headers: new Headers({ 'X-Correction-Profile-Revision': revision, 'X-Correction-Mode': mode }),
+      arrayBuffer: async () => new Uint8Array([9]).buffer }, 'saved-token', () => mode);
+  const observed = [];
+  const unsubscribe = api.subscribeCorrectionMode(() => observed.push(api.getCorrectionModeSnapshot()));
+  const profile = { ...calibration.DEFAULT_VIEWING, edge: .2, revision };
+  const pending = api.getCorrectedImage('old', profile);
+  await tick();
+  mode = 'cluster';
+  await api.getCorrectedImage('new', profile);
+  release({ ok: true, status: 200, headers: new Headers({ 'X-Correction-Profile-Revision': revision, 'X-Correction-Mode': 'selective' }),
+    arrayBuffer: async () => new Uint8Array([1]).buffer });
+  await assert.rejects(pending, /모드가 변경/);
+  assert.deepEqual(observed, ['selective', 'cluster']);
+  assert.equal(api.cachedCorrectedImage('old', profile), undefined);
+  unsubscribe();
 });
 
 test('a correction in flight during a profile save cannot poison the old-strength cache', async () => {

@@ -1,8 +1,11 @@
 import asyncio
+from contextlib import closing
+import os
 from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -64,15 +67,18 @@ class DemoSafetyTests(unittest.TestCase):
     def test_backup_contains_committed_rows_even_with_wal_open(self):
         with TemporaryDirectory() as folder:
             root = Path(folder)
-            with sqlite3.connect(root / "users.sqlite3") as db:
+            with closing(sqlite3.connect(root / "users.sqlite3")) as db:
                 db.execute("PRAGMA journal_mode=WAL")
                 db.execute("CREATE TABLE example (value TEXT)")
                 db.execute("INSERT INTO example VALUES ('saved')")
                 db.commit()
-                backup = backup_databases(root)
-                with sqlite3.connect(backup / "users.sqlite3") as copy:
+                with patch.object(Path, "chmod", autospec=True, side_effect=Path.chmod) as chmod:
+                    backup = backup_databases(root)
+                chmod.assert_called_once_with(backup / "users.sqlite3", 0o600)
+                with closing(sqlite3.connect(backup / "users.sqlite3")) as copy:
                     self.assertEqual(copy.execute("SELECT value FROM example").fetchone(), ("saved",))
-                self.assertEqual((backup / "users.sqlite3").stat().st_mode & 0o777, 0o600)
+                if os.name != "nt":  # Windows chmod does not expose POSIX permission bits.
+                    self.assertEqual((backup / "users.sqlite3").stat().st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@
    전체 평균 밝기가 거의 그대로라 어두운 그림이 더 어두워지지 않는다. edge가 클수록 선이 굵고 진하다.
 """
 from io import BytesIO
+import os
 
 import cv2
 import numpy as np
@@ -385,6 +386,11 @@ def emphasize_edges(rgb, edge: float):
     return np.clip(rgb + delta[..., None], 0, 1).astype(np.float32)
 
 
+def color_correction_mode():
+    """Opt-in only. Missing, empty or unknown settings retain selective A'."""
+    return "cluster" if os.environ.get("COLOR_CORRECTION_MODE", "selective").strip().lower() == "cluster" else "selective"
+
+
 def correct_array(rgb, profile: dict):
     """sRGB(0~1, float32, H×W×3) 이미지에 프로필 보정을 순서대로 적용한다."""
     color_type = profile.get("color_type", "normal")
@@ -394,12 +400,17 @@ def correct_array(rgb, profile: dict):
     # 편집 순서와 무관하게 같은 결과를 만든다. 0인 종류는 원본을 그대로 통과한다.
     # 적색약·녹색약은 헷갈리는 곳만, 청색약은 그림 전체(헷갈리는 곳만 보정은 청색약에서 효과가 없었다).
     if color_type != "normal":
+        mode = color_correction_mode()
         for color in ("protan", "deutan", "tritan"):
             severity = float(colors.get(color, 0))
             if severity <= 0:
                 continue
-            weight = confusion_weight(rgb, color) if color != "tritan" else None
-            rgb = daltonize(rgb, color, severity, weight)
+            if mode == "cluster" and color in ("protan", "deutan"):
+                from .server_cluster import correct_cluster
+                rgb = correct_cluster(rgb, color, severity)
+            else:
+                weight = confusion_weight(rgb, color) if color != "tritan" else None
+                rgb = daltonize(rgb, color, severity, weight)
     rgb = brightness_contrast(rgb, float(profile.get("brightness", 0)), float(profile.get("contrast", 1)))
     rgb = sharpen(rgb, float(profile.get("sharpness", 0)))
     rgb = emphasize_edges(rgb, float(profile.get("edge", 0)))
