@@ -56,7 +56,7 @@ export function MascotLoading({
       </View>
       <View style={styles.copy}>
         <Text lineBreakStrategyIOS="hangul-word" style={[styles.message, compact && styles.compactMessage, { color: palette.text }]}>{message}</Text>
-        <Text style={[styles.detail, { color: palette.textSecondary }]}>{detail}</Text>
+        {!compact && <Text style={[styles.detail, { color: palette.textSecondary }]}>{detail}</Text>}
       </View>
     </View>
   );
@@ -65,12 +65,12 @@ export function MascotLoading({
 const styles = StyleSheet.create({
   // flexGrow: fills the box it is placed in, so the chameleon sits in the middle both ways.
   root: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, paddingHorizontal: ScreenPadding, paddingVertical: Spacing.four },
-  compactRoot: { paddingVertical: Spacing.two },
+  compactRoot: { paddingVertical: Spacing.two, gap: Spacing.one },
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 100, elevation: 100 },
   // The chameleon is centered and the spinner sits under it (side by side pushed the chameleon off center).
   visualRow: { alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   mascot: { width: 190, height: 190 },
-  compactMascot: { width: 132, height: 132 },
+  compactMascot: { width: 88, height: 88 },
   copy: { alignItems: 'center', gap: Spacing.one },
   message: { fontSize: FontSize.heading, lineHeight: 36, fontWeight: 800, textAlign: 'center' },
   compactMessage: { fontSize: FontSize.body, lineHeight: 30 },
