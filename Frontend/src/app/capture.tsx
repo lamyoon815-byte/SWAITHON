@@ -274,11 +274,11 @@ export default function CaptureScreen() {
                 <View
                   accessibilityRole="alert"
                   accessibilityLiveRegion="assertive"
-                  style={[styles.errorCard, { backgroundColor: palette.background, borderColor: palette.danger }]}>
+                  style={[styles.errorCard, { backgroundColor: palette.background, borderColor: palette.highlight }]}>
                   <SymbolView
                     name={{ ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' }}
                     size={44}
-                    tintColor={palette.danger}
+                    tintColor={palette.highlight}
                   />
                   <Text style={[styles.errorTitle, { color: palette.text }]}>{scanError.title}</Text>
                   <Text style={[styles.errorDetail, { color: palette.textSecondary }]}>
