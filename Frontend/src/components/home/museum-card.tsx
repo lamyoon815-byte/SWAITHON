@@ -22,7 +22,7 @@ export function MuseumCard({ museum, palette, onChange }: Props) {
         style={({ pressed }) => [styles.card, { backgroundColor: palette.highlight, opacity: pressed ? 0.8 : 1 }]}>
         <View style={styles.texts}>
           <Text style={[styles.caption, { color: palette.highlightText }]}>현재 미술관</Text>
-          <Text style={[styles.name, { color: palette.highlightText }]}>{museum.name}</Text>
+          <Text lineBreakStrategyIOS="hangul-word" style={[styles.name, { color: palette.highlightText }]}>{museum.name}</Text>
         </View>
         <View style={[styles.pill, { backgroundColor: palette.highlightText }]}>
           <Text style={[styles.pillText, { color: palette.highlight }]}>변경</Text>
@@ -43,7 +43,7 @@ export function MuseumCard({ museum, palette, onChange }: Props) {
       ]}>
       <View style={styles.texts}>
         <Text style={[styles.caption, { color: palette.textSecondary }]}>현재 미술관</Text>
-        <Text style={[styles.name, { color: palette.text }]}>미술관을 선택해 주세요</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={[styles.name, { color: palette.text }]}>미술관을 선택해 주세요</Text>
       </View>
       <View style={[styles.pill, { backgroundColor: palette.accent }]}>
         <Text style={[styles.pillText, { color: palette.accentText }]}>선택하기</Text>
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   caption: {
-    fontSize: 16,
+    fontSize: FontSize.label,
     fontWeight: 700,
   },
   // 홈에서 가장 먼저 읽히는 정보라 제목급(26)으로. 긴 이름은 두 줄로 넘어간다.
