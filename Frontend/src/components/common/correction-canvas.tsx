@@ -16,6 +16,7 @@ import {
   Group,
   Image,
   MipmapMode,
+  RoundedRect,
   RuntimeShader,
   type DataSourceParam,
 } from '@shopify/react-native-skia';
@@ -39,6 +40,8 @@ import { MascotLoading } from '@/components/common/mascot-loading';
 import { useCanvasImage } from '@/hooks/use-canvas-image';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
+import { FOLLOW_FILL, FOLLOW_MAX } from '@/lib/follow-zoom';
+import { Scrim } from '@/constants/theme';
 import { colorCorrectionUniforms, getColorCorrectionEffect } from '@/lib/color-correction';
 import { getSharpenEffect } from '@/lib/sharpen';
 import { getToneEffect, lumaHistogram, toneUniforms } from '@/lib/tone-curve';
@@ -49,9 +52,6 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 const DOUBLE_TAP_SCALE = 3;
 const BUTTON_STEP = 1.5;
-/** 따라 확대: 영역이 화면의 88% 안에 들어오는 배율까지, 최대 3배 (해설 화면과 같은 규칙) */
-const FOCUS_FILL = 0.88;
-const FOCUS_MAX = 3;
 
 function clamp(v: number, lo: number, hi: number) {
   'worklet';
@@ -254,13 +254,27 @@ export function CorrectionCanvas({
     const r = Math.min(W / imageW, H / imageH);
     const pw = imageW * r, ph = imageH * r;
     const ox = (W - pw) / 2, oy = (H - ph) / 2;
-    const s = clamp(Math.min(FOCUS_MAX, (FOCUS_FILL * W) / Math.max(1, fw * pw), (FOCUS_FILL * H) / Math.max(1, fh * ph)), MIN_SCALE, MAX_SCALE);
+    const s = clamp(Math.min(FOLLOW_MAX, (FOLLOW_FILL * W) / Math.max(1, fw * pw), (FOLLOW_FILL * H) / Math.max(1, fh * ph)), MIN_SCALE, MAX_SCALE);
     const cx = ox + (fx + fw / 2) * pw;
     const cy = oy + (fy + fh / 2) * ph;
     scale.set(move(s));
     tx.set(move(clampTranslate(W / 2 - cx * s, W, s)));
     ty.set(move(clampTranslate(H / 2 - cy * s, H, s)));
   }, [focus === undefined, fx, fy, fw, fh, size.width, size.height, imageW, imageH, reduceMotion, scale, tx, ty]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 따라 확대 윤곽선: 해설 화면의 영역 상자와 같은 모양(머스터드 4, 모서리 10). 그림과 같은 transform 안에
+  // 그려 확대·이동에 붙어 다니고, 두께·모서리는 배율로 나눠 화면에서는 늘 같은 두께로 보인다.
+  // 밝은 그림 위에서도 보이게 바깥에 어두운 선을 한 겹 더 두른다.
+  const focusRect = (() => {
+    const W = size.width, H = size.height;
+    if (!focus || !W || !H || !imageW || !imageH) return null;
+    const r = Math.min(W / imageW, H / imageH);
+    const pw = imageW * r, ph = imageH * r;
+    return { x: (W - pw) / 2 + focus[0] * pw, y: (H - ph) / 2 + focus[1] * ph, width: focus[2] * pw, height: focus[3] * ph };
+  })();
+  const outlineWidth = useDerivedValue(() => 4 / scale.get());
+  const outlineShadowWidth = useDerivedValue(() => 8 / scale.get());
+  const outlineRadius = useDerivedValue(() => 10 / scale.get());
 
   // Buttons are the only way to zoom while VoiceOver/TalkBack is on (screen readers swallow pinch).
   const zoomBy = (factor: number) => {
@@ -326,6 +340,12 @@ export function CorrectionCanvas({
                 {toneFilter}
                 {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
               </Image>
+            )}
+            {focusRect && (
+              <>
+                <RoundedRect {...focusRect} r={outlineRadius} style="stroke" strokeWidth={outlineShadowWidth} color={Scrim} />
+                <RoundedRect {...focusRect} r={outlineRadius} style="stroke" strokeWidth={outlineWidth} color={palette.highlight} />
+              </>
             )}
           </Group>
         </Canvas>

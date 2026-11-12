@@ -47,6 +47,7 @@ test('opening and closing fullscreen keeps the narrator and music active without
       : key?.startsWith('mood:') ? { music_url: 'music.wav', name: '평온' } : undefined }) },
     '@/lib/api': { ApiError: class ApiError extends Error {} },
     '@/lib/calibration': { correctionStrength: (v) => v, viewingFromProfile: (v) => v },
+    '@/lib/follow-zoom': { FOLLOW_FILL: 0.92, FOLLOW_MAX: 6 },
     '@/lib/pending-feedback': { markFeedbackPending: () => {} },
     '@/components/narration/speed-sheet': { SpeedSheet: 'SpeedSheet', formatRate: () => '1배' },
   };

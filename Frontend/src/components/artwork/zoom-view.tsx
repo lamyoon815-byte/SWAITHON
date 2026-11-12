@@ -63,8 +63,12 @@ export function ArtworkZoomView({ artwork, profile, original = false, strength: 
             <Pressable accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
               accessibilityState={{ checked: follow.on }} onPress={() => follow.onChange(!follow.on)} style={styles.followRow}>
               <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
-              <Switch value={follow.on} onValueChange={follow.onChange} accessible={false} importantForAccessibility="no"
-                trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
+              {/* Same box as the narration screen so the label and switch share one center line. */}
+              <View style={styles.switchBox}>
+                <Switch value={follow.on} onValueChange={follow.onChange} accessible={false} importantForAccessibility="no"
+                  style={styles.switch}
+                  trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
+              </View>
             </Pressable>
           )}
         </View>}
@@ -170,7 +174,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   followRow: { minHeight: MinTouchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  followLabel: { fontSize: FontSize.label, fontWeight: 700 },
+  followLabel: { fontSize: FontSize.body, lineHeight: 28, fontWeight: 700, includeFontPadding: false, textAlignVertical: 'center' },
+  switchBox: { height: MinTouchTarget, justifyContent: 'center', paddingHorizontal: 6 },
+  // The native switch has a fixed size; scale it up so it reads as a control at a glance.
+  switch: { transform: [{ scale: 1.25 }] },
   canvasArea: {
     flex: 1,
     justifyContent: 'center',
