@@ -267,7 +267,11 @@ export type NarrationMood = {
   category: MoodCategory;
   /** 화면에 보일 분위기 이름 (예: "경건·성스러움") */
   name: string;
-  /** 배경 음악 MP3 전체 주소 (`GET /music/{category}`) */
+  /** 잔잔한 곡(soft) / 움직임 있는 곡(lively). 분위기마다 두 곡 중 해설에 맞는 곡 */
+  energy: 'soft' | 'lively';
+  /** 화면에 보일 이름 ("잔잔한 곡" / "움직임 있는 곡") */
+  energy_name: string;
+  /** 배경 음악 MP3 전체 주소 (`GET /music/{category}/{energy}`) */
   music_url: string;
   /** 출처 표시가 필요한 곡(CC BY)이면 화면에 보여 줄 문구 */
   credit: string | null;
@@ -277,7 +281,7 @@ export type NarrationMood = {
 
 const moods = new Map<string, Promise<NarrationMood>>();
 
-/** 해설 전체 글의 분위기(10가지 중 하나)와 배경 음악 주소 (`POST /narration/mood`). 같은 글은 앱이 켜져 있는 동안 다시 묻지 않는다. */
+/** 해설 전체 글의 분위기(10가지 중 하나)·에너지(잔잔/움직임)와 배경 음악 주소 (`POST /narration/mood`). 같은 글은 앱이 켜져 있는 동안 다시 묻지 않는다. */
 export function getNarrationMood(text: string, artworkId?: string, moodKeywords: string[] = []): Promise<NarrationMood> {
   const body = { text: text.slice(0, 6000), artwork_id: artworkId, mood_keywords: moodKeywords.slice(0, 10) };
   const key = JSON.stringify(body);

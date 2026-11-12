@@ -1,14 +1,17 @@
 """작품 분위기 10가지 분류와 분위기별 배경 음악 폴더 만들기.
 
 하는 일
-1. 분위기마다 정한 무료 음원(위키미디어 공용, 퍼블릭 도메인·CC0·CC BY) 10곡을 MP3로 내려받는다.
+1. 분위기마다 정한 무료 음원(위키미디어 공용, 퍼블릭 도메인·CC0·CC BY) 2곡씩, 모두 20곡을 MP3로 내려받는다.
+   - 분위기마다 '잔잔한 곡(soft)'과 '움직임 있는 곡(lively)'을 하나씩 둔다(감정의 각성도 축).
+   - 해설에 어떤 곡을 쓸지는 ai/mood_classifier.py가 해설 글로 정한다.
 2. 작품 이미지를 CLIP으로 보고 10가지 분위기 중 가장 가까운 것을 고른다(제로샷 분류, 추가 학습 없음).
    - 분위기마다 영어 설명 문장 여러 개의 평균과 이미지의 유사도를 비교한다.
    - 한국 전통 미술관 작품은 '한국·동양 전통' 쪽에 가산점을 준다(그림만으로는 구분이 어려운 경우가 있어서).
 3. 결과를 연동 안내(README.txt) 형식인 {artwork_id, music_file}로 저장한다.
 
-음악 10곡은 git에 함께 올리는 Backend/music/ 폴더에 둔다(서버가 이 폴더의 파일을 /music/{분위기}로 보내 준다).
-- Backend/music/01_calm.mp3 … 10_korean.mp3 : 분위기별 음악 10곡
+음악 20곡은 git에 함께 올리는 Backend/music/ 폴더에 둔다(서버가 /music/{분위기}/{에너지}로 보내 준다).
+- Backend/music/01_calm.mp3 … 10_korean.mp3 : 분위기마다 기본 곡(처음 고른 곡)
+- Backend/music/01_calm_lively.mp3 …          : 분위기마다 나머지 곡(파일 이름에 에너지를 붙임)
 - Backend/music/CREDITS.md                  : 음원 출처 표기
 
 분류 결과 폴더 (기본: Backend/data/momi-music, git에 올라가지 않음)
@@ -20,7 +23,7 @@
 실행 (SWAITHON 폴더에서, 작품 서버와 같은 Wi-Fi):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\mood_music.py --manifest http://172.20.102.74:8004/manifest.json
     # 먼저 50점만 시험: --limit 50
-    # 음악 10곡만 먼저 받기: --music-only
+    # 음악 20곡만 받기(이미 받은 곡은 건너뜀): --music-only
     # ZIP을 풀어 둔 경우: --images-dir C:\\경로\\momi-ai-music (manifest의 image_path 기준)
 """
 import argparse
@@ -56,79 +59,144 @@ CATEGORIES = [
     {"key": "calm", "name": "평온·고요", "description": "조용한 실내, 정물, 잔잔한 풍경",
      "prompts": ["a calm, quiet and peaceful painting", "a serene still life", "a tranquil, silent interior",
                  "a still and peaceful scene with soft light"],
-     "track": {"title": "짐노페디 1번", "composer": "에리크 사티", "performer": "Robin Alciatore (Musopen)",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "짐노페디 1번", "composer": "에리크 사티", "performer": "Robin Alciatore (Musopen)",
                "license": "Public domain",
                "page": "https://commons.wikimedia.org/wiki/File:Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg",
-               "mp3": f"{COMMONS}/transcoded/9/90/Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg/Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/9/90/Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg/Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg.mp3"},
+                "lively": {"title": "평균율 클라비어곡집 1권 중 전주곡 1번 다장조", "composer": "요한 제바스티안 바흐", "performer": "Kimiko Ishizaka",
+               "license": "CC0",
+               "page": "https://commons.wikimedia.org/wiki/File:Kimiko_Ishizaka_-_Bach_-_Well-Tempered_Clavier,_Book_1_-_01_Prelude_No._1_in_C_major,_BWV_846.ogg",
+               "mp3": f"{COMMONS}/transcoded/b/b6/Kimiko_Ishizaka_-_Bach_-_Well-Tempered_Clavier%2C_Book_1_-_01_Prelude_No._1_in_C_major%2C_BWV_846.ogg/Kimiko_Ishizaka_-_Bach_-_Well-Tempered_Clavier%2C_Book_1_-_01_Prelude_No._1_in_C_major%2C_BWV_846.ogg.mp3"}}},
     {"key": "lyrical", "name": "서정·우아", "description": "인물화, 우아한 여인, 낭만적인 장면",
      "prompts": ["an elegant portrait of a person", "a graceful and romantic painting of a woman",
                  "a tender, gentle portrait", "a refined portrait in elegant clothes"],
-     "track": {"title": "녹턴 2번 내림마장조 작품 9", "composer": "프레데리크 쇼팽", "performer": "Peter Johnston (Musopen)",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "녹턴 2번 내림마장조 작품 9", "composer": "프레데리크 쇼팽", "performer": "Peter Johnston (Musopen)",
                "license": "CC0",
                "page": "https://commons.wikimedia.org/wiki/File:Chopin_Nocturne_No._2_in_E_Flat_Major,_Op._9.ogg",
-               "mp3": f"{COMMONS}/transcoded/0/04/Chopin_Nocturne_No._2_in_E_Flat_Major%2C_Op._9.ogg/Chopin_Nocturne_No._2_in_E_Flat_Major%2C_Op._9.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/0/04/Chopin_Nocturne_No._2_in_E_Flat_Major%2C_Op._9.ogg/Chopin_Nocturne_No._2_in_E_Flat_Major%2C_Op._9.ogg.mp3"},
+                "lively": {"title": "왈츠 내림가장조 작품 64-3", "composer": "프레데리크 쇼팽", "performer": "Diana Hughes (Musopen)",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Chopin_-_Waltz_No._8_in_A-flat_major,_Op._64_No._3_(Diana_Hughes).flac",
+               "mp3": f"{COMMONS}/transcoded/f/f2/Chopin_-_Waltz_No._8_in_A-flat_major%2C_Op._64_No._3_%28Diana_Hughes%29.flac/Chopin_-_Waltz_No._8_in_A-flat_major%2C_Op._64_No._3_%28Diana_Hughes%29.flac.mp3"}}},
     {"key": "bright", "name": "밝음·생기", "description": "햇살, 꽃, 축제, 즐거운 사람들",
      "prompts": ["a bright, cheerful and sunny painting", "a joyful, colorful scene with flowers",
                  "happy people enjoying a lively day outdoors", "a festive, lively celebration"],
-     "track": {"title": "사계 중 봄 1악장", "composer": "안토니오 비발디", "performer": "The Modena Chamber Orchestra (Musopen)",
+     "energy": "lively",
+     "tracks": {"lively": {"title": "사계 중 봄 1악장", "composer": "안토니오 비발디", "performer": "The Modena Chamber Orchestra (Musopen)",
                "license": "Public domain (Public Domain Mark)",
                "page": "https://commons.wikimedia.org/wiki/File:The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring,_RV_269_-_I._Allegro.ogg",
-               "mp3": f"{COMMONS}/transcoded/1/18/The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring%2C_RV_269_-_I._Allegro.ogg/The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring%2C_RV_269_-_I._Allegro.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/1/18/The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring%2C_RV_269_-_I._Allegro.ogg/The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring%2C_RV_269_-_I._Allegro.ogg.mp3"},
+                "soft": {"title": "아이네 클라이네 나흐트무지크 중 로망스", "composer": "볼프강 아마데우스 모차르트", "performer": "Musopen",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Mozart_-_Serenade_No._13_for_strings_in_G_major,_K._525_-_Romanze.ogg",
+               "mp3": f"{COMMONS}/transcoded/4/40/Mozart_-_Serenade_No._13_for_strings_in_G_major%2C_K._525_-_Romanze.ogg/Mozart_-_Serenade_No._13_for_strings_in_G_major%2C_K._525_-_Romanze.ogg.mp3"}}},
     {"key": "pastoral", "name": "목가·자연", "description": "들판, 숲, 강, 농촌, 아침 풍경",
      "prompts": ["a pastoral landscape with fields and trees", "a peaceful countryside with farms",
                  "a river and forest in nature", "a sunrise over a green landscape"],
-     "track": {"title": "페르 귄트 모음곡 1번 중 아침", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "페르 귄트 모음곡 1번 중 아침", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
                "license": "Public domain",
                "page": "https://commons.wikimedia.org/wiki/File:Musopen_-_Morning.ogg",
-               "mp3": f"{COMMONS}/transcoded/1/1a/Musopen_-_Morning.ogg/Musopen_-_Morning.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/1/1a/Musopen_-_Morning.ogg/Musopen_-_Morning.ogg.mp3"},
+                "lively": {"title": "교향곡 6번 '전원' 3악장 (시골 사람들의 즐거운 모임)", "composer": "루트비히 판 베토벤", "performer": "Musopen",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._6_in_f_major_%27pastoral%27,_op._68_-_iii._allegro.ogg",
+               "mp3": f"{COMMONS}/transcoded/b/ba/Ludwig_van_Beethoven_-_symphony_no._6_in_f_major_%27pastoral%27%2C_op._68_-_iii._allegro.ogg/Ludwig_van_Beethoven_-_symphony_no._6_in_f_major_%27pastoral%27%2C_op._68_-_iii._allegro.ogg.mp3"}}},
     {"key": "sacred", "name": "경건·성스러움", "description": "종교화, 성인, 천사, 성모자, 제단화",
      "prompts": ["a religious painting of saints and angels", "the Virgin Mary holding the Christ child",
                  "a holy Christian altarpiece with gold", "a devotional scene of prayer"],
-     "track": {"title": "칸타타 147번 중 '예수는 나의 기쁨'", "composer": "요한 제바스티안 바흐", "performer": "Orchestra Gli Armonici (Musopen)",
+     "energy": "lively",
+     "tracks": {"lively": {"title": "칸타타 147번 중 '예수는 나의 기쁨'", "composer": "요한 제바스티안 바흐", "performer": "Orchestra Gli Armonici (Musopen)",
                "license": "CC0",
                "page": "https://commons.wikimedia.org/wiki/File:Bach,_BWV_147,_10._Jesus_bleibet_meine_Freude.ogg",
-               "mp3": f"{COMMONS}/transcoded/2/27/Bach%2C_BWV_147%2C_10._Jesus_bleibet_meine_Freude.ogg/Bach%2C_BWV_147%2C_10._Jesus_bleibet_meine_Freude.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/2/27/Bach%2C_BWV_147%2C_10._Jesus_bleibet_meine_Freude.ogg/Bach%2C_BWV_147%2C_10._Jesus_bleibet_meine_Freude.ogg.mp3"},
+                "soft": {"title": "아베 마리아 (바이올린과 피아노 편곡)", "composer": "프란츠 슈베르트", "performer": "Yehudi Menuhin, Adolph Baller",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Schubert_-_Ave_Maria,_arr._for_violin_and_piano_(Menuhin,_Baller).flac",
+               "mp3": f"{COMMONS}/transcoded/5/5d/Schubert_-_Ave_Maria%2C_arr._for_violin_and_piano_%28Menuhin%2C_Baller%29.flac/Schubert_-_Ave_Maria%2C_arr._for_violin_and_piano_%28Menuhin%2C_Baller%29.flac.mp3"}}},
     {"key": "majestic", "name": "장엄·웅장", "description": "왕과 귀족, 궁전, 역사화, 큰 건축물",
      "prompts": ["a grand and majestic historical painting", "a portrait of a king or a noble in rich robes",
                  "a magnificent palace or cathedral", "a monumental scene of royalty and ceremony"],
-     "track": {"title": "수상 음악 중 알라 혼파이프", "composer": "게오르크 프리드리히 헨델",
+     "energy": "lively",
+     "tracks": {"lively": {"title": "수상 음악 중 알라 혼파이프", "composer": "게오르크 프리드리히 헨델",
                "performer": "Marine Chamber Orchestra, United States Marine Band", "license": "Public domain",
                "page": "https://commons.wikimedia.org/wiki/File:Handel%27s_Water_Music_-_12._Alla_hornpipe_-_Chamber_Orchestra_-_United_States_Marine_Band.opus",
-               "mp3": f"{COMMONS}/transcoded/5/5c/Handel%27s_Water_Music_-_12._Alla_hornpipe_-_Chamber_Orchestra_-_United_States_Marine_Band.opus/Handel%27s_Water_Music_-_12._Alla_hornpipe_-_Chamber_Orchestra_-_United_States_Marine_Band.opus.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/5/5c/Handel%27s_Water_Music_-_12._Alla_hornpipe_-_Chamber_Orchestra_-_United_States_Marine_Band.opus/Handel%27s_Water_Music_-_12._Alla_hornpipe_-_Chamber_Orchestra_-_United_States_Marine_Band.opus.mp3"},
+                "soft": {"title": "수상 음악 중 사라방드", "composer": "게오르크 프리드리히 헨델", "performer": "Marine Chamber Orchestra, United States Marine Band",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Handel%27s_Water_Music_-_16._Sarabande_-_Chamber_Orchestra_-_United_States_Marine_Band.opus",
+               "mp3": f"{COMMONS}/transcoded/e/e8/Handel%27s_Water_Music_-_16._Sarabande_-_Chamber_Orchestra_-_United_States_Marine_Band.opus/Handel%27s_Water_Music_-_16._Sarabande_-_Chamber_Orchestra_-_United_States_Marine_Band.opus.mp3"}}},
     {"key": "melancholy", "name": "슬픔·애수", "description": "이별, 죽음, 외로움, 쓸쓸한 장면",
      "prompts": ["a sad and melancholic painting", "a lonely figure in grief", "a somber scene of mourning",
                  "a gloomy, muted and sorrowful scene"],
-     "track": {"title": "페르 귄트 모음곡 1번 중 오세의 죽음", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "페르 귄트 모음곡 1번 중 오세의 죽음", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
                "license": "CC0",
                "page": "https://commons.wikimedia.org/wiki/File:Peer_Gynt_Suite_No._1,_Op._46_-_II._Aase%27s_Death.ogg",
-               "mp3": f"{COMMONS}/transcoded/2/26/Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase%27s_Death.ogg/Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase%27s_Death.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/2/26/Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase%27s_Death.ogg/Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase%27s_Death.ogg.mp3"},
+                "lively": {"title": "왈츠 올림다단조 작품 64-2", "composer": "프레데리크 쇼팽", "performer": "Musopen",
+               "license": "CC0",
+               "page": "https://commons.wikimedia.org/wiki/File:Chopin-waltz-op-64-no-2-in-c-sharp-minor.oga",
+               "mp3": f"{COMMONS}/transcoded/1/17/Chopin-waltz-op-64-no-2-in-c-sharp-minor.oga/Chopin-waltz-op-64-no-2-in-c-sharp-minor.oga.mp3"}}},
     {"key": "dramatic", "name": "긴장·극적", "description": "전투, 폭풍, 사냥, 강한 명암의 사건",
      "prompts": ["a dramatic battle scene", "a stormy sea with huge waves", "a violent and tense struggle",
                  "a dark dramatic scene with strong contrast of light and shadow"],
-     "track": {"title": "페르 귄트 모음곡 1번 중 산왕의 궁전에서", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
+     "energy": "lively",
+     "tracks": {"lively": {"title": "페르 귄트 모음곡 1번 중 산왕의 궁전에서", "composer": "에드바르 그리그", "performer": "Musopen Symphony Orchestra",
                "license": "Public domain",
                "page": "https://commons.wikimedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg",
-               "mp3": f"{COMMONS}/transcoded/b/bb/Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg/Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/b/bb/Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg/Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg.mp3"},
+                "soft": {"title": "그노시엔 1번", "composer": "에리크 사티", "performer": "La Pianista",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Satie_-_Gnossienne_1.ogg",
+               "mp3": f"{COMMONS}/transcoded/9/91/Satie_-_Gnossienne_1.ogg/Satie_-_Gnossienne_1.ogg.mp3"}}},
     {"key": "dreamy", "name": "몽환·신비", "description": "밤, 달빛, 안개, 신화와 상상의 장면",
      "prompts": ["a dreamy and mysterious night scene", "moonlight over water", "a misty, hazy impressionist painting",
                  "a mythological fantasy scene"],
-     "track": {"title": "베르가마스크 모음곡 중 달빛", "composer": "클로드 드뷔시", "performer": "Laurens Goedhart",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "베르가마스크 모음곡 중 달빛", "composer": "클로드 드뷔시", "performer": "Laurens Goedhart",
                "license": "Public domain",
                "page": "https://commons.wikimedia.org/wiki/File:Clair_de_lune_(Claude_Debussy)_Suite_bergamasque.ogg",
-               "mp3": f"{COMMONS}/transcoded/b/be/Clair_de_lune_%28Claude_Debussy%29_Suite_bergamasque.ogg/Clair_de_lune_%28Claude_Debussy%29_Suite_bergamasque.ogg.mp3"}},
+               "mp3": f"{COMMONS}/transcoded/b/be/Clair_de_lune_%28Claude_Debussy%29_Suite_bergamasque.ogg/Clair_de_lune_%28Claude_Debussy%29_Suite_bergamasque.ogg.mp3"},
+                "lively": {"title": "한여름 밤의 꿈 중 스케르초", "composer": "펠릭스 멘델스존", "performer": "Leopold Stokowski",
+               "license": "Public domain",
+               "page": "https://commons.wikimedia.org/wiki/File:Mendelssohn;_Midsummer_Night%27s_Dream_-_Scherzo.ogg",
+               "mp3": f"{COMMONS}/transcoded/9/9d/Mendelssohn%3B_Midsummer_Night%27s_Dream_-_Scherzo.ogg/Mendelssohn%3B_Midsummer_Night%27s_Dream_-_Scherzo.ogg.mp3"}}},
     {"key": "korean", "name": "한국·동양 전통", "description": "수묵화, 산수화, 민화, 도자기 등 동양 전통 미술",
      "prompts": ["a traditional Korean painting", "an East Asian ink wash landscape painting",
                  "a traditional Korean folk painting", "an Asian hanging scroll painting with calligraphy"],
-     "track": {"title": "국악연주곡 구아리랑", "composer": "한국 민요", "performer": "한국저작권위원회 (공유마당)",
+     "energy": "soft",
+     "tracks": {"soft": {"title": "국악연주곡 구아리랑", "composer": "한국 민요", "performer": "한국저작권위원회 (공유마당)",
                "license": "CC BY 4.0",
                "page": "https://commons.wikimedia.org/wiki/File:Old_Arirang.wav",
                "mp3": f"{COMMONS}/transcoded/a/a4/Old_Arirang.wav/Old_Arirang.wav.mp3",
-               "attribution": "국악연주곡 구아리랑, 한국저작권위원회, 공유마당, CC BY 4.0"}},
+               "attribution": "국악연주곡 구아리랑, 한국저작권위원회, 공유마당, CC BY 4.0"},
+                "lively": {"title": "군밤타령", "composer": "한국 민요", "performer": "한국저작권위원회 (공유마당)",
+               "license": "CC BY 4.0",
+               "page": "https://commons.wikimedia.org/wiki/File:Gunbam_Taryeong.wav",
+               "mp3": f"{COMMONS}/transcoded/b/bc/Gunbam_Taryeong.wav/Gunbam_Taryeong.wav.mp3",
+               "attribution": "군밤타령, 한국저작권위원회, 공유마당, CC BY 4.0"}}},
 ]
 
 
-def music_file(index, category):
-    return f"music/{index + 1:02d}_{category['key']}.mp3"
+ENERGIES = ("soft", "lively")
+ENERGY_NAMES = {"soft": "잔잔한 곡", "lively": "움직임 있는 곡"}
+
+
+def music_file(index, category, energy=None):
+    """분위기의 기본 곡은 01_calm.mp3, 다른 곡은 01_calm_lively.mp3처럼 에너지를 붙인다."""
+    energy = energy or category["energy"]
+    suffix = "" if energy == category["energy"] else f"_{energy}"
+    return f"music/{index + 1:02d}_{category['key']}{suffix}.mp3"
+
+
+def all_tracks():
+    """(번호, 분위기, 에너지, 곡) 20개. 분위기마다 기본 곡이 먼저 나온다."""
+    for index, category in enumerate(CATEGORIES):
+        for energy in sorted(ENERGIES, key=lambda e: e != category["energy"]):
+            yield index, category, energy, category["tracks"][energy]
 
 
 def fetch(url, timeout=30):
@@ -159,31 +227,32 @@ def fetch_with_retry(url, fetcher=fetch, tries=4, wait=5):
 
 
 def download_music(out: Path, fetcher=fetch):
-    """10곡을 받는다. 한 곡이 실패해도 나머지는 계속 받고, 마지막에 실패한 곡을 알려 준다."""
+    """20곡을 받는다. 한 곡이 실패해도 나머지는 계속 받고, 마지막에 실패한 곡을 알려 준다."""
     (out / "music").mkdir(parents=True, exist_ok=True)
     failed = []
-    for index, category in enumerate(CATEGORIES):
-        path = out / music_file(index, category)
+    tracks = list(all_tracks())
+    for index, category, energy, track in tracks:
+        path = out / music_file(index, category, energy)
         if path.exists() and looks_like_mp3(path.read_bytes()):
             continue
         try:
-            data = fetch_with_retry(category["track"]["mp3"], fetcher)
+            data = fetch_with_retry(track["mp3"], fetcher)
         except Exception as error:
-            failed.append(category)
+            failed.append((category, energy, track))
             print(f"  ✗ {path.name} 받기 실패 ({type(error).__name__}: {str(error)[:120]})")
             continue
         if not looks_like_mp3(data):
-            failed.append(category)
-            print(f"  ✗ {path.name}: MP3가 아닌 응답을 받았습니다 ({category['track']['page']})")
+            failed.append((category, energy, track))
+            print(f"  ✗ {path.name}: MP3가 아닌 응답을 받았습니다 ({track['page']})")
             continue
         path.write_bytes(data)
-        print(f"  음악 {path.name} ({len(data) / 1e6:.1f}MB) ← {category['track']['title']}")
+        print(f"  음악 {path.name} ({len(data) / 1e6:.1f}MB) ← {track['title']}")
         time.sleep(3)  # 위키미디어 서버에 부담을 주지 않도록 곡 사이에 쉰다.
     (out / "music" / "CREDITS.md").write_text(credits_markdown(), encoding="utf-8")
-    ready = sum(1 for i, c in enumerate(CATEGORIES) if (out / music_file(i, c)).exists())
-    print(f"  음악 {ready}/10곡 준비")
+    ready = sum(1 for i, c, e, _ in tracks if (out / music_file(i, c, e)).exists())
+    print(f"  음악 {ready}/{len(tracks)}곡 준비")
     if failed:
-        raise SystemExit("받지 못한 곡: " + ", ".join(f"{c['key']}({c['track']['title']})" for c in failed)
+        raise SystemExit("받지 못한 곡: " + ", ".join(f"{c['key']}-{e}({t['title']})" for c, e, t in failed)
                          + "\n몇 분 뒤 같은 명령을 다시 실행하면 받은 곡은 건너뛰고 나머지만 받습니다.")
 
 
@@ -279,7 +348,7 @@ def write_outputs(out: Path, items, vectors, matrix, failed):
                 "items": [{k: v for k, v in r.items() if not k.startswith("_")} for r in results]}
     (out / "music_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
     categories = [{"key": c["key"], "name": c["name"], "description": c["description"], "music_file": music_file(i, c),
-                   "count": counts[c["key"]], "track": c["track"]} for i, c in enumerate(CATEGORIES)]
+                   "count": counts[c["key"]], "energy": c["energy"], "tracks": c["tracks"]} for i, c in enumerate(CATEGORIES)]
     (out / "categories.json").write_text(json.dumps(categories, ensure_ascii=False, indent=1), encoding="utf-8")
     with (out / "review.csv").open("w", newline="", encoding="utf-8-sig") as file:
         writer = csv.writer(file)
@@ -292,19 +361,19 @@ def write_outputs(out: Path, items, vectors, matrix, failed):
 
 def credits_markdown():
     lines = ["# 분위기 음악 출처", "", "모든 음원은 위키미디어 공용(Wikimedia Commons)에서 받았습니다. 작곡은 모두 저작권 보호 기간이 끝난 곡입니다.", "",
-             "| 파일 | 분위기 | 곡 | 작곡 | 연주 | 라이선스 | 출처 |", "|---|---|---|---|---|---|---|"]
-    for i, c in enumerate(CATEGORIES):
-        t = c["track"]
-        lines.append(f"| {Path(music_file(i, c)).name} | {c['name']} | {t['title']} | {t['composer']} | {t['performer']} | {t['license']} | {t['page']} |")
+             "| 파일 | 분위기 | 에너지 | 곡 | 작곡 | 연주 | 라이선스 | 출처 |", "|---|---|---|---|---|---|---|---|"]
+    for i, c, e, t in all_tracks():
+        lines.append(f"| {Path(music_file(i, c, e)).name} | {c['name']} | {ENERGY_NAMES[e]} | {t['title']} | {t['composer']} | "
+                     f"{t['performer']} | {t['license']} | {t['page']} |")
     lines += ["", "CC BY 4.0 음원은 앱이나 발표 자료에 다음 표기가 필요합니다:",
-              "- " + "; ".join(c["track"]["attribution"] for c in CATEGORIES if "attribution" in c["track"]), ""]
+              *("- " + t["attribution"] for _, _, _, t in all_tracks() if "attribution" in t), ""]
     return "\n".join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="작품 분위기 10가지 분류 + 분위기별 무료 음악 폴더 만들기")
+    parser = argparse.ArgumentParser(description="작품 분위기 10가지 분류 + 분위기별 무료 음악(20곡) 폴더 만들기")
     parser.add_argument("--manifest", help="manifest.json URL 또는 파일 경로 (분류할 때 필요)")
-    parser.add_argument("--music-only", action="store_true", help="음악 10곡만 내려받고 끝내기")
+    parser.add_argument("--music-only", action="store_true", help="음악 20곡만 내려받고 끝내기")
     parser.add_argument("--out", type=Path, default=BACKEND / "data" / "momi-music", help="분류 결과 폴더")
     parser.add_argument("--images-dir", help="ZIP을 푼 폴더(있으면 image_url 대신 image_path로 읽음)")
     parser.add_argument("--limit", type=int, help="앞에서부터 N점만 (시험용)")
@@ -313,10 +382,10 @@ def main():
 
     args.out.mkdir(parents=True, exist_ok=True)
     if not args.skip_music:
-        print("1/3 음악 10곡 내려받기 (위키미디어 공용)")
+        print("1/3 음악 20곡 내려받기 (위키미디어 공용)")
         download_music(MUSIC_ROOT)
     if args.music_only:
-        print(f"음악 10곡 준비 완료: {MUSIC_ROOT / 'music'}")
+        print(f"음악 준비 완료: {MUSIC_ROOT / 'music'}")
         return
     if not args.manifest:
         parser.error("--manifest가 필요합니다 (음악만 받으려면 --music-only)")
