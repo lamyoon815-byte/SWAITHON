@@ -196,8 +196,8 @@ export default function MyPageScreen() {
             <View style={[styles.sectionDivider, { backgroundColor: palette.outline }]} />
             <PressableScale accessibilityRole="button" accessibilityLabel="로그아웃" onPress={() => setConfirmLogout(true)}
               pressedScale={0.98} background={`${palette.background}00`} pressedBackground={palette.fill} style={styles.logout}>
-              <SymbolView name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }} size={22} tintColor={palette.danger} />
-              <Text style={[styles.logoutText, { color: palette.danger }]}>로그아웃</Text>
+              <SymbolView name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }} size={22} tintColor={palette.highlight} />
+              <Text style={[styles.logoutText, { color: palette.highlight }]}>로그아웃</Text>
             </PressableScale>
           </>
         )}

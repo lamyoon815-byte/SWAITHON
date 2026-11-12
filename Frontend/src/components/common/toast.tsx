@@ -12,7 +12,7 @@ import { AccessibilityInfo, Keyboard, Platform, Pressable, StyleSheet, View } fr
 import { Text } from '@/components/common/text';
 import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
 
-import { FontSize } from '@/constants/a11y';
+import { FontSize, Mustard } from '@/constants/a11y';
 import { Colors, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarBottom, TabBarHeight } from '@/hooks/use-tab-bar-inset';
@@ -30,12 +30,14 @@ const MS_PER_CHAR = 90;
 /**
  * Icon colors sit on the toast's own dark pill in both themes, so one set works for light and dark.
  * Each is at least 3:1 against both pill colors (#3A3D44, #33353B), the non-text contrast minimum.
+ * Success and error use the point mustard (5.4:1 on the pill) instead of green and red, so the app
+ * keeps one accent; the check and the X keep the two apart without relying on color.
  */
 const KINDS: Record<ToastKind, { ios: SFSymbol; android: AndroidSymbol; color: string; label: string }> = {
   info: { ios: 'info.circle.fill', android: 'info', color: '#8FB0FF', label: '안내' },
-  success: { ios: 'checkmark.circle.fill', android: 'check_circle', color: '#5BD69A', label: '완료' },
+  success: { ios: 'checkmark.circle.fill', android: 'check_circle', color: Mustard, label: '완료' },
   warning: { ios: 'exclamationmark.circle.fill', android: 'error', color: '#FFC845', label: '주의' },
-  error: { ios: 'xmark.circle.fill', android: 'cancel', color: '#FF8A80', label: '오류' },
+  error: { ios: 'xmark.circle.fill', android: 'cancel', color: Mustard, label: '오류' },
 };
 
 type Toast = { id: number; text: string; kind: ToastKind };
