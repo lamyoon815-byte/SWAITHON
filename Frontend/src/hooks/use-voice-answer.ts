@@ -16,7 +16,7 @@ const MAX_SECONDS = 6;
 export type VoiceAnswerState = 'idle' | 'recording' | 'thinking';
 type Handlers = { onText: (text: string) => void; onError: (message: string) => void };
 
-export function useVoiceAnswer(purpose: 'answer' | 'artwork' = 'answer') {
+export function useVoiceAnswer(purpose: 'answer' | 'artwork' | 'feedback' = 'answer') {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [state, setState] = useState<VoiceAnswerState>('idle');
   const stateRef = useRef<VoiceAnswerState>('idle');

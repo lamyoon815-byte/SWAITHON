@@ -49,11 +49,10 @@ import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { ApiError, generateNarration, getArtwork, getNarration, getNarrationMood } from '@/lib/api';
 import type { NarrationLength, NarrationMode } from '@/types/narration';
-import { DEFAULT_PROFILE } from '@/types/profile';
+import { markFeedbackPending } from '@/lib/pending-feedback';
 import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
-const START_RATE = DEFAULT_PROFILE.speech_rate;
 // 재생판 위 페이드. 기본(40)의 1/3쯤으로 짧게 두어 문장 목록을 덜 가린다.
 const PLAYER_FADE = 14;
 
@@ -85,16 +84,20 @@ export default function NarrationScreen() {
   // 해설을 듣는 동안은 항상 사용자 설정의 보정본을 표시한다.
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), false, strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
-  const [rate, setRate] = useState(START_RATE);
+  // 속도·길이는 프로필(감상 피드백으로 바뀔 수 있음)에서 시작하고, 이 화면에서 바꾼 값은 이번 감상에만 쓴다.
+  const [chosenRate, setRate] = useState<number | null>(null);
+  const rate = chosenRate ?? profile.speech_rate;
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const [length, setLength] = useState<NarrationLength>('brief');
+  const [chosenLength, setLength] = useState<NarrationLength | null>(null);
+  const length = chosenLength ?? profile.narration_length;
+  const focus = profile.narration_focus;
 
   // 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만든다. 같은 작품은 앱·서버 모두 저장해 두어 다시 만들지 않는다.
   const noReviewed = narrationRes.error instanceof ApiError && narrationRes.error.status === 409;
-  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}:${length}` : null, () => generateNarration(id!, length));
+  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}:${length}:${focus}` : null, () => generateNarration(id!, length, focus));
   const ai = aiRes.data ?? null;
   const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
     ? '해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
@@ -109,6 +112,8 @@ export default function NarrationScreen() {
     segments.map((s) => s.text),
     rate,
     repeat,
+    // 끝까지 들으면 홈으로 돌아갔을 때 감상 피드백을 묻는다.
+    () => { if (id) markFeedbackPending({ artworkId: id, title: artwork?.title ?? '이 작품' }); },
   );
 
   // 배경 음악: 해설 전체 글로 분위기를 한 번 정한다(듣는 범위를 바꿔도 그대로). 꺼져 있으면 묻지 않는다.
@@ -127,6 +132,7 @@ export default function NarrationScreen() {
   // 작품 위 영역 상자: 검수 해설은 작품 description, AI 해설은 함께 온 description의 regions.
   const regions = ai?.description?.regions ?? artwork?.description?.regions ?? [];
   const usableRegions = new Set(segments.flatMap((s) => (s.region_index === null ? [] : [s.region_index])));
+  const canFollow = segments.some((segment) => segment.region_index != null && !!regions[segment.region_index]);
   const jumpToRegion = (region: number) => {
     const at = segments.findIndex((s) => s.region_index === region);
     if (at >= 0) player.goTo(at);
@@ -366,12 +372,12 @@ export default function NarrationScreen() {
       {/* 그림 아래 조작 줄: 따라 확대(아이폰식 스위치) · 크게 보기 */}
       {!!artwork && (
         <View style={styles.imageTools}>
-          <Pressable disabled={regions.length === 0} accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
-              accessibilityState={{ checked: follow, disabled: regions.length === 0 }} onPress={() => setFollow((v) => !v)} style={[styles.followRow, regions.length === 0 && styles.disabled]}>
+          <Pressable disabled={!canFollow} accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint={canFollow ? '재생할 때 지금 설명하는 부분으로 그림을 확대해요' : '이 해설에는 문장에 연결된 확대 영역 정보가 없어요. 크게 보기로 직접 확대할 수 있어요.'}
+              accessibilityState={{ checked: canFollow && follow, disabled: !canFollow }} onPress={() => setFollow((v) => !v)} style={[styles.followRow, !canFollow && styles.disabled]}>
               <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
               <View style={styles.switchBox}>
-                <Switch value={follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
-                  disabled={regions.length === 0}
+                <Switch value={canFollow && follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
+                  disabled={!canFollow}
                   trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
               </View>
             </Pressable>
@@ -383,6 +389,11 @@ export default function NarrationScreen() {
           </PressableScale>
           </View>
         </View>
+      )}
+      {!!artwork && segments.length > 0 && !canFollow && (
+        <Text style={{ color: palette.textSecondary, fontSize: FontSize.label, lineHeight: 27 }}>
+          이 해설에는 확대 영역 정보가 없어요. ‘크게 보기’로 직접 확대할 수 있어요.
+        </Text>
       )}
 
       {/* 배경 음악 켜고 끄기(마이페이지 설정과 같은 값). */}
@@ -565,7 +576,7 @@ export default function NarrationScreen() {
           sentences={segments.map((segment) => segment.text)}
           narrationFailed={failed || !!aiError}
           onClose={() => setZoomOpen(false)}
-          follow={regions.length > 0 ? { on: follow, onChange: setFollow, region: followRegion?.bbox ?? null } : undefined}
+          follow={canFollow ? { on: follow, onChange: setFollow, region: followRegion?.bbox ?? null } : undefined}
         />
       </Animated.View>}
 

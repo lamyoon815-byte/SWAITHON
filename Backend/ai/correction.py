@@ -7,10 +7,16 @@
    Machado(2009) 모델로 '이 사용자에게 보이는 색'을 계산하고, 원본과의 차이(구분되지 않는 색 정보)를
    사용자가 구분할 수 있는 채널로 옮겨 더한다(달토나이제이션, Fidaner et al. 2005 방식).
    Machado 행렬은 선형 RGB 기준이므로 sRGB → 선형 → 보정 → sRGB로 변환한다.
-2. 밝기·대비 (brightness -50~50, contrast 0.5~2): CIELAB 밝기(L*) 채널에만 적용해 색이 틀어지지 않게 한다.
+2. 밝기·대비 (brightness -50~50, contrast 0.5~2)
+   대비: 시그모이드 대비(ImageMagick sigmoidal-contrast와 같은 곡선)를 밝기(luma)에만 적용하고 색은 비율로 유지한다.
+   곡선의 중심은 '그림의 평균 밝기가 바뀌지 않는 점'으로 정한다. 그래서 어두운 그림이 통째로 검게 뭉개지거나
+   밝은 그림이 하얗게 날아가지 않는다(검정은 검정, 흰색은 흰색으로 남고 중간에서 잘리지 않음). 앱 Skia(tone-curve.ts)와 같은 식이다.
+   밝기: CIELAB 밝기(L*)에 더한다.
 3. 선명도 (sharpness 0~2): 언샤프 마스크.
-4. 선 두께·윤곽선 강조 (edge 0~1): Canny로 윤곽선을 찾고 팽창(dilation)으로 굵게 만든 뒤,
-   밝은 곳에는 어두운 선, 어두운 곳에는 밝은 선으로 덧그린다. edge가 클수록 선이 굵고 진하다.
+4. 선 두께·윤곽선 강조 (edge 0~1)
+   가는 어두운 선은 굵게 하되 바탕이 어두우면 약하게 하고, 형태 윤곽은 양극성(bipolar)으로 강조한다
+   (Peli et al., 2004, JOSA A 21(6) 저시력용 영상 보정): 경계의 밝은 쪽은 더 밝게, 어두운 쪽은 더 어둡게 '더한다'.
+   전체 평균 밝기가 거의 그대로라 어두운 그림이 더 어두워지지 않는다. edge가 클수록 선이 굵고 진하다.
 """
 from io import BytesIO
 
@@ -124,11 +130,76 @@ def daltonize(rgb, color_type: str, severity: float):
     return linear_to_srgb(corrected)
 
 
+LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)  # Rec.709 밝기 가중치
+TONE_BINS = 32  # 앱(tone-curve.ts)과 같은 히스토그램 칸 수
+
+
+def _sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
+def sigmoid_gain(contrast: float, mid: float) -> float:
+    """중심(mid)에서 곡선의 기울기가 contrast가 되는 시그모이드 세기(gain). contrast <= 1이면 0."""
+    if contrast <= 1:
+        return 0.0
+    low, high = 1e-4, 60.0
+    for _ in range(50):
+        gain = (low + high) / 2
+        slope = gain * 0.25 / (_sigmoid(gain * (1 - mid)) - _sigmoid(-gain * mid))
+        low, high = (gain, high) if slope < contrast else (low, gain)
+    return (low + high) / 2
+
+
+def tone_curve(y, contrast: float, mid: float):
+    """정규화 시그모이드 대비 곡선 (0 → 0, 1 → 1). contrast > 1이면 높이고, < 1이면 역곡선으로 낮춘다."""
+    y = np.asarray(y, dtype=np.float32)
+    if abs(contrast - 1) < 1e-4:
+        return y
+    gain = sigmoid_gain(contrast if contrast > 1 else 1 / contrast, mid)
+    low, high = _sigmoid(-gain * mid), _sigmoid(gain * (1 - mid))
+    if contrast > 1:
+        return (_sigmoid(gain * (y - mid)) - low) / (high - low)
+    t = np.clip(y * (high - low) + low, 1e-6, 1 - 1e-6)
+    return np.clip(mid + np.log(t / (1 - t)) / gain, 0, 1).astype(np.float32)
+
+
+def tone_mid(histogram, contrast: float) -> float:
+    """대비를 바꿔도 그림의 평균 밝기가 그대로인 곡선 중심을 이분 탐색으로 찾는다."""
+    weights = np.asarray(histogram, dtype=np.float64)
+    weights = weights / max(weights.sum(), 1e-12)
+    centers = (np.arange(len(weights)) + 0.5) / len(weights)
+    target = float((weights * centers).sum())
+    low, high = 0.02, 0.98
+    for _ in range(30):
+        mid = (low + high) / 2
+        mean = float((weights * tone_curve(centers, contrast, mid)).sum())
+        # 대비를 높일 때는 중심이 클수록 결과가 어두워지고, 낮출 때는 반대다.
+        if (mean > target) == (contrast > 1):
+            low = mid
+        else:
+            high = mid
+    return (low + high) / 2
+
+
+def apply_contrast(rgb, contrast: float):
+    """밝기(luma)에만 평균 유지 시그모이드 대비를 적용하고, 색은 밝기 비율로 따라가게 한다."""
+    if abs(contrast - 1) < 1e-4:
+        return rgb
+    y = rgb @ LUMA
+    histogram, _ = np.histogram(y, bins=TONE_BINS, range=(0, 1))
+    toned = tone_curve(y, contrast, tone_mid(histogram, contrast))
+    ratio = np.where(y > 1e-4, toned / np.maximum(y, 1e-4), 1.0)
+    return np.clip(rgb * ratio[..., None], 0, 1).astype(np.float32)
+
+
 def brightness_contrast(rgb, brightness: float, contrast: float):
     if brightness == 0 and contrast == 1:
         return rgb
+    rgb = apply_contrast(rgb, contrast)
+    if brightness == 0:
+        return rgb
     lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)  # float32 입력이면 L* 범위는 0~100
-    lab[..., 0] = np.clip((lab[..., 0] - 50) * contrast + 50 + brightness, 0, 100)
+    lab[..., 0] = np.clip(lab[..., 0] + brightness, 0, 100)
     return np.clip(cv2.cvtColor(lab, cv2.COLOR_LAB2RGB), 0, 1)
 
 
@@ -145,11 +216,14 @@ def sharpen(rgb, amount: float):
 
 
 def emphasize_edges(rgb, edge: float):
-    """가는 선을 굵게 + 윤곽선을 진하게. edge(0~1)가 클수록 선이 굵고 진하다.
+    """가는 선을 굵게 + 윤곽선을 또렷하게. edge(0~1)가 클수록 선이 굵고 진하다.
 
     1) 가는 선 굵히기: 블랙햇(black-hat) 연산으로 주변보다 어두운 가는 선(판화 선, 빗줄기 등)만 찾고,
        그 선을 팽창시킨 뒤 최소값 필터(침식)로 선 자체의 색을 넓게 칠한다. 선의 원래 색이 유지된다.
-    2) 윤곽선 강조: Canny로 형태의 경계를 찾아 진하게 덧그려 저시력 사용자가 형태를 구분하기 쉽게 한다.
+       선 둘레의 바탕이 어두우면(밝기 0.15 이하) 굵히지 않는다. 어두운 바탕의 어두운 선은 굵혀도 보이지 않고 그림만 어두워진다.
+    2) 양극성 윤곽 강조 (Peli et al., 2004): Canny로 찾은 형태 경계 근처에서만, 두 크기의 가우시안 흐림 차이(DoG)로
+       경계의 밝은 쪽(+)과 어두운 쪽(−)을 구해 원본에 더한다. 덧칠이 아니라 더하기라 평균 밝기가 유지되고,
+       이미 어두운 곳은 원래 밝기의 절반보다 더 어둡게 하지 않아 그림자가 검게 뭉개지지 않는다.
     """
     if edge <= 0:
         return rgb
@@ -157,37 +231,45 @@ def emphasize_edges(rgb, edge: float):
     # 사진 크기와 관계없이 같은 기준으로 선을 찾도록 긴 변 1000px에서 계산한다.
     ratio = min(1.0, 1000 / max(height, width))
     size = (max(1, round(width * ratio)), max(1, round(height * ratio)))
-    gray = cv2.cvtColor((cv2.resize(rgb, size, interpolation=cv2.INTER_AREA) * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
-    radius = 1 + int(round(2 * edge))  # 굵히는 정도: 긴 변 1000px 기준 약 1~3px씩
+    small = cv2.resize(rgb, size, interpolation=cv2.INTER_AREA)
+    luma = (small @ LUMA).astype(np.float32)
+    gray = (luma * 255).astype(np.uint8)
 
     def ellipse(r):
         return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
 
-    def full_size(mask, blur):
+    def full_size(mask, blur=0.0):
         mask = cv2.resize(mask.astype(np.float32), (width, height), interpolation=cv2.INTER_LINEAR)
-        return cv2.GaussianBlur(mask, (0, 0), sigmaX=blur / ratio)[..., None]
+        return cv2.GaussianBlur(mask, (0, 0), sigmaX=blur / ratio) if blur else mask
 
-    # 1) 가는 어두운 선 찾기 → 굵히기
+    # 1) 가는 어두운 선 찾기 → 굵히기 (바탕이 어두우면 약하게)
     blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, ellipse(3))
     threshold, _ = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # 질감·잡티까지 선으로 잡지 않도록 Otsu 기준보다 조금 높게 자른다.
     lines = (blackhat > max(25, 1.2 * threshold)).astype(np.uint8)
     line_radius = max(1, int(round(1 + 1.5 * edge)))  # 1000px 기준 약 1~2.5px 굵힘
     lines = cv2.dilate(lines, ellipse(line_radius))
-    line_mask = full_size(lines, 0.6)
+    background = cv2.dilate(luma, ellipse(4))  # 선 둘레의 밝은 바탕
+    protect = np.clip((background - 0.15) / 0.25, 0, 1)  # 바탕 밝기 0.15 이하 → 0, 0.40 이상 → 1
+    line_mask = full_size(cv2.GaussianBlur(lines.astype(np.float32), (0, 0), 0.6) * protect)[..., None]
     # 선 색 넓히기도 1000px 크기에서 계산해 원본 크기로 키운다(큰 사진에서 얼룩 모양이 생기지 않게).
-    small = cv2.resize(rgb, size, interpolation=cv2.INTER_AREA)
     line_color = cv2.resize(cv2.erode(small, ellipse(line_radius)), (width, height), interpolation=cv2.INTER_LINEAR)
     # 0에 가까운 설정에도 고정 강조량이 붙지 않도록 저장 강도에 비례시킨다.
     weight = line_mask * (0.85 * edge)
     rgb = rgb * (1 - weight) + np.minimum(rgb, line_color) * weight
 
-    # 2) 형태 윤곽선 강조 (Otsu 값을 Canny 높은 기준, 절반을 낮은 기준으로 쓰는 흔한 자동 설정)
+    # 2) 양극성 윤곽 강조 (경계 찾기는 Otsu 값을 Canny 높은 기준, 절반을 낮은 기준으로 쓰는 흔한 자동 설정)
     smooth = cv2.GaussianBlur(gray, (0, 0), sigmaX=1.4)
     otsu, _ = cv2.threshold(smooth, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    contours = cv2.dilate(cv2.Canny(smooth, 0.5 * otsu, otsu), ellipse(max(0, radius - 1)))
-    contour_mask = full_size(contours > 0, 0.7) * (0.6 * edge)
-    return np.clip(rgb * (1 - contour_mask) + rgb * 0.15 * contour_mask, 0, 1).astype(np.float32)
+    radius = 1 + int(round(2 * edge))
+    near = cv2.dilate(cv2.Canny(smooth, 0.5 * otsu, otsu), ellipse(radius + 1)) > 0
+    sigma = 1.0 + edge  # edge가 클수록 굵은 윤곽
+    band = cv2.GaussianBlur(luma, (0, 0), sigma) - cv2.GaussianBlur(luma, (0, 0), 3 * sigma)  # 밝은 쪽 +, 어두운 쪽 −
+    gate = cv2.GaussianBlur(near.astype(np.float32), (0, 0), 0.8)
+    # tanh로 약한 경계도 보이게 키우고 한 픽셀의 변화는 최대 ±0.35×edge로 묶는다.
+    delta = full_size(np.tanh(band * 8.0) * (0.35 * edge) * gate)
+    delta = np.where(delta < 0, np.maximum(delta, -0.5 * (rgb @ LUMA)), delta)
+    return np.clip(rgb + delta[..., None], 0, 1).astype(np.float32)
 
 
 def correct_array(rgb, profile: dict):

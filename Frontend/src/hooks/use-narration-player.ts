@@ -2,7 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { NarrationEngine } from '@/lib/narration-engine';
 
-export function useNarrationPlayer(sentences: string[], rate: number, repeat: boolean) {
+/** onComplete: 해설을 마지막 문장까지 끝까지 들었을 때 불린다. */
+export function useNarrationPlayer(sentences: string[], rate: number, repeat: boolean, onComplete?: () => void) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -14,6 +15,8 @@ export function useNarrationPlayer(sentences: string[], rate: number, repeat: bo
     (currentTime, duration) => setPosition({ currentTime, duration }),
   ));
   useEffect(() => { engine.configure({ sentences, rate, repeat }); });
+  // 엔진은 한 번만 만들므로 최신 완료 콜백을 매번 넘긴다.
+  useEffect(() => { engine.setOnComplete(onComplete); });
   useFocusEffect(useCallback(() => () => engine.stop(), [engine]));
   return {
     index, playing, preparing, paused, error, ...position,

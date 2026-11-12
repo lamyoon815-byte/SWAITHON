@@ -12,7 +12,7 @@ test('opening and closing fullscreen keeps the narrator and music active without
   const player = { index: 0, playing: true, preparing: false, paused: false, error: null,
     play: () => playbackCalls.push('play'), pause: () => playbackCalls.push('pause'),
     reset: () => playbackCalls.push('reset'), goTo: () => {}, changeRate: () => {} };
-  const profile = { strength: 1, speech_rate: 1, narration_mode: 'both' };
+  const profile = { strength: 1, speech_rate: 1, narration_mode: 'both', narration_length: 'brief', narration_focus: 'balanced' };
   const artwork = { id: 'sample', title: '작품', artist: '작가', image_url: 'original', description: { regions: [] } };
   const segments = [{ type: 'fact', text: '읽고 있는 문장', region_index: null }];
   const value = (initial) => ({ get: () => initial, set: () => {} });
@@ -47,7 +47,7 @@ test('opening and closing fullscreen keeps the narrator and music active without
       : key?.startsWith('mood:') ? { music_url: 'music.wav', name: '평온' } : undefined }) },
     '@/lib/api': { ApiError: class ApiError extends Error {} },
     '@/lib/calibration': { correctionStrength: (v) => v, viewingFromProfile: (v) => v },
-    '@/types/profile': { DEFAULT_PROFILE: profile },
+    '@/lib/pending-feedback': { markFeedbackPending: () => {} },
     '@/components/narration/speed-sheet': { SpeedSheet: 'SpeedSheet', formatRate: () => '1배' },
   };
   for (const [module, name] of Object.entries({

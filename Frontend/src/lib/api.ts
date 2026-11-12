@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import type { Artwork, Description } from '@/types/artwork';
 import type { Museum } from '@/types/museum';
-import type { Narration, NarrationMode, NarrationSegment, GeneratedNarration, NarrationLength } from '@/types/narration';
+import type { Narration, NarrationMode, NarrationSegment, GeneratedNarration, NarrationLength, NarrationFocus } from '@/types/narration';
 import type { LoginResult, User } from '@/types/auth';
 import { clearSession, getAccessToken, updateSessionUser } from '@/store/auth';
 import { correctionStrength, serverCorrection, type ViewingProfile } from '@/lib/calibration';
@@ -54,9 +54,52 @@ export async function putProfile(profile: VisualProfile) {
   const saved = await request<VisualProfile>('/me/profile', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile),
   });
+  invalidateCorrections();
+  return saved;
+}
+
+/** 프로필이 바뀌면 예전 값으로 만든 보정본을 버리고, 진행 중인 응답도 쓰지 않게 한다. */
+function invalidateCorrections() {
   correctionEpoch++;
   correctedImages.clear();
-  return saved;
+}
+
+export type FeedbackSatisfaction = 'good' | 'okay' | 'bad';
+export type FeedbackField = 'color_severity' | 'contrast' | 'brightness' | 'sharpen' | 'edge' | 'speech_rate'
+  | 'narration_length' | 'narration_mode' | 'narration_focus';
+export type FeedbackSuggestion = {
+  field: FeedbackField;
+  label: string;
+  current: number | string;
+  proposed: number | string;
+  /** 화면에 보여 주고 읽어 줄 한 문장 */
+  message: string;
+};
+export type FeedbackResult = {
+  id: string;
+  artwork_id: string;
+  satisfaction: FeedbackSatisfaction;
+  comment: string | null;
+  /** 의견을 AI로 분류했으면 true */
+  interpreted: boolean;
+  /** 바로 적용했으면 바꾼 항목. suggestions의 문장도 '~했어요'로 온다 */
+  suggestions: FeedbackSuggestion[];
+  applied: FeedbackField[];
+  /** 바로 적용했을 때 바뀐 프로필 */
+  profile: VisualProfile | null;
+  message: string;
+  created_at: string;
+};
+
+/** 감상 만족도와 (음성을 글자로 바꾼) 의견 저장 (`POST /me/feedback`, apply=true).
+ * 서버가 의견을 해석해 바로 적용하고 바뀐 프로필을 돌려준다. 화면은 store/profile의 sendFeedback을 쓴다. */
+export async function submitFeedback(artworkId: string, satisfaction: FeedbackSatisfaction, comment?: string) {
+  const result = await request<FeedbackResult>('/me/feedback', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ artwork_id: artworkId, satisfaction, apply: true, ...(comment?.trim() ? { comment: comment.trim() } : {}) }),
+  });
+  if (result.applied?.length) invalidateCorrections();
+  return result;
 }
 
 /** 내 이름(닉네임) 바꾸기 (`PATCH /me`). 성공하면 기기에 저장된 세션의 이름도 바꾼다. */
@@ -173,13 +216,16 @@ const pendingNarrations = new Map<string, Promise<GeneratedNarration>>();
 
 /** Generated text stays unreviewed and is reused during this app session.
  * brief = 간결하게(약 1분), detailed = 상세하게(약 3분, 미술사 정보와 출처). */
-export function generateNarration(id: string, length: NarrationLength = 'brief'): Promise<GeneratedNarration> {
-  const key = `${id}:${length}`;
+export function generateNarration(id: string, length: NarrationLength = 'brief', focus: NarrationFocus = 'balanced'): Promise<GeneratedNarration> {
+  // 초점은 간결 해설에만 쓴다(서버도 상세 해설에서는 무시한다).
+  const appliedFocus = length === 'brief' ? focus : 'balanced';
+  const key = `${id}:${length}:${appliedFocus}`;
   const cached = generatedNarrations.get(key);
   if (cached) return Promise.resolve(cached);
   const pending = pendingNarrations.get(key);
   if (pending) return pending;
-  const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration?length=${length}`, { method: 'POST' })
+  const query = `length=${length}${appliedFocus === 'balanced' ? '' : `&focus=${appliedFocus}`}`;
+  const task = request<GeneratedNarration>(`/artworks/${encodeURIComponent(id)}/narration?${query}`, { method: 'POST' })
     .then((result) => {
       if (result.fallback || !result.segments.length) throw new ApiError(502, '해설을 준비하지 못했어요. 다시 시도해 주세요.');
       generatedNarrations.set(key, result);
@@ -236,8 +282,8 @@ export function analyzeArtwork(uri: string): Promise<AnalysisResult> {
 }
 
 /** 짧은 음성을 글자로 (`POST /transcribe`). 녹음 파일은 m4a.
- * purpose: 'answer'(화면 맞추기 숫자 답, 기본) · 'artwork'(작품 음성 검색, 등록 작품 이름을 받아쓰기 힌트로 씀) */
-export async function transcribeAnswer(uri: string, purpose: 'answer' | 'artwork' = 'answer'): Promise<string> {
+ * purpose: 'answer'(화면 맞추기 숫자 답, 기본) · 'artwork'(작품 음성 검색, 등록 작품 이름을 받아쓰기 힌트로 씀) · 'feedback'(감상 의견) */
+export async function transcribeAnswer(uri: string, purpose: 'answer' | 'artwork' | 'feedback' = 'answer'): Promise<string> {
   const body = new FormData();
   body.append('purpose', purpose);
   if (Platform.OS === 'web') {
@@ -267,7 +313,11 @@ export type NarrationMood = {
   category: MoodCategory;
   /** 화면에 보일 분위기 이름 (예: "경건·성스러움") */
   name: string;
-  /** 배경 음악 MP3 전체 주소 (`GET /music/{category}`) */
+  /** 잔잔한 곡(soft) / 움직임 있는 곡(lively). 분위기마다 두 곡 중 해설에 맞는 곡 */
+  energy: 'soft' | 'lively';
+  /** 화면에 보일 이름 ("잔잔한 곡" / "움직임 있는 곡") */
+  energy_name: string;
+  /** 배경 음악 MP3 전체 주소 (`GET /music/{category}/{energy}`) */
   music_url: string;
   /** 출처 표시가 필요한 곡(CC BY)이면 화면에 보여 줄 문구 */
   credit: string | null;
@@ -277,7 +327,7 @@ export type NarrationMood = {
 
 const moods = new Map<string, Promise<NarrationMood>>();
 
-/** 해설 전체 글의 분위기(10가지 중 하나)와 배경 음악 주소 (`POST /narration/mood`). 같은 글은 앱이 켜져 있는 동안 다시 묻지 않는다. */
+/** 해설 전체 글의 분위기(10가지 중 하나)·에너지(잔잔/움직임)와 배경 음악 주소 (`POST /narration/mood`). 같은 글은 앱이 켜져 있는 동안 다시 묻지 않는다. */
 export function getNarrationMood(text: string, artworkId?: string, moodKeywords: string[] = []): Promise<NarrationMood> {
   const body = { text: text.slice(0, 6000), artwork_id: artworkId, mood_keywords: moodKeywords.slice(0, 10) };
   const key = JSON.stringify(body);

@@ -29,10 +29,14 @@ class FakeEncoder:
 
 
 class MoodMusicTests(unittest.TestCase):
-    def test_tracks_are_ten_distinct_commons_mp3s(self):
+    def test_tracks_are_twenty_distinct_commons_mp3s(self):
         self.assertEqual(len(mm.CATEGORIES), 10)
-        urls = [c["track"]["mp3"] for c in mm.CATEGORIES]
-        self.assertEqual(len(set(urls)), 10)
+        self.assertTrue(all(set(c["tracks"]) == set(mm.ENERGIES) and c["energy"] in mm.ENERGIES for c in mm.CATEGORIES))
+        urls = [track["mp3"] for _, _, _, track in mm.all_tracks()]
+        self.assertEqual(len(set(urls)), 20)
+        files = [mm.music_file(i, c, e) for i, c, e, _ in mm.all_tracks()]
+        self.assertEqual(len(set(files)), 20)
+        self.assertEqual(files[:2], ["music/01_calm.mp3", "music/01_calm_lively.mp3"])  # 기본 곡은 원래 이름 그대로
         self.assertTrue(all(u.startswith("https://upload.wikimedia.org/wikipedia/commons/transcoded/") and u.endswith(".mp3") for u in urls))
         self.assertEqual(len({c["key"] for c in mm.CATEGORIES}), 10)
 
@@ -44,10 +48,10 @@ class MoodMusicTests(unittest.TestCase):
             try:
                 mm.download_music(out, fetcher)
                 self.assertEqual(sorted(p.name for p in (out / "music").iterdir())[0], "01_calm.mp3")
-                self.assertEqual(len(calls), 10)
+                self.assertEqual(len(calls), 20)
                 self.assertIn("CC BY 4.0", (out / "music" / "CREDITS.md").read_text(encoding="utf-8"))
                 mm.download_music(out, fetcher)  # 이미 받은 파일은 다시 받지 않는다.
-                self.assertEqual(len(calls), 10)
+                self.assertEqual(len(calls), 20)
                 (out / "music" / "01_calm.mp3").unlink()
                 with self.assertRaises(SystemExit) as caught:
                     mm.download_music(out, lambda url, timeout: b"<html>not audio</html>")
@@ -56,13 +60,13 @@ class MoodMusicTests(unittest.TestCase):
                 for path in (out / "music").iterdir():
                     path.unlink()
                 def flaky(url, timeout):
-                    if "Bach" in url:
+                    if "Bach" in url:  # 바흐 두 곡(경건·평온)
                         raise OSError("connection reset")
                     return FAKE_MP3
                 with self.assertRaises(SystemExit) as caught:
                     mm.download_music(out, flaky)
-                self.assertIn("sacred", str(caught.exception))
-                self.assertEqual(len(list((out / "music").glob("*.mp3"))), 9)
+                self.assertIn("sacred-lively", str(caught.exception))
+                self.assertEqual(len(list((out / "music").glob("*.mp3"))), 18)
                 # 429 뒤 성공하면 다시 받아서 저장한다.
                 from urllib.error import HTTPError
                 attempts = []
@@ -72,8 +76,8 @@ class MoodMusicTests(unittest.TestCase):
                         raise HTTPError(url, 429, "Too Many Requests", {"Retry-After": "0"}, None)
                     return FAKE_MP3
                 mm.download_music(out, limited)
-                self.assertEqual(len(attempts), 2)
-                self.assertEqual(len(list((out / "music").glob("*.mp3"))), 10)
+                self.assertEqual(len(attempts), 3)  # 실패했던 두 곡 + 429로 한 번 다시 받음
+                self.assertEqual(len(list((out / "music").glob("*.mp3"))), 20)
             finally:
                 mm.time.sleep = sleep
 

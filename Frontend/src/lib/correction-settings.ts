@@ -34,6 +34,12 @@ export function updateCorrectionSettings(values: ViewingSettings, patch: Partial
   return { ...values, ...patch, color_type, color_severities, severity: color_type === 'normal' ? 0 : color_severities[color_type] };
 }
 
+/** 선택한 편집 종류와 다른 보정값은 유지하고, 지정한 종류만 끈다. */
+export function clearColorSeverity(values: ViewingSettings, type: Exclude<CalibrationColorType, 'normal'>): ViewingSettings {
+  const color_severities = { ...colorSeverities(values), [type]: 0 };
+  return { ...values, color_severities, severity: values.color_type === type ? 0 : values.severity };
+}
+
 /** 항목별 원본과 보정본은 같은 작품을 사용한다. 색·윤곽선 합성 결과는 아니다. */
 export function correctionPreview(values: ViewingSettings, mode: CorrectionPreview, original: boolean) {
   if (mode === 'edge') return {

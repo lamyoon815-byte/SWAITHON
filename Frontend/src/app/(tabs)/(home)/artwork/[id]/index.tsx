@@ -65,7 +65,8 @@ export default function ArtworkScreen() {
   // 받기 전에 에러가 나므로, 안전하게 꺼낸 id만 쓴다.
   const artworkId = artwork?.id;
   const needsAi = !!artworkId && !artwork?.description;
-  const aiRes = useResource(needsAi ? `ai-narration:${artworkId}` : null, () => generateNarration(artworkId ?? ''));
+  const focus = profile.narration_focus;
+  const aiRes = useResource(needsAi ? `ai-narration:${artworkId}:brief:${focus}` : null, () => generateNarration(artworkId ?? '', 'brief', focus));
   const aiDescription = aiRes.data ? {
     facts: aiRes.data.segments.filter((s) => s.type === 'fact').map((s) => s.text),
     interpretations: aiRes.data.segments.filter((s) => s.type === 'interpretation').map((s) => s.text),

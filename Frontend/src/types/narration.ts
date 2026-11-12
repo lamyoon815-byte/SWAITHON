@@ -6,6 +6,9 @@ export type NarrationMode = 'facts' | 'interpretations' | 'both';
 /** brief = 간결하게(약 1분), detailed = 상세하게(약 3분) */
 export type NarrationLength = 'brief' | 'detailed';
 
+/** AI 간결 해설에서 무엇을 더 자세히 말할지 (감상 피드백으로 바뀐다). balanced = 골고루 */
+export type NarrationFocus = 'balanced' | 'color' | 'position' | 'story';
+
 export type NarrationSegment = {
   type: 'fact' | 'interpretation';
   /** 화면과 음성에 그대로 쓰는 완결된 문장. 사실·해석 구분은 type을 사용한다. */

@@ -58,6 +58,8 @@
 | POST | `/me/history` | 필요 | 201 | 관람 기록 등록 (앱 미사용) |
 | GET | `/me/history` | 필요 | 200 | 내 관람 기록 목록 (앱 미사용) |
 | DELETE | `/me/history/{history_id}` | 필요 | 204 | 내 관람 기록 삭제 (앱 미사용) |
+| POST | `/me/feedback` | 필요 | 201 | 감상 만족도·음성 의견 저장 및 설정 조정 제안 |
+| POST | `/me/feedback/{feedback_id}/apply` | 필요 | 200 | 고른 조정 제안만 내 프로필에 적용 |
 
 모든 입력 검증 API는 422를 반환할 수 있습니다. 인증 API는 401을 공통 처리합니다.
 
@@ -133,6 +135,8 @@ Bearer 인증. GET은 현재 앱 설정, PUT은 아래 JSON 저장 후 저장된
 | `sharpen` | number, 0~2 | 0 |
 | `zoom` | number, 1~8 | 1 |
 | `narration_mode` | `facts`, `interpretations`, `both` | `both` |
+| `narration_length` | `brief`, `detailed` | `brief` |
+| `narration_focus` | `balanced`, `color`, `position`, `story` | `balanced` |
 | `speech_rate` | number, 0.75~1.5 | 1 |
 | `high_contrast` | boolean | false |
 | `calibration` | `{color_type, severity, edge}` 또는 null. 세기·윤곽선 0~1 | null (미설정) |
@@ -148,6 +152,8 @@ Bearer 인증. GET은 현재 앱 설정, PUT은 아래 JSON 저장 후 저장된
   "sharpen": 0,
   "zoom": 1,
   "narration_mode": "both",
+  "narration_length": "brief",
+  "narration_focus": "balanced",
   "speech_rate": 1,
   "high_contrast": false
 }
@@ -407,6 +413,7 @@ null이면 영역을 강조하지 않습니다. 모드를 필터해도 인덱스
 서버에 저장된 원본과 제목·작가·연도 메타데이터를 Gemini에 전달합니다.
 
 Query `length`로 길이를 고릅니다(앱의 "간결하게 / 상세하게").
+Query `focus`(선택, 기본 `balanced`)는 간결 해설의 초점입니다. 앱은 프로필 `narration_focus`를 보냅니다. `color`=색 설명, `position`=위치 안내, `story`=그림 속 이야기를 더 자세히 말합니다. `detailed`에서는 무시합니다. `balanced`는 기존과 같은 저장소 키를 써서 이미 만든 해설을 재사용하고, 다른 초점은 초점별로 따로 저장해 같은 선호의 사용자끼리 공유합니다.
 
 | 값 | 길이 | 만드는 방법 |
 |---|---|---|
@@ -560,6 +567,60 @@ Bearer 인증. Query `limit`, `offset`은 공통 페이지네이션 규칙 사�
 
 Bearer 인증. Path `history_id`: 관람 기록 ID. 요청 본문 없음.
 성공 **204**, 응답 본문 없음. **404** 기록 없음 또는 다른 회원 소유 기록.
+
+## 9-1. 감상 피드백
+
+2026-11-12 추가. 해설을 끝까지 듣고 홈으로 돌아오면 앱이 팝업으로 만족도와 음성 의견을 받습니다.
+모델을 다시 학습시키지 않고, **이 사용자의 보정값·해설 선호만** 한 단계씩 바꿉니다.
+앱은 저시력 사용자가 글자를 읽고 고르는 단계를 없애기 위해 `apply: true`로 보내 **해석 즉시 적용**하고, 무엇을 바꿨는지 음성으로 읽은 뒤 팝업을 닫습니다.
+음성 원본은 보내지 않습니다. 앱이 `POST /transcribe`(`purpose=feedback`)로 바꾼 글자만 `comment`로 보냅니다.
+
+### POST /me/feedback
+
+Bearer 인증. JSON 본문:
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `artwork_id` | string | 예 | 감상한 등록 작품 ID |
+| `satisfaction` | `good`, `okay`, `bad` | 예 | 좋았어요 / 보통이에요 / 아쉬웠어요 |
+| `comment` | string, 최대 500자 | 아니요 | 음성 의견을 글자로 바꾼 것 |
+| `apply` | boolean | 아니요(기본 false) | true면 제안을 바로 내 프로필에 적용. 앱은 true |
+
+`comment`가 있으면 Gemini가 의견을 정해진 선택지(예: 색 보정 약하게, 대비 낮게, 말 느리게, 해설 짧게, 위치 안내 더)로만 분류합니다.
+한 번에 바꾸는 크기와 범위는 서버가 정합니다: 대비·밝기 0.1, 선명도·윤곽선·색 보정 세기 0.2, 말하기 속도는 0.75/1/1.25/1.5 중 한 칸.
+이미 범위 끝이라 바뀌지 않는 항목은 제안하지 않습니다. 색 보정·윤곽선은 calibration이 저장된 경우에만 제안합니다.
+AI를 쓸 수 없어도(키 없음·한도·연결 실패) 피드백은 저장하고 `interpreted: false`, 빈 `suggestions`를 돌려줍니다. AI 분류는 사용자당 분당 5회로 제한합니다.
+
+성공 **201**:
+
+```json
+{
+  "id": "피드백 ID",
+  "artwork_id": "sample",
+  "satisfaction": "bad",
+  "comment": "색이 너무 진하고 말이 빨라요",
+  "interpreted": true,
+  "suggestions": [
+    {"field": "color_severity", "label": "색 보정 세기", "current": 0.6, "proposed": 0.4, "message": "색 보정을 조금 약하게 할게요"},
+    {"field": "speech_rate", "label": "말하기 속도", "current": 1.0, "proposed": 0.75, "message": "해설을 조금 천천히 읽을게요"}
+  ],
+  "message": "말씀해 주신 내용으로 이렇게 바꿔 볼까요?",
+  "created_at": "2026-11-12T08:00:00+00:00"
+}
+```
+
+`field`: `color_severity`, `contrast`, `brightness`, `sharpen`, `edge`, `speech_rate`, `narration_length`, `narration_mode`, `narration_focus`.
+응답에는 `applied`(바로 적용한 항목, 기본 빈 배열)와 `profile`(바로 적용했을 때 바뀐 VisualProfile, 아니면 null)도 있습니다. `apply: true`로 적용하면 `suggestions[].message`는 "색 보정을 조금 약하게 했어요"처럼 바뀐 결과 문장이고, 같은 피드백은 다시 적용할 수 없습니다. 적용 중 다른 화면에서 프로필이 바뀌어 저장하지 못하면 `applied: []`로 피드백만 저장하고, 나중에 아래 API로 적용할 수 있습니다.
+안내 문장은 종류가 정해져 있어 앱의 음성(`/speech`)을 한 번 만들면 서버 DB에서 다시 씁니다.
+`message`(전체)와 각 제안의 `message`는 화면에 그대로 보여 주고 음성으로 읽어 줄 문장입니다. **404** 등록되지 않은 작품, **429** AI 분류 호출 제한.
+
+### POST /me/feedback/{feedback_id}/apply
+
+Bearer 인증. JSON 본문 `{ "fields": ["color_severity", "speech_rate"] }`(1개 이상).
+저장한 분류 결과로 **지금 프로필 기준** 제안을 다시 계산해 고른 항목만 한 번 적용합니다. 다른 색각 종류의 세기와 고르지 않은 값은 그대로 둡니다.
+
+성공 **200**: `{ "applied": ["color_severity", "speech_rate"], "profile": VisualProfile }`. 앱은 받은 `profile`로 공유 상태를 바꾸고 보정본 캐시를 비웁니다.
+**404** 없는 피드백 또는 다른 회원의 피드백. **409** 이미 적용함, 분류 결과 없음, 바꿀 값 없음(범위 끝), 다른 화면에서 프로필이 바뀜. 저장이 실패하면 다시 적용할 수 있습니다.
 
 ## 10. 서버 상태·오류·호출 제한
 
