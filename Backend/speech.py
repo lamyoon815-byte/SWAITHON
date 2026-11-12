@@ -1,5 +1,6 @@
 """Server-owned OpenAI Realtime synthesis; no API key or upstream socket reaches the app."""
 import asyncio
+import copy
 from contextlib import asynccontextmanager
 import base64
 from collections import OrderedDict
@@ -73,6 +74,7 @@ def speech_api_error(status, error):
 class SpeechInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     text: str = Field(min_length=1, max_length=600)
+    artwork_id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 def normalize_transcript(text):
@@ -118,6 +120,9 @@ class OpenAISpeechService:
         self.slots = asyncio.Semaphore(2)
         self.pending = {}
         self.cache = OrderedDict()
+        self.cache_scope = ""
+        self.prefer_gemini = False
+        self.artwork_services = {}
         self.storage = GeneratedCache(data_dir)
         # Reuse the existing reservation ledger with separate OpenAI settings and usage file.
         # Charge all output tokens at the audio price (a conservative estimate, including transcripts).
@@ -132,8 +137,23 @@ class OpenAISpeechService:
             max_input_tokens=4096, max_output_tokens=MAX_OUTPUT_TOKENS,
         )
 
-    async def synthesize(self, text):
-        key = sha256(json.dumps([self.model, self.voice, INSTRUCTIONS, text], ensure_ascii=False).encode()).hexdigest()
+    async def synthesize(self, text, artwork_id=None):
+        # Keep each selected artwork's voice and cache separate, even when scripts share a sentence.
+        presets = {"nmk-c0002": ("cedar", "Charon", "onyx", False),
+                   "aic-08": ("coral", "Kore", "nova", True)}
+        if artwork_id in presets:
+            if artwork_id not in self.artwork_services:
+                selected = copy.copy(self)
+                selected.voice, selected.gemini_voice, selected.classic_voice, selected.prefer_gemini = presets[artwork_id]
+                selected.cache_scope = f"artwork-voice-v1:{artwork_id}"
+                selected.cache, selected.pending, selected.artwork_services = OrderedDict(), {}, {}
+                # Share the budget, generation slots and provider cooldowns with normal requests.
+                self.artwork_services[artwork_id] = selected
+            return await self.artwork_services[artwork_id].synthesize(text)
+        identity = [self.model, self.voice, INSTRUCTIONS, text]
+        if self.cache_scope:
+            identity.append(self.cache_scope)
+        key = sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
         if key in self.cache:
             self.cache.move_to_end(key)
             return key, self.cache[key]
@@ -152,8 +172,9 @@ class OpenAISpeechService:
         return key, await asyncio.shield(task)
 
     async def _generate_and_store(self, key, text):
-        candidates = ([(self._generate, m) for m in self.realtime_models]
-                      + ([(self._gemini, m) for m in self.gemini_models] if self.gemini_key else [])
+        realtime = [(self._generate, m) for m in self.realtime_models]
+        gemini = [(self._gemini, m) for m in self.gemini_models] if self.gemini_key else []
+        candidates = ((gemini + realtime if self.prefer_gemini else realtime + gemini)
                       + [(self._fallback, m) for m in self.speech_models])
         now = time.monotonic()
         ready = [c for c in candidates if now >= self.blocked_until.get(c[1], 0)]
@@ -178,6 +199,9 @@ class OpenAISpeechService:
                 last_error = exc
                 continue
             await run_in_threadpool(self.storage.put, "speech", key, audio)
+            voice = self.gemini_voice if make == self._gemini else self.classic_voice if make == self._fallback and not model.startswith("gpt-") else self.voice
+            await run_in_threadpool(self.storage.put, "speech-info", key,
+                                   json.dumps({"model": model, "voice": voice, "scope": self.cache_scope}, ensure_ascii=False).encode())
             return audio
         raise last_error or RealtimeRateLimited()
 
@@ -356,7 +380,7 @@ def create_speech_router(service):
                  summary="OpenAI 음성으로 해설 한 문장 읽기")
     async def speech(request: Request, body: SpeechInput):
         limiter.check(request.client.host if request.client else "unknown")
-        key, audio = await service.synthesize(body.text)
+        key, audio = await service.synthesize(body.text, body.artwork_id) if body.artwork_id else await service.synthesize(body.text)
         return Response(audio, media_type="audio/wav", headers={
             "Cache-Control": "no-store", "X-Voice-Cache-Key": key,
         })

@@ -7,7 +7,7 @@ const ts = require('typescript');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function setup(source = async (text) => `file://${text}.wav`) {
-  const players = [], requests = [], device = [], errors = [], phone = [];
+  const players = [], requests = [], device = [], errors = [], phone = [], artworkRequests = [];
   let announcementStops = 0;
   const state = {};
   const cache = new Map();
@@ -18,13 +18,15 @@ function setup(source = async (text) => `file://${text}.wav`) {
       speakKorean: async (text, options) => { device.push({ text, options }); },
       stopSpeaking: () => { announcementStops++; },
     },
-    '@/lib/speech-audio': { getSpeechAudio: (text) => {
-      if (!cache.has(text)) {
+    '@/lib/speech-audio': { getSpeechAudio: (text, artworkId) => {
+      const key = JSON.stringify([artworkId ?? null, text]);
+      if (!cache.has(key)) {
         requests.push(text);
-        const pending = Promise.resolve().then(() => source(text)).catch((error) => { cache.delete(text); throw error; });
-        cache.set(text, pending);
+        artworkRequests.push({ text, artworkId });
+        const pending = Promise.resolve().then(() => source(text, artworkId)).catch((error) => { cache.delete(key); throw error; });
+        cache.set(key, pending);
       }
-      return cache.get(text);
+      return cache.get(key);
     } },
     'expo-audio': {
       setAudioModeAsync: async () => {},
@@ -58,8 +60,21 @@ function setup(source = async (text) => `file://${text}.wav`) {
   );
   const configure = (values = {}) => engine.configure({ sentences: ['첫 문장', '둘째 문장'], rate: 1, repeat: false, ...values });
   configure();
-  return { engine, configure, players, requests, device, state, errors, phone, stops: () => announcementStops };
+  return { engine, configure, players, requests, device, state, errors, phone, artworkRequests, stops: () => announcementStops };
 }
+
+test('artwork voice identity is forwarded to playback and prefetch and changes even for the same script', async () => {
+  const h = setup((text, artworkId) => `file://${artworkId}/${text}.wav`);
+  h.configure({ artworkId: 'nmk-c0002' });
+  h.engine.play(); await tick();
+  assert.ok(h.artworkRequests.some((r) => r.text === '첫 문장' && r.artworkId === 'nmk-c0002'));
+  assert.ok(h.artworkRequests.some((r) => r.text === '둘째 문장' && r.artworkId === 'nmk-c0002'));
+  h.configure({ artworkId: 'aic-08' });
+  h.engine.play(); await tick();
+  assert.ok(h.artworkRequests.some((r) => r.text === '첫 문장' && r.artworkId === 'aic-08'));
+  assert.ok(h.players.some((p) => p.uri === 'file://aic-08/첫 문장.wav' && p.plays === 1));
+  h.engine.stop();
+});
 
 test('OpenAI audio plays sentence by sentence and releases the previous player', async () => {
   const { engine, players, state } = setup();

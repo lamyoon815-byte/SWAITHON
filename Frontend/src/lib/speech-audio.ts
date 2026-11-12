@@ -8,8 +8,8 @@ const cache = new Map<string, string>();
 const pending = new Map<string, Promise<string>>();
 
 /** Cache audio, so repeating a sentence and changing playback speed do not synthesize it again. */
-export function getSpeechAudio(text: string): Promise<string> {
-  const key = JSON.stringify([API_URL, text]);
+export function getSpeechAudio(text: string, artworkId?: string): Promise<string> {
+  const key = JSON.stringify([API_URL, artworkId ?? null, text]);
   const stored = cache.get(key);
   if (stored && (Platform.OS === 'web' || new File(stored).exists)) {
     cache.delete(key); cache.set(key, stored);
@@ -25,7 +25,7 @@ export function getSpeechAudio(text: string): Promise<string> {
     try {
       const send = () => fetch(`${API_URL}/speech`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ text }), signal: controller.signal,
+        body: JSON.stringify({ text, ...(artworkId ? { artwork_id: artworkId } : {}) }), signal: controller.signal,
       });
       let response = await send();
       // Every voice model can hit its per-minute limit at the same moment; they free up within seconds,

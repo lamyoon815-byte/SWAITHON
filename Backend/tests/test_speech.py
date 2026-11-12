@@ -40,6 +40,33 @@ class FakeSocket:
 
 
 class SpeechTests(unittest.IsolatedAsyncioTestCase):
+    async def test_artwork_voices_are_scoped_and_do_not_change_default_voice(self):
+        calls = []
+        async def realtime(service, text, model):
+            calls.append(("realtime", service.voice))
+            return pcm_wav(b"\x00\x00" * 240)
+        async def gemini(service, text, model):
+            calls.append(("gemini", service.gemini_voice))
+            return pcm_wav(b"\x01\x00" * 240)
+        service = OpenAISpeechService(Path(self.temp.name))
+        service.gemini_key = "test-gemini"
+        service.gemini_models = ["gemini-test"]
+        with patch.object(OpenAISpeechService, "_generate", realtime), patch.object(OpenAISpeechService, "_gemini", gemini):
+            male, _ = await service.synthesize("같은 문장입니다.", "nmk-c0002")
+            female, _ = await service.synthesize("같은 문장입니다.", "aic-08")
+            default, _ = await service.synthesize("같은 문장입니다.")
+            self.assertEqual(calls, [("realtime", "cedar"), ("gemini", "Kore"), ("realtime", service.voice)])
+            self.assertEqual(len({male, female, default}), 3)
+            self.assertEqual(service.artwork_services["nmk-c0002"].gemini_voice, "Charon")
+            self.assertEqual(service.artwork_services["nmk-c0002"].classic_voice, "onyx")
+            self.assertIs(service.artwork_services["aic-08"].budget, service.budget)
+            self.assertIs(service.artwork_services["aic-08"].slots, service.slots)
+            await service.synthesize("같은 문장입니다.", "aic-08")
+            self.assertEqual(len(calls), 3)
+        # The selected voice still comes from persistent storage after a service restart.
+        restarted = OpenAISpeechService(Path(self.temp.name))
+        self.assertEqual((await restarted.synthesize("같은 문장입니다.", "aic-08"))[0], female)
+
     def setUp(self):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

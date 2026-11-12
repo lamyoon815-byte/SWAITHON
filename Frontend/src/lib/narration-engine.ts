@@ -3,7 +3,7 @@ import * as Speech from 'expo-speech';
 import { getSpeechAudio } from '@/lib/speech-audio';
 import { stopSpeaking } from '@/lib/speech';
 
-type Config = { sentences: string[]; rate: number; repeat: boolean };
+type Config = { sentences: string[]; rate: number; repeat: boolean; artworkId?: string };
 
 /** A late request or native callback must never play after stop, skip or unmount. */
 export class NarrationEngine {
@@ -38,13 +38,13 @@ export class NarrationEngine {
   }
 
   configure(config: Config) {
-    const changed = config.sentences.length !== this.config.sentences.length
+    const changed = config.artworkId !== this.config.artworkId || config.sentences.length !== this.config.sentences.length
       || config.sentences.some((text, index) => text !== this.config.sentences[index]);
     const repeatChanged = config.repeat !== this.config.repeat;
     if (changed) this.reset();
     this.config = config;
     // Prepare the first sentence before play, without generating the whole narration.
-    if (changed && config.sentences[0]) void getSpeechAudio(config.sentences[0]).catch(() => undefined);
+    if (changed && config.sentences[0]) void getSpeechAudio(config.sentences[0], config.artworkId).catch(() => undefined);
     if (config.repeat) this.disposeNext();
     else if (repeatChanged && this.speaking) void this.prepareAhead(this.current, this.token);
   }
@@ -58,7 +58,7 @@ export class NarrationEngine {
       const text = this.config.sentences[next];
       if (!text || token !== this.token || this.config.repeat) return;
       try {
-        const uri = await getSpeechAudio(text);
+        const uri = await getSpeechAudio(text, this.config.artworkId);
         if (token !== this.token || this.config.repeat) return;
         if (next === index + 1 && !this.nextPlayer) {
           this.nextPlayer = { index: next, text, audio: createAudioPlayer(uri, { updateInterval: 100 }) };
@@ -106,7 +106,7 @@ export class NarrationEngine {
     try {
       stopSpeaking();
       // Start the foreground request first so lookahead never takes its generation slot.
-      const source = prepared ? null : getSpeechAudio(text);
+      const source = prepared ? null : getSpeechAudio(text, this.config.artworkId);
       // Attach a rejection handler immediately while the audio session is being configured.
       void source?.catch(() => undefined);
       if (!this.config.repeat) void this.prepareAhead(i, mine);

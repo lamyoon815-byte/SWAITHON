@@ -115,6 +115,7 @@ export default function NarrationScreen() {
     repeat,
     // 끝까지 들으면 홈으로 돌아갔을 때 감상 피드백을 묻는다.
     () => { if (id) markFeedbackPending({ artworkId: id, title: artwork?.title ?? '이 작품' }); },
+    id,
   );
 
   // 배경 음악: 해설 전체 글로 분위기를 한 번 정한다(듣는 범위를 바꿔도 그대로). 꺼져 있으면 묻지 않는다.
