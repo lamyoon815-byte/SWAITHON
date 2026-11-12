@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
@@ -13,6 +14,17 @@ export function AnimatedSplashOverlay({ ready = true }: { ready?: boolean }) {
   const [imageReady, setImageReady] = useState(false);
   const [visible, setVisible] = useState(true);
   const reduceMotion = useReducedMotion();
+  const launchVoice = useAudioPlayer(require('@/assets/audio/launch-voice.wav'));
+
+  // 원본 음성의 5.44~6.66초만 잘라낸 인사. 시작 화면이 준비되면 한 번 재생한다.
+  useEffect(() => {
+    if (!ready || !imageReady) return;
+    let active = true;
+    void setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false })
+      .then(() => { if (active) launchVoice.play(); })
+      .catch(() => {});
+    return () => { active = false; launchVoice.pause(); };
+  }, [ready, imageReady, launchVoice]);
 
   useEffect(() => {
     if (!ready || !imageReady) return;
