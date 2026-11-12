@@ -72,10 +72,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     // Rules are guidance, not alarms: the border only marks the focused field, never turns red.
     borderColor: focused === name ? palette.accent : palette.outline,
   }];
+  // Guidance in the point mustard (8.2:1 on the dark background), with an icon so it is not color alone.
   const hint = (name: Field) => !!shown(name) && (
     <View style={styles.hintRow}>
-      <SymbolView name={{ ios: 'info.circle.fill', android: 'info', web: 'info' }} size={20} tintColor={palette.textSecondary} />
-      <Text accessibilityLiveRegion="polite" style={[styles.hint, { color: palette.text }]}>{shown(name)}</Text>
+      <SymbolView name={{ ios: 'info.circle.fill', android: 'info', web: 'info' }} size={20} tintColor={palette.highlight} />
+      <Text accessibilityLiveRegion="polite" style={[styles.hint, { color: palette.highlight }]}>{shown(name)}</Text>
     </View>
   );
   const submitButton = (
