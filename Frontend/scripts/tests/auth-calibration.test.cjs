@@ -54,6 +54,28 @@ test('color types keep independent levels when switching, disabling, and returni
   assert.deepEqual({ ...values.color_severities }, { protan: 0.2, deutan: 0, tritan: 0.6 });
 });
 
+test('clearing one color preserves the selected type and other saved levels without mutating the draft', () => {
+  const { correctionSettings, clearColorSeverity } = correctionSettingsLib;
+  const { DEFAULT_PROFILE } = load('types/profile.ts');
+  const values = correctionSettings({ ...DEFAULT_PROFILE, calibration: {
+    color_type: 'deutan', severity: 0.6, edge: 0.4,
+    color_severities: { protan: 1, deutan: 0.6, tritan: 0.2 },
+  } });
+  const cleared = clearColorSeverity(values, 'protan');
+  assert.equal(cleared.color_type, 'deutan');
+  assert.equal(cleared.severity, 0.6);
+  assert.deepEqual({ ...cleared.color_severities }, { protan: 0, deutan: 0.6, tritan: 0.2 });
+  assert.equal(values.color_severities.protan, 1);
+  const selectedCleared = clearColorSeverity(cleared, 'deutan');
+  assert.equal(selectedCleared.color_type, 'deutan');
+  assert.equal(selectedCleared.severity, 0);
+  assert.equal(selectedCleared.color_severities.tritan, 0.2);
+  const disabled = clearColorSeverity({ ...values, color_type: 'normal', severity: 0 }, 'protan');
+  assert.equal(disabled.color_type, 'normal');
+  assert.equal(disabled.severity, 0);
+  assert.equal(disabled.color_severities.deutan, 0.6);
+});
+
 test('all color levels are converted and scaled even if the currently selected type is zero', () => {
   const profile = calibration.viewingFromProfile({
     ...load('types/profile.ts').DEFAULT_PROFILE,
@@ -231,6 +253,26 @@ test('all color levels survive saving, reloading, unrelated settings, and recali
   assert.deepEqual({ ...restored.store.getProfileSnapshot().profile.calibration.color_severities }, { protan: 0.4, deutan: 0.6, tritan: 0.8 });
   await restored.store.saveCalibration({ color_type: 'deutan', severity: 0.2, edge: 0.2, contrast: 1.2 });
   assert.deepEqual(profiles.get('user-1').calibration.color_severities, { protan: 0.4, deutan: 0.2, tritan: 0.8 });
+});
+
+test('cleared color stays off after saving and reloading while the other color remains applied', async () => {
+  const { store, profiles } = profileStore();
+  await tick();
+  await store.saveCalibration({ color_type: 'protan', severity: 1, edge: 0.2, contrast: 1.2 });
+  const { correctionSettings, updateCorrectionSettings, clearColorSeverity } = correctionSettingsLib;
+  let values = correctionSettings(store.getProfileSnapshot().profile);
+  values = updateCorrectionSettings(values, { color_type: 'deutan', severity: 0.6 });
+  await store.saveViewingSettings(values);
+  values = clearColorSeverity(correctionSettings(store.getProfileSnapshot().profile), 'protan');
+  await store.saveViewingSettings(values);
+  const restored = profileStore({ profiles });
+  await tick();
+  const settings = correctionSettings(restored.store.getProfileSnapshot().profile);
+  assert.equal(settings.color_type, 'deutan');
+  assert.equal(settings.severity, 0.6);
+  assert.deepEqual({ ...settings.color_severities }, { protan: 0, deutan: 0.6, tritan: 0 });
+  assert.deepEqual({ ...calibration.serverCorrection(calibration.viewingFromProfile(restored.store.getProfileSnapshot().profile)).color_severities },
+    { protan: 0, deutan: 0.6, tritan: 0 });
 });
 
 test('a failed DB save never becomes a successful calibration in shared state', async () => {
