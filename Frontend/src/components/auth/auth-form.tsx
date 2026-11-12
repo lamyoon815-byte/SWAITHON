@@ -9,6 +9,7 @@ import { BigButton } from '@/components/common/big-button';
 import { BottomActionBar } from '@/components/common/bottom-action-bar';
 // The app's Text/TextInput follow the font-size setting in 마이페이지; react-native's do not.
 import { Text, TextInput } from '@/components/common/text';
+import { TextButton } from '@/components/common/text-button';
 import { showToast } from '@/components/common/toast';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { ScreenPadding, Spacing } from '@/constants/theme';
@@ -168,10 +169,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <Text style={[styles.orText, { color: palette.textSecondary }]}>또는</Text>
                 <View style={[styles.orLine, { backgroundColor: palette.outline }]} />
               </View>
-              <View style={styles.row}>
-                <BigButton label="회원가입" palette={palette} selected={false} disabled={busy}
-                  onPress={() => router.push('/auth/register')} />
-              </View>
+              <TextButton label="회원가입하기" palette={palette} disabled={busy}
+                onPress={() => router.push('/auth/register')} />
             </View>}
             <Text style={[styles.credit, { color: palette.textSecondary }]}>SWAITHON · 김규린 · 김민서 · 박지현 · 배정윤</Text>
           </View>
