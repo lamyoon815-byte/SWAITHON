@@ -8,7 +8,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from Backend.ai.correction import ERROR_SHIFT, MACHADO_2009, correct_array, correct_image, cvd_matrix, daltonize, simulate
+from Backend.ai.correction import (ERROR_SHIFT, LUMA, MACHADO_2009, apply_contrast, correct_array, correct_image, cvd_matrix,
+                                   daltonize, emphasize_edges, simulate, tone_curve, tone_mid)
 from Backend.ai.profile import AIProfile
 
 
@@ -101,6 +102,67 @@ class CorrectionTests(unittest.TestCase):
         self.assertLess(differences[1], differences[-1] * 0.003)
         self.assertLess(differences[2], differences[-1] * 0.03)
         self.assertEqual(differences, sorted(differences))
+
+
+
+def dark_painting(seed=7):
+    """어두운 유화처럼: 대부분 밝기 0.03~0.3인 바탕에 밝은 인물(0.6~0.8) 하나와 어두운 사물 몇 개."""
+    rng = np.random.default_rng(seed)
+    y = np.clip(0.12 + 0.05 * rng.standard_normal((240, 240)), 0.02, 0.3).astype(np.float32)
+    y = cv2.GaussianBlur(y, (0, 0), 3)
+    cv2.circle(y, (150, 110), 40, 0.7, -1)
+    cv2.rectangle(y, (30, 160), (90, 220), 0.05, -1)
+    cv2.rectangle(y, (40, 40), (80, 100), 0.22, -1)
+    return np.stack([y * 1.1, y, y * 0.8], axis=-1).clip(0, 1).astype(np.float32)
+
+
+class DarkImageTests(unittest.TestCase):
+    """어두운 그림이 대비·윤곽 보정 뒤 검게 뭉개지는(호러처럼 보이는) 문제 회귀 테스트."""
+
+    def setUp(self):
+        self.image = dark_painting()
+        self.luma = self.image @ LUMA
+
+    def test_tone_curve_keeps_black_and_white(self):
+        for contrast in (0.5, 0.8, 1.4, 2.0):
+            for mid in (0.2, 0.5, 0.7):
+                ends = tone_curve(np.array([0.0, 1.0], np.float32), contrast, mid)
+                np.testing.assert_allclose(ends, [0, 1], atol=1e-4)
+                values = tone_curve(np.linspace(0, 1, 101, dtype=np.float32), contrast, mid)
+                self.assertTrue(np.all(np.diff(values) >= -1e-6))  # 밝기 순서가 뒤집히지 않는다
+
+    def test_contrast_keeps_mean_and_does_not_crush_shadows(self):
+        for contrast in (1.4, 2.0):
+            out = apply_contrast(self.image, contrast) @ LUMA
+            self.assertAlmostEqual(float(out.mean()), float(self.luma.mean()), delta=0.01)
+            self.assertGreater(float(out.std()), float(self.luma.std()))  # 대비는 실제로 커진다
+            # 예전 방식(0.5 기준 직선)은 이 그림의 63% 이상을 거의 검정(0.02 미만)으로 만들었다.
+            self.assertLess(float((out < 0.02).mean()), 0.05)
+            old = np.clip(self.luma * contrast + 0.5 * (1 - contrast), 0, 1)
+            self.assertGreater(float((old < 0.02).mean()), 0.6)
+
+    def test_mid_follows_picture_brightness(self):
+        dark, _ = np.histogram(self.luma, bins=32, range=(0, 1))
+        bright, _ = np.histogram(1 - self.luma, bins=32, range=(0, 1))
+        self.assertLess(tone_mid(dark, 1.6), 0.5)
+        self.assertGreater(tone_mid(bright, 1.6), 0.5)
+
+    def test_edges_keep_mean_brightness_on_dark_painting(self):
+        for edge in (0.4, 1.0):
+            out = emphasize_edges(self.image, edge) @ LUMA
+            self.assertAlmostEqual(float(out.mean()), float(self.luma.mean()), delta=0.01)
+            self.assertLess(float((out < 0.02).mean()), float((self.luma < 0.02).mean()) + 0.02)
+            # 어두운 곳은 원래 밝기의 절반보다 어두워지지 않는다.
+            self.assertTrue(np.all(out >= self.luma * 0.5 - 0.01))
+
+    def test_bipolar_edge_brightens_bright_side_and_darkens_dark_side(self):
+        image = np.full((120, 120, 3), 0.2, dtype=np.float32)
+        image[:, 60:] = 0.6
+        out = emphasize_edges(image, 1.0)
+        self.assertGreater(float(out[60, 62, 0]), 0.6 + 0.02)   # 밝은 쪽은 더 밝게
+        self.assertLess(float(out[60, 57, 0]), 0.2 - 0.02)      # 어두운 쪽은 더 어둡게
+        self.assertAlmostEqual(float(out[60, 5, 0]), 0.2, delta=1e-3)    # 경계에서 먼 곳은 그대로
+        self.assertAlmostEqual(float(out[60, 115, 0]), 0.6, delta=1e-3)
 
 
 if __name__ == "__main__":

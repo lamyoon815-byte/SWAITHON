@@ -38,6 +38,7 @@ import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
 import { colorCorrectionUniforms, getColorCorrectionEffect } from '@/lib/color-correction';
 import { getSharpenEffect } from '@/lib/sharpen';
+import { getToneEffect, lumaHistogram, toneUniforms } from '@/lib/tone-curve';
 import type { CorrectionValues } from '@/types/profile';
 import type { ColorSeverities } from '@/types/calibration';
 
@@ -137,6 +138,13 @@ export function CorrectionCanvas({
     const amount = original ? 0 : live.get() >= 0 ? live.get() : staticAmount;
     return correctionMatrix(contrast, brightness, amount);
   });
+  // 대비는 그림의 밝기 분포에 맞춘 곡선으로 적용한다(어두운 그림이 검게 뭉개지지 않게, tone-curve.ts).
+  const histogram = useMemo(() => (image ? lumaHistogram(image) : null), [image]);
+  const toneEffect = getToneEffect();
+  const tone = useDerivedValue(() => {
+    const amount = original ? 0 : live.get() >= 0 ? live.get() : staticAmount;
+    return toneUniforms(contrast, brightness, amount, histogram);
+  });
   const sharpenUniforms = useDerivedValue(() => ({
     amount: sharpen * (original ? 0 : live.get() >= 0 ? live.get() : staticAmount),
   }));
@@ -147,10 +155,18 @@ export function CorrectionCanvas({
   const sharpenEffect = getSharpenEffect();
   const colorEffect = colorSeverities && !original ? getColorCorrectionEffect() : null;
   const colorUniforms = useMemo(
-    () => colorCorrectionUniforms(colorSeverities ?? {}, 1 + (contrast - 1) * staticAmount, brightness * staticAmount),
-    [colorSeverities, contrast, brightness, staticAmount],
+    // 대비 셰이더가 있으면 대비·밝기는 그쪽에서 적용하고, 여기서는 색 보정만 한다.
+    () => toneEffect
+      ? colorCorrectionUniforms(colorSeverities ?? {}, 1, 0)
+      : colorCorrectionUniforms(colorSeverities ?? {}, 1 + (contrast - 1) * staticAmount, brightness * staticAmount),
+    [colorSeverities, contrast, brightness, staticAmount, toneEffect],
   );
-  const colorFilter = colorEffect ? <RuntimeShader source={colorEffect} uniforms={colorUniforms} /> : null;
+  const colorShader = colorEffect ? <RuntimeShader source={colorEffect} uniforms={colorUniforms} /> : null;
+  // 색 보정 → 대비 순서 (안쪽이 먼저 적용된다)
+  const colorFilter = colorShader && toneEffect
+    ? <RuntimeShader source={toneEffect} uniforms={tone}>{colorShader}</RuntimeShader>
+    : colorShader;
+  const toneFilter = toneEffect ? <RuntimeShader source={toneEffect} uniforms={tone} /> : <ColorMatrix matrix={matrix} />;
 
   const scale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -259,7 +275,7 @@ export function CorrectionCanvas({
               {colorFilter ? (
                 sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms}>{colorFilter}</RuntimeShader> : colorFilter
               ) : <>
-                <ColorMatrix matrix={matrix} />
+                {toneFilter}
                 {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
               </>}
             </Image>
@@ -273,7 +289,7 @@ export function CorrectionCanvas({
                 height={size.height}
                 opacity={overlayOpacity}
                 sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }}>
-                <ColorMatrix matrix={matrix} />
+                {toneFilter}
                 {sharpenEffect ? <RuntimeShader source={sharpenEffect} uniforms={sharpenUniforms} /> : null}
               </Image>
             )}
