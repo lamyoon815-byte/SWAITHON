@@ -19,6 +19,7 @@ type Props = {
   colorSeverities?: ColorSeverities;
   original?: boolean;
   zoomable?: boolean;
+  showZoomControls?: boolean;
   palette: Palette;
   style?: StyleProp<ViewStyle>;
   containerStyle?: StyleProp<ViewStyle>;
@@ -28,6 +29,7 @@ export function CorrectionCanvas({
   source,
   accessibilityLabel,
   original = false,
+  showZoomControls = true,
   palette,
   style,
   containerStyle,
@@ -49,9 +51,9 @@ export function CorrectionCanvas({
           </View>
         )}
       </View>
-      <Text style={[styles.webNote, { color: palette.textSecondary }]}>
+      {showZoomControls && <Text style={[styles.webNote, { color: palette.textSecondary }]}>
         웹 미리보기는 보정 없이 보여요. 보정과 확대는 휴대폰에서 확인해 주세요.
-      </Text>
+      </Text>}
     </View>
   );
 }

@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
   // 막대 가운데에서 위쪽 절반만(아래 절반은 없앰). 짧게 두어 막대를 덜 가린다.
   tickMark: { position: 'absolute', top: HIT / 2 - 7, width: 2, height: 7, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.85)' },
   thumb: { position: 'absolute', left: 0, top: (HIT - THUMB) / 2, width: THUMB, height: THUMB, borderRadius: THUMB / 2, borderWidth: 3 },
-  time: { marginTop: -4, textAlign: 'right', fontSize: 15, fontWeight: 700, fontVariant: ['tabular-nums'] },
-  bubble: { position: 'absolute', top: -26, alignSelf: 'center', fontSize: 16, fontWeight: 800, fontVariant: ['tabular-nums'] },
+  time: { marginTop: -4, textAlign: 'right', fontSize: 16, fontWeight: 700, fontVariant: ['tabular-nums'] },
+  // 막대 바로 위에 붙인다(글씨가 커져도 위로만 자라서 막대를 가리지 않는다).
+  bubble: { position: 'absolute', bottom: '100%', marginBottom: 2, alignSelf: 'center', fontSize: 16, fontWeight: 800, fontVariant: ['tabular-nums'] },
 });

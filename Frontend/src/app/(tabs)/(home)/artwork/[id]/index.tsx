@@ -4,7 +4,7 @@ import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 /**
  * 위에서부터 큰 작품 이미지(보정 캔버스, 누르면 크게 보기) · 미술관과 번호 · 제목 · 작가 ·
  * 보정본/원본 전환 · 음성 해설 듣기(3 해설 재생 화면으로) · 작품 설명 · 이전/다음 작품.
- * 이미지나 "확대"를 누르면 탭 바 없는 전체 화면(`/zoom/[id]`)에서 핀치·버튼으로 확대한다.
+ * 이미지나 "전체 보기"를 누르면 작품만 표시한다(`/zoom/[id]`). 가로 작품은 가로로 고정하고 핀치 확대를 지원한다.
  * 보정본일 때는 그 아래 보정 강도(0~100%)로 얼마나 보정할지 고른다. 크게 보기에도 같은 강도로 넘긴다.
  * TODO(B): 영역 터치(regions, P1).
  */
@@ -161,19 +161,19 @@ export default function ArtworkScreen() {
           </View>
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel="작품 확대해서 보기"
+            accessibilityLabel="작품 전체 보기"
             onPress={openZoom}
             style={({ pressed }) => [styles.zoomButton, { opacity: pressed ? 0.8 : 1 }]}>
             <SymbolView
               name={{
-                ios: 'plus.magnifyingglass',
-                android: 'zoom_in',
-                web: 'zoom_in',
+                ios: 'viewfinder',
+                android: 'fullscreen',
+                web: 'fullscreen',
               }}
               size={22}
               tintColor="#FFFFFF"
             />
-            <Text style={styles.zoomText}>확대</Text>
+            <Text style={styles.zoomText}>전체 보기</Text>
           </PressableScale>
         </View>
 

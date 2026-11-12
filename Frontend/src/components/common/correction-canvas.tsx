@@ -17,7 +17,6 @@ import {
   Image,
   MipmapMode,
   RuntimeShader,
-  useImage,
   type DataSourceParam,
 } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
@@ -34,6 +33,7 @@ import { useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'r
 
 import { BigButton } from '@/components/common/big-button';
 import { MascotLoading } from '@/components/common/mascot-loading';
+import { useCanvasImage } from '@/hooks/use-canvas-image';
 import { FontSize, type Palette } from '@/constants/a11y';
 import { correctionMatrix } from '@/lib/color-matrix';
 import { colorCorrectionUniforms, getColorCorrectionEffect } from '@/lib/color-correction';
@@ -78,6 +78,8 @@ type Props = {
   waiting?: boolean;
   /** 핀치 · 이동 · 더블탭 확대와 확대/축소 버튼. 캘리브레이션처럼 비교만 할 때는 끈다 */
   zoomable?: boolean;
+  /** Hide buttons in the immersive landscape viewer; pinch and double-tap still work. */
+  showZoomControls?: boolean;
   palette: Palette;
   /** 캔버스 상자의 크기와 모양. 기본 높이 320 */
   style?: StyleProp<ViewStyle>;
@@ -96,14 +98,14 @@ export function CorrectionCanvas({
   liveAmount,
   waiting,
   zoomable = false,
+  showZoomControls = true,
   palette,
   style,
   containerStyle,
 }: Props) {
-  // Remember which source failed, so a new source clears the error without an effect.
-  const [failedSource, setFailedSource] = useState<DataSourceParam>(null);
-  const image = useImage(source || null, () => setFailedSource(source));
-  const overlayImage = useImage(overlay || null);
+  const [attempt, setAttempt] = useState(0);
+  const { image, failed: sourceFailed } = useCanvasImage(source || null, attempt);
+  const { image: overlayImage, failed: overlayFailed } = useCanvasImage(overlay || null, attempt);
   // The corrected picture fades in over the original when it arrives (no blank box, no hard jump).
   const fade = useSharedValue(0);
   // A screen that waits for the corrected picture shows it at full strength at once (no original flash).
@@ -112,8 +114,8 @@ export function CorrectionCanvas({
     fade.set(overlayImage ? (waitsForOverlay ? 1 : withTiming(1, { duration: 250 })) : 0);
   }, [overlayImage, fade, waitsForOverlay]);
   // Keep the chameleon until the corrected picture is decoded, not just downloaded.
-  const showLoader = !original && (!!waiting || (waitsForOverlay && !!overlay && !overlayImage));
-  const failed = !!source && failedSource === source;
+  const failed = sourceFailed || (!original && !!overlay && overlayFailed);
+  const showLoader = !failed && (!image || (!original && (!!waiting || (waitsForOverlay && !!overlay && !overlayImage))));
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const width = useSharedValue(0);
@@ -229,14 +231,6 @@ export function CorrectionCanvas({
     AccessibilityInfo.announceForAccessibility('원래 크기');
   };
 
-  const note = !source
-    ? '작품 이미지 준비 중'
-    : failed
-      ? '이미지를 불러오지 못했어요'
-      : !image
-        ? '이미지 불러오는 중…'
-        : null;
-
   const box = (
     <View
       style={[styles.canvasBox, { backgroundColor: palette.surface, borderColor: palette.border }, style]}
@@ -245,10 +239,11 @@ export function CorrectionCanvas({
       accessibilityRole="image"
       accessibilityLabel={`${accessibilityLabel}${original ? ', 원본' : ', 보정본'}`}>
       {showLoader ? (
-        <MascotLoading compact message="내 보정값을 적용하고 있어요." palette={palette} />
-      ) : note ? (
+        <MascotLoading compact message={!image ? '이미지를 불러오고 있어요.' : '내 보정값을 적용하고 있어요.'} palette={palette} />
+      ) : failed ? (
         <View style={styles.center}>
-          <Text style={[styles.note, { color: palette.textSecondary }]}>{note}</Text>
+          <Text style={[styles.note, { color: palette.textSecondary }]}>이미지를 불러오지 못했어요</Text>
+          <View style={styles.row}><BigButton label="다시 불러오기" palette={palette} onPress={() => setAttempt((value) => value + 1)} /></View>
         </View>
       ) : (
         <Canvas style={StyleSheet.absoluteFill}>
@@ -293,11 +288,11 @@ export function CorrectionCanvas({
   return (
     <View style={[styles.wrapper, containerStyle]}>
       <GestureDetector gesture={gesture}>{box}</GestureDetector>
-      <View style={styles.row}>
+      {showZoomControls && <View style={styles.row}>
         <BigButton label="확대 +" onPress={() => zoomBy(BUTTON_STEP)} palette={palette} disabled={!image} />
         <BigButton label="축소 −" onPress={() => zoomBy(1 / BUTTON_STEP)} palette={palette} disabled={!image} />
         <BigButton label="원래 크기" onPress={resetZoom} palette={palette} selected={false} disabled={!image} />
-      </View>
+      </View>}
     </View>
   );
 }
@@ -316,6 +311,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+    padding: 16,
   },
   note: {
     fontSize: FontSize.label,

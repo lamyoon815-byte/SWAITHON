@@ -25,16 +25,8 @@ import { useVoiceAnswer } from '@/hooks/use-voice-answer';
 import { saveVoiceAnswer } from '@/lib/api';
 import { matchSpokenChoice } from '@/lib/spoken-answer';
 import { stopSpeaking } from '@/lib/speech';
-import { advanceCalibration, initialCalibration, screeningSuggestion, type CalibrationAction, type CalibrationPhase } from '@/lib/calibration-flow';
+import { advanceCalibration, initialCalibration, screeningSuggestion, type CalibrationAction } from '@/lib/calibration-flow';
 import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
-
-const PHASE_INDEX: Record<CalibrationPhase, number> = { screening: 0, manual: 0, color: 1, edge: 2, contrast: 3, complete: 3 };
-const STEP_DETAILS = [
-  { name: '색각 확인', count: '3문제' },
-  { name: '색 보정', count: '최대 5문제' },
-  { name: '윤곽선', count: '최대 6문제' },
-  { name: '대비', count: '최대 6문제' },
-] as const;
 
 export default function CalibrationScreen() {
   const { profile, loaded, error, saveCalibration, reloadProfile } = useProfile();
@@ -59,7 +51,7 @@ export default function CalibrationScreen() {
   const source = plate?.image ?? (phase === 'edge' ? CALIBRATION.edge.images[index] : undefined);
   const imageReady = source === undefined || (readySource === source && failedSource !== source);
   const colorLevels = CALIBRATION.color[result.color_type === 'normal' ? 'protan' : result.color_type].levels;
-  const progress = phase === 'screening' ? `색각 확인 · 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
+  const progress = phase === 'screening' ? `색각 확인 문제 ${index + 1} / ${CALIBRATION.screening.plates.length}`
     : phase === 'manual' ? '색각 확인 결과' : phase === 'color' ? `색 보정 · 문제 ${index + 1} / ${colorLevels.length}`
       : phase === 'edge' ? `윤곽선 · 문제 ${index + 1} / ${CALIBRATION.edge.levels.length}`
         : phase === 'contrast' ? `대비 · 문제 ${index + 1} / ${CALIBRATION.contrast.levels.length}` : '색각 맞춤 테스트 완료';
@@ -195,7 +187,7 @@ export default function CalibrationScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.guideContent}>
           <View style={styles.guideIntro}>
-            <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideHeading, { color: palette.text }]}>테스트 전에 확인해 주세요</Text>
+            <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideHeading, { color: palette.highlight }]}>테스트 전에 확인해 주세요</Text>
             <Text lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality" style={[styles.guideDescription, { color: palette.textSecondary }]}>{'간단한 문제를 통해 색상과 윤곽선, 대비를\n내 눈에 편하게 맞춰요.'}</Text>
           </View>
           <View style={styles.guideList}>
@@ -226,7 +218,8 @@ export default function CalibrationScreen() {
         <View style={styles.headerSide} />
       </View>
       <View style={styles.progressBar}>
-        <Text accessibilityRole="header" style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
+        <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" android_hyphenationFrequency="none" textBreakStrategy="highQuality"
+          style={[styles.progressLabel, { color: palette.text }]}>{progress}</Text>
         <View accessible accessibilityRole="progressbar" accessibilityLabel="색각 맞춤 테스트 진행률"
           accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: `${progressPercent}% 완료` }}
           style={[styles.progressTrack, { backgroundColor: palette.outline }]}
@@ -234,20 +227,6 @@ export default function CalibrationScreen() {
           <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: palette.highlight }]} />
         </View>
         <Text style={[styles.progressPercent, { color: palette.textSecondary }]}>{progressPercent}% 완료</Text>
-        <View style={styles.steps}>
-          {STEP_DETAILS.map((step, stepIndex) => {
-            const active = stepIndex === PHASE_INDEX[phase];
-            const complete = stepIndex < PHASE_INDEX[phase];
-            return <View key={step.name} style={[styles.stepCard, {
-              backgroundColor: active ? palette.highlight : palette.surface,
-              borderColor: active || complete ? palette.highlight : palette.outline,
-            }]}
-            >
-              <Text style={[styles.stepName, { color: active ? palette.highlightText : palette.text }]}>{stepIndex + 1}. {step.name}</Text>
-              <Text style={[styles.stepCount, { color: active ? palette.highlightText : palette.textSecondary }]}>{step.count}</Text>
-            </View>;
-          })}
-        </View>
       </View>
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         <View style={styles.intro}>
@@ -356,13 +335,9 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.four },
   progressBar: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: ScreenPadding, paddingTop: Spacing.one, paddingBottom: Spacing.two, gap: Spacing.two },
   progressLabel: { fontSize: FontSize.heading, lineHeight: 34, fontWeight: 800 },
-  progressTrack: { width: '100%', height: 16, borderRadius: 8, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 8 },
+  progressTrack: { width: '100%', height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
   progressPercent: { marginTop: -Spacing.one, fontSize: 15, lineHeight: 22, fontWeight: 700, textAlign: 'right', fontVariant: ['tabular-nums'] },
-  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  stepCard: { flexBasis: '45%', flexGrow: 1, minHeight: 58, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1.5, borderRadius: 14 },
-  stepName: { fontSize: 16, lineHeight: 22, fontWeight: 800 },
-  stepCount: { fontSize: 14, lineHeight: 20, fontWeight: 700 },
   intro: { gap: Spacing.two, alignItems: 'center' },
   heading: { fontSize: FontSize.heading, lineHeight: 36, fontWeight: 700, textAlign: 'center' },
   description: { fontSize: FontSize.body, lineHeight: 30, textAlign: 'center' },
