@@ -445,14 +445,14 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  // Long and fully round, like Naver's search field.
+  // Same corner radius as the home search bar and every other box (24).
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: BarHeight,
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderRadius: BarHeight / 2,
+    borderRadius: 24,
   },
   input: {
     flex: 1,
