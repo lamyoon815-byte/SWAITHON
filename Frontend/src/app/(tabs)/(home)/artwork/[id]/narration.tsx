@@ -125,6 +125,7 @@ export default function NarrationScreen() {
   // 작품 위 영역 상자: 검수 해설은 작품 description, AI 해설은 함께 온 description의 regions.
   const regions = ai?.description?.regions ?? artwork?.description?.regions ?? [];
   const usableRegions = new Set(segments.flatMap((s) => (s.region_index === null ? [] : [s.region_index])));
+  const canFollow = segments.some((segment) => segment.region_index != null && !!regions[segment.region_index]);
   const jumpToRegion = (region: number) => {
     const at = segments.findIndex((s) => s.region_index === region);
     if (at >= 0) player.goTo(at);
@@ -364,12 +365,12 @@ export default function NarrationScreen() {
       {/* 그림 아래 조작 줄: 따라 확대(아이폰식 스위치) · 크게 보기 */}
       {!!artwork && (
         <View style={styles.imageTools}>
-          <Pressable disabled={regions.length === 0} accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint="재생할 때 지금 설명하는 부분으로 그림을 확대해요"
-              accessibilityState={{ checked: follow, disabled: regions.length === 0 }} onPress={() => setFollow((v) => !v)} style={[styles.followRow, regions.length === 0 && styles.disabled]}>
+          <Pressable disabled={!canFollow} accessibilityRole="switch" accessibilityLabel="읽는 부분 따라가며 확대" accessibilityHint={canFollow ? '재생할 때 지금 설명하는 부분으로 그림을 확대해요' : '이 해설에는 문장에 연결된 확대 영역 정보가 없어요. 크게 보기로 직접 확대할 수 있어요.'}
+              accessibilityState={{ checked: canFollow && follow, disabled: !canFollow }} onPress={() => setFollow((v) => !v)} style={[styles.followRow, !canFollow && styles.disabled]}>
               <Text style={[styles.followLabel, { color: palette.text }]}>따라 확대</Text>
               <View style={styles.switchBox}>
-                <Switch value={follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
-                  disabled={regions.length === 0}
+                <Switch value={canFollow && follow} onValueChange={setFollow} accessible={false} importantForAccessibility="no"
+                  disabled={!canFollow}
                   trackColor={{ false: palette.fill, true: palette.highlight }} thumbColor="#FFFFFF" ios_backgroundColor={palette.fill} />
               </View>
             </Pressable>
@@ -381,6 +382,11 @@ export default function NarrationScreen() {
           </PressableScale>
           </View>
         </View>
+      )}
+      {!!artwork && segments.length > 0 && !canFollow && (
+        <Text style={{ color: palette.textSecondary, fontSize: FontSize.label, lineHeight: 27 }}>
+          이 해설에는 확대 영역 정보가 없어요. ‘크게 보기’로 직접 확대할 수 있어요.
+        </Text>
       )}
 
       {/* 배경 음악 켜고 끄기(마이페이지 설정과 같은 값). */}
