@@ -19,9 +19,9 @@ import { CalibrationSlider } from '@/components/mypage/calibration-slider';
 import { FontSize, MinTouchTarget, getPalette } from '@/constants/a11y';
 import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
-import { correctionSettings, correctionSettingsChanged, updateCorrectionSettings } from '@/lib/correction-settings';
+import { clearColorSeverity, correctionSettings, correctionSettingsChanged, updateCorrectionSettings } from '@/lib/correction-settings';
 import { combinedCorrectionPreview } from '@/lib/combined-correction-preview';
-import { CALIBRATION_COLOR_LABELS, type CalibrationColorType } from '@/types/calibration';
+import { CALIBRATION_COLOR_LABELS, colorSeverities, type CalibrationColorType } from '@/types/calibration';
 import type { ViewingSettings } from '@/types/profile';
 
 export default function CorrectionScreen() {
@@ -41,6 +41,12 @@ export default function CorrectionScreen() {
   const dirty = correctionSettingsChanged(values, saved);
   const preview = combinedCorrectionPreview(values, original);
   const disabled = !loaded || error || saving;
+  const storedColors = colorSeverities(values);
+  const activeColors = (Object.keys(storedColors) as (keyof typeof storedColors)[]).filter((type) => storedColors[type] > 0);
+  const colorPercent = (type: keyof typeof storedColors) => `${Math.round(storedColors[type] * 100)}%`;
+  const colorSummary = values.color_type === 'normal' ? '색 보정 꺼짐 (저장된 값은 남아 있어요)'
+    : activeColors.length ? `적용 중: ${activeColors.map((type) => `${CALIBRATION_COLOR_LABELS[type].replace(' 보정', '')} ${colorPercent(type)}`).join(' · ')}`
+      : '적용 중인 색 보정 없음';
 
   const disablePrevention = usePreventRemove((dirty || saving) && !leaving, ({ repeat }) => {
     if (saving) return;
@@ -131,13 +137,29 @@ export default function CorrectionScreen() {
         <View style={[styles.controls, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
           <View style={styles.colorSection}>
             <Text accessibilityRole="header" style={[styles.sectionTitle, { color: palette.text }]}>색 보정 종류</Text>
-            <View accessibilityRole="radiogroup" accessibilityLabel="색 보정 종류" style={styles.colorChoices}>
+            <Text accessibilityLiveRegion="polite" lineBreakStrategyIOS="hangul-word" style={[styles.note, { color: palette.textSecondary }]}>{colorSummary}</Text>
+            {values.color_type !== 'normal' && activeColors.map((type) => (
+              <View key={type} style={styles.activeColorRow}>
+                <Text style={[styles.activeColorLabel, { color: palette.text }]}>{CALIBRATION_COLOR_LABELS[type]} {colorPercent(type)}</Text>
+                <PressableScale accessibilityRole="button" accessibilityLabel={`${CALIBRATION_COLOR_LABELS[type]}, ${colorPercent(type)} 적용 중, 끄기`}
+                  accessibilityHint="다른 색 보정과 현재 조절 중인 종류는 유지해요" accessibilityState={{ disabled: disabled || original }} disabled={disabled || original}
+                  onPress={() => setDraft((current) => clearColorSeverity(current ?? saved, type))}
+                  style={({ pressed }) => [styles.clearColor, { borderColor: palette.border, backgroundColor: pressed ? palette.fill : palette.surface, opacity: disabled || original ? 0.4 : 1 }]}>
+                  <Text style={[styles.clearColorLabel, { color: palette.text }]}>끄기</Text>
+                </PressableScale>
+              </View>
+            ))}
+            <View accessibilityRole="radiogroup" accessibilityLabel="조절할 색 보정 종류" style={styles.colorChoices}>
               {(Object.keys(CALIBRATION_COLOR_LABELS) as CalibrationColorType[]).map((type) => {
                 const selected = values.color_type === type;
-                return <PressableScale key={type} accessibilityRole="radio" accessibilityLabel={CALIBRATION_COLOR_LABELS[type]} accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
+                const label = type === 'normal' ? CALIBRATION_COLOR_LABELS[type] : `${CALIBRATION_COLOR_LABELS[type]} ${colorPercent(type)}`;
+                const status = type === 'normal' ? '모든 색 보정을 끄고 저장된 값은 유지해요'
+                  : values.color_type === 'normal' ? `${colorPercent(type)} 저장됨, 색 보정 꺼짐`
+                    : `${colorPercent(type)}${storedColors[type] > 0 ? ' 적용 중' : ', 보정 꺼짐'}`;
+                return <PressableScale key={type} accessibilityRole="radio" accessibilityLabel={`${CALIBRATION_COLOR_LABELS[type]}, ${status}`} accessibilityHint="선택한 종류의 세기를 조절해요. 다른 종류의 저장된 세기도 함께 적용돼요" accessibilityState={{ checked: selected, disabled: disabled || original }} disabled={disabled || original}
                   onPress={() => setDraft((current) => updateCorrectionSettings(current ?? saved, { color_type: type }))}
                   style={({ pressed }) => [styles.colorChoice, { backgroundColor: selected ? palette.highlight : palette.fill, borderColor: selected ? palette.highlight : palette.border, opacity: disabled || original ? 0.4 : pressed ? 0.7 : 1 }]}>
-                  <Text lineBreakStrategyIOS="hangul-word" style={[styles.colorChoiceLabel, { color: selected ? palette.highlightText : palette.text, fontWeight: selected ? 800 : 600 }]}>{CALIBRATION_COLOR_LABELS[type]}</Text>
+                  <Text lineBreakStrategyIOS="hangul-word" style={[styles.colorChoiceLabel, { color: selected ? palette.highlightText : palette.text, fontWeight: selected ? 800 : 600 }]}>{label}</Text>
                 </PressableScale>;
               })}
             </View>
@@ -214,6 +236,10 @@ const styles = StyleSheet.create({
   colorSection: { paddingVertical: Spacing.three, gap: Spacing.three },
   sectionTitle: { fontSize: FontSize.body, fontWeight: 700 },
   colorChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  activeColorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  activeColorLabel: { flex: 1, fontSize: FontSize.label, lineHeight: 27 },
+  clearColor: { minHeight: MinTouchTarget, minWidth: MinTouchTarget, paddingHorizontal: Spacing.three, borderWidth: 1.5, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  clearColorLabel: { fontSize: FontSize.label, fontWeight: 700 },
   colorChoice: { flexBasis: '45%', flexGrow: 1, minHeight: MinTouchTarget, padding: Spacing.two, borderWidth: 2, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   colorChoiceLabel: { fontSize: FontSize.label, lineHeight: 27, textAlign: 'center' },
   cardNote: { fontSize: FontSize.label, lineHeight: 27, paddingBottom: Spacing.three },
