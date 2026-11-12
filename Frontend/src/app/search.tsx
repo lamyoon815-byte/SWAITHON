@@ -88,7 +88,7 @@ export default function SearchScreen() {
         openArtwork(found.id);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404 && matches.length > 1)
-          showToast(`${value}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
+          showToast(`${value}(으)로 시작하는 작품이 여러 개예요`, 'warning');
         else if (error instanceof ApiError && error.status === 404)
           showToast(`${value}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
         else showToast('작품을 찾지 못했어요. 잠시 후 다시 시도해 주세요', 'error');
@@ -96,7 +96,7 @@ export default function SearchScreen() {
     } else if (matches.length === 0)
       showToast(`${value}번 작품이 없어요. 번호를 확인해 주세요`, 'warning');
     else
-      showToast(`${value}(으)로 시작하는 작품이 여러 개예요. 번호를 끝까지 입력해 주세요`, 'warning');
+      showToast(`${value}(으)로 시작하는 작품이 여러 개예요`, 'warning');
   };
 
   const submit = () => {
@@ -118,7 +118,7 @@ export default function SearchScreen() {
     }
     if (voice.state === 'thinking') return;
     if (voice.state === 'idle')
-      showToast(`작품 제목, 작가 이름이나 번호를 말해 주세요. ${voice.maxSeconds}초 뒤 자동으로 멈춰요`);
+      showToast('작품 제목이나 번호를 말해 주세요');
     voice.toggle({
       onText: (text) => {
         const found = findArtworksBySpeech(text, artworks);
@@ -128,7 +128,7 @@ export default function SearchScreen() {
           void submitNumber(found.number);
         } else if (found.kind === 'artworks' && found.items.length === 1) {
           setVoiceFound(null);
-          showToast(`'${found.items[0].title}' 작품을 찾았어요`, 'success');
+          showToast('작품을 찾았어요', 'success');
           openArtwork(found.items[0].id);
         } else if (found.kind === 'artworks') {
           setNum('');

@@ -129,8 +129,10 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     alignItems: 'center',
   },
-  // 저시력 사용자가 한눈에 읽도록 본문 크기(20) 글자와 넉넉한 높이.
+  // 저시력 사용자가 한눈에 읽도록 본문 크기(20) 글자와 넉넉한 높이. 긴 문장은 화면 안에서 두 줄로 넘어가고
+  // (maxWidth), 문장 자체도 두 줄(약 30자) 안에 들어가게 쓴다.
   pill: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -138,7 +140,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingLeft: 18,
     paddingRight: 24,
-    borderRadius: 32,
+    borderRadius: 24,
     boxShadow: Shadow.toast,
   },
   // White on either pill color: about 10:1 on the dark one, 12:1 on charcoal.

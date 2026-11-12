@@ -93,7 +93,7 @@ export default function CorrectionScreen() {
       if (from === 'onboarding') router.replace('/onboarding/result');
       else goBack();
     } catch {
-      showToast('저장하지 못했어요. 변경값은 유지돼요. 다시 시도해 주세요', 'error');
+      showToast('저장하지 못했어요. 다시 시도해 주세요', 'error');
     } finally {
       savingLock.current = false;
       setSaving(false);
