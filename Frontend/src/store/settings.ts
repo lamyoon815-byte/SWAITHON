@@ -41,7 +41,8 @@ function load() {
   loading ??= AsyncStorage.getItem(KEY)
     .then(async (raw) => {
       const settings = raw ? { ...DefaultSettings, ...JSON.parse(raw) } : { ...DefaultSettings };
-      if (!settings.onboarding_completed) {
+      // 명시적으로 초기화한 false는 존중하고, 필드가 없던 구버전 설정만 이관한다.
+      if (!raw || !Object.hasOwn(JSON.parse(raw), 'onboarding_completed')) {
         const previous = await AsyncStorage.getItem('swaithon.viewing.v1');
         if (previous && JSON.parse(previous).completed === true) settings.onboarding_completed = true;
       }
