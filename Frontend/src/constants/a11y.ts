@@ -44,7 +44,7 @@ export const HighContrast: Palette = {
   highlightText: '#000000',
   border: '#FFFFFF',
   outline: '#FFFFFF',
-  danger: '#FF8A80',
+  danger: Yellow,
 };
 
 export function getPalette(scheme: 'light' | 'dark', highContrast: boolean): Palette {
@@ -63,7 +63,9 @@ export function getPalette(scheme: 'light' | 'dark', highContrast: boolean): Pal
     highlightText: dark ? c.background : c.text,
     border: dark ? '#8A8F99' : Charcoal,
     outline: dark ? '#70747F' : '#868A94', // vs page: dark 3.6:1, light 3.3:1
-    danger: dark ? '#FF8A80' : '#B3261E',
+    // No red in the app: errors use the point mustard with an icon. Mustard text on white is only
+    // 2.1:1, so light mode falls back to charcoal and the icon carries the alert.
+    danger: dark ? Mustard : Charcoal,
   };
 }
 
