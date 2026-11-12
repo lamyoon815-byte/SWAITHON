@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from Backend.ai.mood_classifier import MoodCategory, classify_narration
 from Backend.ai.mood_music import CATEGORIES, MUSIC_ROOT, all_tracks, music_file
-from Backend.ai.mood_routes import create_mood_router
+from Backend.ai.mood_routes import create_mood_router, normalized_path
 from Backend.generated_cache import GeneratedCache
 from Backend.main import create_app
 
@@ -88,7 +88,7 @@ class MoodRouteTests(unittest.TestCase):
         response = self.client.post("/narration/mood", json={"text": TEXT, "mood_keywords": ["경건"]})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json(), {"category": "calm", "name": "평온·고요", "energy": "lively", "energy_name": "움직임 있는 곡",
-                                           "music_url": "/music/calm/lively", "music_volume": 0.933, "credit": None, "source": "gemini"})
+                                           "music_url": "/music/calm/lively?v=2", "music_volume": 0.251, "credit": None, "source": "gemini"})
         korean = TestClient(create_app(self.data / "k", gemini=FakeGemini({"category": "korean", "energy": "lively"})))
         self.assertEqual(korean.post("/narration/mood", json={"text": "아리랑"}).json()["credit"],
                          "군밤타령, 한국저작권위원회, 공유마당, CC BY 4.0")
@@ -121,8 +121,10 @@ class MoodRouteTests(unittest.TestCase):
         for index, category, energy, _ in tracks:
             path = MUSIC_ROOT / music_file(index, category, energy)
             self.assertTrue(path.is_file(), path.name)
+            # 음량을 고르게 다듬은 파일(ai/normalize_music.py)을 실제로 보낸다.
+            self.assertTrue(normalized_path(path).is_file(), normalized_path(path).name)
         response = self.client.get("/music/korean/lively")
-        self.assertEqual((response.status_code, response.headers["content-type"]), (200, "audio/mpeg"))
+        self.assertEqual((response.status_code, response.headers["content-type"]), (200, "audio/mp4"))
         self.assertTrue((MUSIC_ROOT / "music" / "CREDITS.md").is_file())
 
 

@@ -40,6 +40,22 @@ MUSIC_TARGET_DBFS = -36.0
 DEFAULT_MUSIC_VOLUME = 0.25
 
 
+# ai/normalize_music.py로 곡 안의 큰 대목을 누르고 중간 음량을 맞춘 파일(Backend/music/normalized/*.m4a).
+# 있으면 이 파일을 보내고, 모든 곡이 같은 크기라 재생 음량도 같다.
+NORMALIZED_DBFS = -24.0
+MUSIC_VERSION = "2"
+
+
+def normalized_path(path: Path) -> Path:
+    return path.parent / "normalized" / f"{path.stem}.m4a"
+
+
+def track_volume(path: Path) -> float:
+    if normalized_path(path).is_file():
+        return round(min(1.0, 10 ** ((MUSIC_TARGET_DBFS - NORMALIZED_DBFS) / 20)), 3)
+    return music_volume(path.name)
+
+
 def music_volume(filename: str) -> float:
     """곡을 이 음량(0~1)으로 틀면 어떤 곡이든 비슷한 크기로 들린다. 1을 넘을 수 없어 아주 조용한 곡은 목표보다 작다."""
     loudness = MUSIC_LOUDNESS_DBFS.get(filename)
@@ -78,8 +94,11 @@ def create_mood_router(catalog, gemini, client_key, music_root: Path = MUSIC_ROO
                                         mood_keywords=data.mood_keywords, artwork_id=data.artwork_id, cache=cache)
         track = next(c for c in CATEGORIES if c["key"] == result["category"])["tracks"][result["energy"]]
         # CC BY 곡은 앱 화면에 출처를 보여 줘야 한다.
-        return {**result, "music_url": f"/music/{result['category']}/{result['energy']}", "credit": track.get("attribution"),
-                "music_volume": music_volume(files[(result["category"], result["energy"])].name)}
+        path = files[(result["category"], result["energy"])]
+        # 다듬은 파일로 바뀌면 주소에 버전을 붙여 폰에 남은 예전 MP3를 쓰지 않게 한다.
+        version = f"?v={MUSIC_VERSION}" if normalized_path(path).is_file() else ""
+        return {**result, "music_url": f"/music/{result['category']}/{result['energy']}{version}", "credit": track.get("attribution"),
+                "music_volume": track_volume(path)}
 
     @router.get("/music/{category}", response_class=FileResponse, summary="분위기별 기본 배경 음악 MP3")
     def default_music(category: MoodCategory):
@@ -91,6 +110,9 @@ def create_mood_router(catalog, gemini, client_key, music_root: Path = MUSIC_ROO
 
     def _music(category, energy):
         path = files[(category, energy)]
+        normalized = normalized_path(path)
+        if normalized.is_file():
+            return FileResponse(normalized, media_type="audio/mp4", headers={"Cache-Control": "public, max-age=86400"})
         if not path.is_file():
             raise HTTPException(404, "배경 음악 파일이 서버에 없어요. Backend/music 폴더를 확인해 주세요.")
         return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
