@@ -49,11 +49,10 @@ import { useResource } from '@/hooks/use-resource';
 import { useProfile } from '@/hooks/use-profile';
 import { ApiError, generateNarration, getArtwork, getNarration, getNarrationMood } from '@/lib/api';
 import type { NarrationLength, NarrationMode } from '@/types/narration';
-import { DEFAULT_PROFILE } from '@/types/profile';
+import { markFeedbackPending } from '@/lib/pending-feedback';
 import { correctionStrength, viewingFromProfile } from '@/lib/calibration';
 import { useCorrectedArtwork } from '@/hooks/use-corrected-artwork';
 
-const START_RATE = DEFAULT_PROFILE.speech_rate;
 
 const LENGTHS: { value: NarrationLength; label: string; hint: string }[] = [
   { value: 'brief', label: '간결하게', hint: '약 1분, 그림 위주' },
@@ -83,16 +82,20 @@ export default function NarrationScreen() {
   // 해설을 듣는 동안은 항상 사용자 설정의 보정본을 표시한다.
   const corrected = useCorrectedArtwork(artwork?.id, artwork?.image_url, viewingFromProfile(profile), false, strength);
   const narrationRes = useResource(id && profileLoaded ? `narration:${id}:${mode}` : null, () => getNarration(id!, mode));
-  const [rate, setRate] = useState(START_RATE);
+  // 속도·길이는 프로필(감상 피드백으로 바뀔 수 있음)에서 시작하고, 이 화면에서 바꾼 값은 이번 감상에만 쓴다.
+  const [chosenRate, setRate] = useState<number | null>(null);
+  const rate = chosenRate ?? profile.speech_rate;
   const [repeat, setRepeat] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const [length, setLength] = useState<NarrationLength>('brief');
+  const [chosenLength, setLength] = useState<NarrationLength | null>(null);
+  const length = chosenLength ?? profile.narration_length;
+  const focus = profile.narration_focus;
 
   // 검수 해설이 없으면(409) 들어오자마자 AI 해설을 만든다. 같은 작품은 앱·서버 모두 저장해 두어 다시 만들지 않는다.
   const noReviewed = narrationRes.error instanceof ApiError && narrationRes.error.status === 409;
-  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}:${length}` : null, () => generateNarration(id!, length));
+  const aiRes = useResource(noReviewed && id ? `ai-narration:${id}:${length}:${focus}` : null, () => generateNarration(id!, length, focus));
   const ai = aiRes.data ?? null;
   const aiError = aiRes.error ? (aiRes.error instanceof ApiError && aiRes.error.status === 429
     ? '해설 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.'
@@ -107,6 +110,8 @@ export default function NarrationScreen() {
     segments.map((s) => s.text),
     rate,
     repeat,
+    // 끝까지 들으면 홈으로 돌아갔을 때 감상 피드백을 묻는다.
+    () => { if (id) markFeedbackPending({ artworkId: id, title: artwork?.title ?? '이 작품' }); },
   );
 
   // 배경 음악: 해설 전체 글로 분위기를 한 번 정한다(듣는 범위를 바꿔도 그대로). 꺼져 있으면 묻지 않는다.

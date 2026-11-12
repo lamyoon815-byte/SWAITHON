@@ -28,7 +28,14 @@ export class NarrationEngine {
     private onError: (message: string | null) => void,
     private onPaused: (paused: boolean) => void = () => {},
     private onPosition: (currentTime: number, duration: number) => void = () => {},
+    /** 마지막 문장까지 끝까지 읽었을 때만 (멈춤·건너뛰기·화면 이탈은 아님). 감상 피드백을 묻는 데 쓴다. */
+    private onComplete: () => void = () => {},
   ) {}
+
+  /** 화면이 바뀐 최신 완료 콜백을 넘긴다(엔진은 한 번만 만든다). */
+  setOnComplete(callback: (() => void) | undefined) {
+    this.onComplete = callback ?? (() => {});
+  }
 
   configure(config: Config) {
     const changed = config.sentences.length !== this.config.sentences.length
@@ -94,7 +101,7 @@ export class NarrationEngine {
       if (mine !== this.token) return;
       if (this.config.repeat) this.speakAt(i);
       else if (i + 1 < this.config.sentences.length) this.speakAt(i + 1);
-      else { this.stop(); this.current = 0; this.onIndex(0); }
+      else { this.stop(); this.current = 0; this.onIndex(0); this.onComplete(); }
     };
     try {
       stopSpeaking();

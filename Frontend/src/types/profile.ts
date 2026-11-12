@@ -1,5 +1,6 @@
 // BE `VisualProfile`와 같은 모양 (README 6.4, docs/api-spec.md 4장). 필드 이름은 BE 그대로 snake_case.
 import type { CalibrationSettings } from '@/types/calibration';
+import type { NarrationFocus, NarrationLength } from '@/types/narration';
 
 export type VisualProfile = {
   color_vision: 'normal' | 'protanopia' | 'deuteranopia' | 'tritanopia';
@@ -16,6 +17,10 @@ export type VisualProfile = {
   /** 1~8 */
   zoom: number;
   narration_mode: 'facts' | 'interpretations' | 'both';
+  /** 해설 화면이 처음 고르는 길이 */
+  narration_length: NarrationLength;
+  /** AI 간결 해설의 초점 */
+  narration_focus: NarrationFocus;
   /** 0.75~1.5 */
   speech_rate: number;
   high_contrast: boolean;
@@ -44,6 +49,8 @@ export const DEFAULT_PROFILE: VisualProfile = {
   sharpen: 0,
   zoom: 1,
   narration_mode: 'both',
+  narration_length: 'brief',
+  narration_focus: 'balanced',
   speech_rate: 1,
   high_contrast: false,
 };

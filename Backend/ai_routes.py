@@ -128,14 +128,18 @@ def spoken_seconds(text: str) -> int:
     return round(len(re.sub(r"\s", "", text)) / 5.5)
 
 
-def narration_key(length: str, model: str, record: dict, content: bytes) -> str:
-    """API와 일괄 생성 스크립트가 같은 저장소 키를 쓴다. 프롬프트·형식을 바꾸면 버전을 올린다."""
-    return sha256(json.dumps([NARRATION_CACHE_VERSION, length, model, record, sha256(content).hexdigest()],
-                             sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+def narration_key(length: str, model: str, record: dict, content: bytes, focus: str = "balanced") -> str:
+    """API와 일괄 생성 스크립트가 같은 저장소 키를 쓴다. 프롬프트·형식을 바꾸면 버전을 올린다.
+    focus가 balanced면 기존 키와 같아 이미 저장한 해설을 그대로 쓴다. 같은 선호의 사용자끼리 해설을 공유한다."""
+    parts = [NARRATION_CACHE_VERSION, length, model, record, sha256(content).hexdigest()]
+    if focus != "balanced":
+        parts.append(focus)
+    return sha256(json.dumps(parts, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length: str) -> dict:
-    """작품 원본으로 간결(약 1분)·상세(약 3분) 해설을 만든다. 저장은 호출한 쪽이 한다."""
+def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length: str, focus: str = "balanced") -> dict:
+    """작품 원본으로 간결(약 1분)·상세(약 3분) 해설을 만든다. 저장은 호출한 쪽이 한다.
+    focus(색·위치·이야기)는 간결 해설에만 적용한다. 상세 해설은 정해진 미술사 구성을 따른다."""
     normalized = normalize_image(content)
     if length == "detailed":
         long = gemini.long_commentary(normalized.content, record)
@@ -144,7 +148,9 @@ def make_narration(gemini, artwork_id: str, record: dict, content: bytes, length
                 "text": "\n".join(segment["text"] for segment in segments), "review_status": "unreviewed",
                 "fallback": not segments, "warning": AI_WARNING, "length": "detailed",
                 "estimated_seconds": long["estimated_seconds"], "sources": long["sources"]}
-    description = gemini.describe(normalized.content, record, True)
+    # 기존 해설 함수(테스트 대역 포함)와 호환되도록 기본값일 때는 focus를 넘기지 않는다.
+    description = (gemini.describe(normalized.content, record, True) if focus == "balanced"
+                   else gemini.describe(normalized.content, record, True, focus=focus))
     fallback = getattr(description, "fallback", False)
     segments = [] if fallback else narration_segments(description.model_dump())
     text = "\n".join(segment["text"] for segment in segments)
@@ -407,8 +413,12 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                              "성공한 해설은 SQLite에 저장하고 같은 작품 요청에 재사용합니다. 생성 시 AI 호출 제한·예산을 적용합니다. fallback은 저장하지 않습니다.")
     async def generate_narration(request: Request, response: Response, artwork_id: str,
                                  length: Annotated[Literal["brief", "detailed"], Query(
-                                     description="brief=간결하게(약 1분), detailed=상세하게(약 3분)")] = "brief"):
+                                     description="brief=간결하게(약 1분), detailed=상세하게(약 3분)")] = "brief",
+                                 focus: Annotated[Literal["balanced", "color", "position", "story"], Query(
+                                     description="간결 해설의 초점(프로필 narration_focus). 상세 해설에는 적용하지 않습니다.")] = "balanced"):
         response.headers["Cache-Control"] = "no-store"
+        if length == "detailed":
+            focus = "balanced"
         record = await run_in_threadpool(catalog.get, artwork_id)
         if record is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
@@ -422,7 +432,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                     "length": "detailed", "estimated_seconds": data.get("estimated_seconds") or spoken_seconds(text),
                     "sources": [{"no": s["no"], "title": s.get("title", ""), "url": s["url"]} for s in data.get("sources", [])]}
         content = await run_in_threadpool((catalog.images_dir / record["image_filename"]).read_bytes)
-        key = narration_key(length, getattr(gemini, "model", ""), record, content)
+        key = narration_key(length, getattr(gemini, "model", ""), record, content, focus)
         stored = await run_in_threadpool(narration_cache.get, "narration", key)
         if stored is not None:
             # Older saved results carry an older notice; always show the current one.
@@ -430,7 +440,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
 
         async def generate_and_store():
             ai_limiter.check(client_key(request))
-            result = await run_in_threadpool(make_narration, gemini, artwork_id, record, content, length)
+            result = await run_in_threadpool(make_narration, gemini, artwork_id, record, content, length, focus)
             fallback, segments = result["fallback"], result["segments"]
             if not fallback and segments:
                 await run_in_threadpool(narration_cache.put, "narration", key,

@@ -30,6 +30,8 @@ EXTENSION_TYPES = {".m4a": "audio/mp4", ".mp4": "audio/mp4", ".aac": "audio/aac"
 PROMPT = "시력 확인 그림의 숫자를 말합니다. 예: 45, 29, 73, 86, 숫자가 안 보여요."
 # 작품 음성 검색(purpose=artwork): 등록 작품의 제목·작가 이름을 받아쓰기 맥락으로 준다.
 ARTWORK_PROMPT = "미술관에서 찾고 싶은 작품의 제목, 작가 이름 또는 명패 번호를 말합니다."
+# 감상 피드백(purpose=feedback): 방금 본 보정 화면과 들은 해설에 대한 자유로운 의견.
+FEEDBACK_PROMPT = "미술 감상 앱에서 방금 본 화면과 들은 해설에 대한 의견을 말합니다. 예: 색이 너무 진해요, 설명이 길어요, 말이 빨라요, 위치를 더 알려 주세요."
 MAX_HINT_CHARS = 400
 
 
@@ -157,10 +159,10 @@ def create_transcription_router(service, catalog=None):
     limiter = RateLimiter(attempts=30, window=60)
 
     @router.post("/transcribe", response_model=Transcript, tags=["작품 해설"],
-                 summary="짧은 음성을 글자로 바꾸기 (화면 맞추기 숫자 답, 작품 음성 검색)",
-                 description="purpose=answer(기본): 화면 맞추기 숫자 답. purpose=artwork: 작품 음성 검색(등록 작품 제목·작가를 받아쓰기 힌트로 사용).")
+                 summary="짧은 음성을 글자로 바꾸기 (화면 맞추기 숫자 답, 작품 음성 검색, 감상 의견)",
+                 description="purpose=answer(기본): 화면 맞추기 숫자 답. purpose=artwork: 작품 음성 검색(등록 작품 제목·작가를 받아쓰기 힌트로 사용). purpose=feedback: 감상 후 의견.")
     async def transcribe(request: Request, audio: UploadFile,
-                         purpose: Annotated[Literal["answer", "artwork"], Form()] = "answer"):
+                         purpose: Annotated[Literal["answer", "artwork", "feedback"], Form()] = "answer"):
         limiter.check(request.client.host if request.client else "unknown")
         content_type = (audio.content_type or "").split(";")[0].strip().lower()
         if content_type in {"", "application/octet-stream"}:
@@ -174,7 +176,8 @@ def create_transcription_router(service, catalog=None):
         if len(content) > MAX_AUDIO_BYTES:
             raise HTTPException(413, "녹음이 너무 길어요. 짧게 말해 주세요.")
         filename = re.sub(r"[^a-zA-Z0-9._-]", "_", audio.filename or "answer.m4a")[:60] or "answer.m4a"
-        prompt = await run_in_threadpool(artwork_prompt, catalog) if purpose == "artwork" else PROMPT
+        prompt = (await run_in_threadpool(artwork_prompt, catalog) if purpose == "artwork"
+                  else FEEDBACK_PROMPT if purpose == "feedback" else PROMPT)
         return {"text": await service.transcribe(content, filename, content_type, prompt)}
 
     return router

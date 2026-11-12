@@ -6,9 +6,9 @@
  * 목록은 불러오는 중 · 오류 · 빈 상태 · 결과 네 가지를 모두 그린다.
  */
 
-import { router, useScrollToTop } from 'expo-router';
+import { router, useFocusEffect, useScrollToTop } from 'expo-router';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/common/text';
 import Animated, {
@@ -24,6 +24,7 @@ import { ArtworkCard } from '@/components/common/artwork-card';
 import { showToast } from '@/components/common/toast';
 import { PressableScale } from '@/components/common/pressable-scale';
 import { MuseumCard } from '@/components/home/museum-card';
+import { FeedbackSheet } from '@/components/feedback/feedback-sheet';
 import {
   ButtonGap,
   ButtonHeight,
@@ -43,6 +44,7 @@ import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { getArtworkByNumber, getMuseumArtworkPage, getMuseums } from '@/lib/api';
 import { spokenNumbers } from '@/lib/spoken-answer';
 import { useVoiceAnswer } from '@/hooks/use-voice-answer';
+import { takePendingFeedback, type PendingFeedback } from '@/lib/pending-feedback';
 import type { MuseumNext } from '@/types/museum';
 
 const SearchBarHeight = 64;
@@ -77,6 +79,12 @@ export default function HomeScreen() {
   const artworksRes = useResource(museumId ? `artworks:${museumId}:${page}` : null,
     () => getMuseumArtworkPage(museumId!, (page - 1) * ArtworkPageSize, ArtworkPageSize));
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  // 해설을 끝까지 듣고 홈으로 돌아오면 감상 피드백 팝업을 한 번 띄운다.
+  const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
+  useFocusEffect(useCallback(() => {
+    const next = takePendingFeedback();
+    if (next) setFeedback(next);
+  }, []));
   useScrollToTop(scroll);
   const listY = useRef(0);
 
@@ -300,6 +308,7 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+      {feedback && <FeedbackSheet key={feedback.artworkId} item={feedback} palette={palette} onClose={() => setFeedback(null)} />}
     </SafeAreaView>
   );
 }

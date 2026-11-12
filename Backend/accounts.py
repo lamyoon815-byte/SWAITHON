@@ -95,6 +95,10 @@ class VisualProfile(BaseModel):
     sharpen: float = Field(default=0, ge=0, le=2)
     zoom: float = Field(default=1, ge=1, le=8)
     narration_mode: Literal["facts", "interpretations", "both"] = "both"
+    # 감상 피드백으로 바뀔 수 있는 해설 선호. brief=약 1분, detailed=약 3분.
+    narration_length: Literal["brief", "detailed"] = "brief"
+    # AI 간결 해설에서 무엇을 더 자세히 말할지. balanced는 기존 해설과 같다.
+    narration_focus: Literal["balanced", "color", "position", "story"] = "balanced"
     speech_rate: float = Field(default=1, ge=0.75, le=1.5)
     high_contrast: bool = False
     # 앱 설정과 함께 원자적으로 저장하며, 조회 시 ai_profiles에서 읽는다.
@@ -162,6 +166,13 @@ class AccountStore:
                     profile_json TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS history_user_time ON history(user_id, viewed_at DESC);
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    artwork_id TEXT NOT NULL, satisfaction TEXT NOT NULL, comment TEXT,
+                    intent_json TEXT, profile_json TEXT NOT NULL, created_at TEXT NOT NULL,
+                    applied_json TEXT, applied_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS feedback_user_time ON feedback(user_id, created_at DESC);
             """)
             columns = {row[1] for row in connection.execute("PRAGMA table_info(history)")}
             if "ai_profile_json" not in columns:

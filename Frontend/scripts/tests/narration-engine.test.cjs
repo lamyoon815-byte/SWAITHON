@@ -235,3 +235,27 @@ test('pausing while generating loads audio silently and resumes only when play i
   assert.equal(state.playing, true);
   engine.stop();
 });
+
+test('completion fires once only after the last sentence is heard to the end', async () => {
+  const { engine, players } = setup();
+  let completed = 0;
+  engine.setOnComplete(() => { completed++; });
+  engine.play(); await tick();
+  players.find((p) => p.uri === 'file://첫 문장.wav').finish(); await tick();
+  assert.equal(completed, 0);
+  players.find((p) => p.uri === 'file://둘째 문장.wav').finish(); await tick();
+  assert.equal(completed, 1);
+});
+
+test('stopping midway or repeating a sentence is not a completion', async () => {
+  const { engine, players, configure } = setup();
+  let completed = 0;
+  engine.setOnComplete(() => { completed++; });
+  engine.play(); await tick();
+  engine.stop(); await tick();
+  assert.equal(completed, 0);
+  configure({ repeat: true });
+  engine.speakAt(1); await tick();
+  players.filter((p) => p.uri === 'file://둘째 문장.wav').at(-1).finish(); await tick();
+  assert.equal(completed, 0);
+});

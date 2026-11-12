@@ -27,6 +27,7 @@ if __package__:
     from .ai.voice_routes import create_voice_router
     from .ai.voice_answer import VoiceAnswerStore
     from .ai.mood_routes import create_mood_router
+    from .feedback import create_feedback_router
     from .ai_routes import client_key
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore, MuseumList
@@ -41,6 +42,7 @@ else:
     from ai.voice_routes import create_voice_router
     from ai.voice_answer import VoiceAnswerStore
     from ai.mood_routes import create_mood_router
+    from feedback import create_feedback_router
     from ai_routes import client_key
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -84,6 +86,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
             {"name": "관람 기록", "description": "회원 본인의 작품 감상 기록과 당시 보정 설정을 관리합니다."},
             {"name": "작품 인식", "description": "CLIP 작품 검색 또는 Gemini 명패 읽기와 카탈로그 매칭을 수행합니다."},
             {"name": "작품 해설", "description": "검수된 등록 작품 해설과 미등록 작품 실시간 분석을 제공합니다."},
+            {"name": "감상 피드백", "description": "감상 만족도와 음성 의견을 저장하고, 보정·해설 설정을 한 단계씩 바꾸는 제안을 만듭니다. 제안은 사용자가 고른 것만 적용합니다."},
         ],
         lifespan=lifespan,
     )
@@ -111,6 +114,7 @@ def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None, c
     account_router, current_user = create_account_router(accounts, store)
     application.include_router(account_router)
     application.include_router(create_ai_router(store, accounts, current_user, recognition, gemini, corrector))
+    application.include_router(create_feedback_router(accounts, store, current_user, gemini))
     application.include_router(create_mood_router(store, gemini, client_key))
     # 화면 맞추기 음성 답변 기록(인식된 글자·고른 보기). data/voice-answers.sqlite3에 저장
     application.include_router(create_voice_router(VoiceAnswerStore(store.data_dir / "voice-answers.sqlite3"), client_key))
