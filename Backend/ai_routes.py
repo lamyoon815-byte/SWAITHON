@@ -253,6 +253,14 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
     # 대기열을 만들지 않는다. 정규화·품질 검사·추론·위치 추정 전체에 적용.
     photo_slot = BoundedSemaphore(1)
 
+    def correction_mode():
+        module = import_module(".ai.correction", __package__) if __package__ else import_module("ai.correction")
+        return module.color_correction_mode()
+
+    @router.get("/correction/config", tags=["이미지 보정"])
+    async def correction_config(user: Annotated[dict, Depends(current_user)]):
+        return {"mode": correction_mode()}
+
     @router.post("/correction", tags=["이미지 보정"], summary="등록 원본 또는 촬영본에 AI 프로필 보정 적용",
                  response_class=Response,
                  responses={200: {"content": {"image/jpeg": {"schema": {"type": "string", "format": "binary"}}}},
@@ -298,6 +306,7 @@ def create_ai_router(catalog, accounts, current_user, recognition, gemini, corre
                 result = await run_in_threadpool(shrink_jpeg, result, max_side)
             return Response(result, media_type="image/jpeg", headers={
                 "Cache-Control": "no-store", "X-Correction-Profile-Revision": viewing.revision,
+                "X-Correction-Mode": correction_mode(),
             })
         finally:
             if image is not None:

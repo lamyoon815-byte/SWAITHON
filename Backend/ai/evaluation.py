@@ -15,6 +15,7 @@
 
 실행 (MoMi 폴더에서):
     .\\Backend\\.venv\\Scripts\\python.exe Backend\\ai\\evaluation.py
+    # 작품마다 기준 사진 여러 장(ai/references.py) 실험: --refs N --out refsN → report_refsN.md / .json
 """
 import argparse
 from datetime import datetime
@@ -35,6 +36,7 @@ sys.path.insert(0, str(BACKEND))
 from ai.adapter import ADAPTER_FILENAME, ClipAdapter  # noqa: E402
 from ai.artwork_gate import ArtworkGate  # noqa: E402
 from ai.decision import decide  # noqa: E402
+from ai.references import max_per_owner, reference_contents  # noqa: E402
 
 DATA_DIR = BACKEND / "data"
 EVAL_DIR = DATA_DIR / "eval"
@@ -140,7 +142,8 @@ def group_folds(groups, seed):
 
 # ---------------------------------------------------------------- 평가
 
-def evaluate_config(name, gallery, adapter, photos, raw, probabilities, catalog, seed):
+def evaluate_config(name, gallery, adapter, photos, raw, probabilities, catalog, seed, owners=None):
+    """owners[j] = 기준 사진 j가 속한 작품의 카탈로그 순서. None이면 작품마다 1장(gallery 행 = 작품)."""
     kinds = np.array([photo["kind"] for photo in photos])
     labels = np.array([photo["label"] or "" for photo in photos])
     groups = [photo["group"] for photo in photos]
@@ -148,6 +151,8 @@ def evaluate_config(name, gallery, adapter, photos, raw, probabilities, catalog,
     g = adapter.apply(gallery) if adapter else gallery
     q = adapter.apply(raw) if adapter else raw
     scores = q @ g.T
+    if owners is not None:
+        scores = max_per_owner(scores, owners, len(catalog))  # 작품별 점수 = 그 작품 기준 사진 중 최고점
     order = np.argsort(-scores, axis=1)
     top1_ids, top1_scores = ids[order[:, 0]], scores[np.arange(len(photos)), order[:, 0]]
     registered = kinds == "registered"
@@ -215,6 +220,8 @@ def write_report(result, path):
              f"- CLIP: {result['model']} / {result['pretrained']}",
              f"- 사진: 등록 작품 {result['counts']['registered']}장 ({result['counts']['registered_artworks']}점), "
              f"미등록 작품 {result['counts']['unregistered']}장, 작품 아닌 사진 {result['counts']['not_artwork']}장",
+             *([f"- 기준 사진: 작품마다 원본 + 가운데 자르기 2장 + 휴대폰 촬영 흉내 {result['reference_variants']}장 "
+                f"(모두 {result['reference_rows']}장, 작품별 점수는 최고점)"] if result.get("reference_variants") else []),
              f"- 기준값은 작품 단위 {FOLDS}겹 교차 검증으로 정하고 확인했습니다(기준을 정한 사진과 확인한 사진이 다름).", "",
              "## 1. 파인튜닝 전/후 비교", "",
              "| 항목 | " + " | ".join(config["name"] for config in result["configs"]) + " |",
@@ -257,7 +264,10 @@ def write_report(result, path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=20261110)
+    parser.add_argument("--refs", type=int, default=0, help="작품마다 휴대폰 촬영 흉내 기준 사진 수 (0 = 지금처럼 원본 1장)")
+    parser.add_argument("--out", default="report", help="보고서 이름. report면 report.md, 다른 이름이면 report_<이름>.md")
     args = parser.parse_args()
+    stem = "report" if args.out == "report" else f"report_{args.out}"
 
     from dotenv import load_dotenv
     load_dotenv(BACKEND / ".env")
@@ -278,8 +288,14 @@ def main():
     encoder.warmup()
     gate = ArtworkGate(encoder, 0.5)
     gate.warmup()
-    print("등록 작품 원본 임베딩 계산 중...")
-    gallery = np.stack([encoder.encode(record["path"].read_bytes()) for record in catalog])
+    print(f"등록 작품 기준 사진 임베딩 계산 중... (작품마다 휴대폰 촬영 흉내 {args.refs}장)")
+    rows, owners = [], []
+    for index, record in enumerate(catalog):
+        for content in reference_contents(record["path"].read_bytes(), args.refs, index):
+            rows.append(encoder.encode(content))
+            owners.append(index)
+    gallery, owners = np.stack(rows), np.array(owners)
+    print(f"  기준 사진 {len(owners)}장 (작품 {len(catalog)}점)")
     adapter_path = DATA_DIR / ADAPTER_FILENAME
     adapter = ClipAdapter.load(adapter_path) if adapter_path.exists() else None
     adapted_gallery = adapter.apply(gallery) if adapter else gallery
@@ -293,7 +309,7 @@ def main():
         vector = encoder.encode(normalized)
         probability = gate.artwork_probability(vector)
         query = adapter.apply(vector) if adapter else vector
-        _ = int(np.argmax(adapted_gallery @ query))
+        _ = int(np.argmax(max_per_owner(adapted_gallery @ query, owners, len(catalog))))
         latencies.append((time.perf_counter() - started) * 1000)
         raw.append(vector)
         probabilities.append(probability)
@@ -301,9 +317,10 @@ def main():
             print(f"  [{index}/{len(photos)}]")
     raw, probabilities = np.stack(raw), np.array(probabilities)
 
-    configs = [evaluate_config("파인튜닝 전 (원래 CLIP)", gallery, None, photos, raw, probabilities, catalog, args.seed)]
+    configs = [evaluate_config("파인튜닝 전 (원래 CLIP)", gallery, None, photos, raw, probabilities, catalog, args.seed, owners)]
     if adapter:
-        configs.append(evaluate_config("파인튜닝 후 (CLIP + 어댑터)", gallery, adapter, photos, raw, probabilities, catalog, args.seed))
+        configs.append(evaluate_config("파인튜닝 후 (CLIP + 어댑터)", gallery, adapter, photos, raw, probabilities, catalog,
+                                       args.seed, owners))
     base, tuned = configs[0], configs[-1]
     better = adapter and (
         (tuned["cv_score"] > base["cv_score"] + 1e-9 and tuned["top1"] >= base["top1"])
@@ -339,10 +356,11 @@ def main():
               "pretrained": encoder.pretrained, "counts": counts, "configs": configs,
               "chosen": {key: value for key, value in chosen.items()}, "env_lines": env_lines, "training": training,
               "latency_ms": {"mean": float(latency.mean()), "p95": float(np.percentile(latency, 95))},
-              "adapter_fingerprint": adapter.fingerprint if adapter else None}
+              "adapter_fingerprint": adapter.fingerprint if adapter else None,
+              "seed": args.seed, "reference_variants": args.refs, "reference_rows": int(len(owners))}
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
-    (EVAL_DIR / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    write_report(result, EVAL_DIR / "report.md")
+    (EVAL_DIR / f"{stem}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    write_report(result, EVAL_DIR / f"{stem}.md")
 
     for item in configs:
         print(f"\n[{item['name']}] Top-1 {pct(item['top1'])} · Top-3 {pct(item['top3'])} · "
@@ -350,7 +368,7 @@ def main():
     print(f"\n채택: {chosen['name']} — {chosen['why']}")
     print(f"처리 시간: 평균 {result['latency_ms']['mean']:.0f}ms / 95% {result['latency_ms']['p95']:.0f}ms")
     print("\n.env에 넣을 값:\n" + "\n".join(env_lines))
-    print(f"\n보고서: {EVAL_DIR / 'report.md'}")
+    print(f"\n보고서: {EVAL_DIR / (stem + '.md')}")
 
 
 if __name__ == "__main__":
