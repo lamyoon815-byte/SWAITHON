@@ -77,7 +77,8 @@ export type FeedbackSuggestion = {
 };
 export type FeedbackResult = {
   id: string;
-  artwork_id: string;
+  artwork_id: string | null;
+  analysis_id: string | null;
   satisfaction: FeedbackSatisfaction;
   comment: string | null;
   /** 의견을 AI로 분류했으면 true */
@@ -93,10 +94,10 @@ export type FeedbackResult = {
 
 /** 감상 만족도와 (음성을 글자로 바꾼) 의견 저장 (`POST /me/feedback`, apply=true).
  * 서버가 의견을 해석해 바로 적용하고 바뀐 프로필을 돌려준다. 화면은 store/profile의 sendFeedback을 쓴다. */
-export async function submitFeedback(artworkId: string, satisfaction: FeedbackSatisfaction, comment?: string) {
+export async function submitFeedback(artworkId: string | null, satisfaction: FeedbackSatisfaction, comment?: string, analysisId?: string) {
   const result = await request<FeedbackResult>('/me/feedback', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ artwork_id: artworkId, satisfaction, apply: true, ...(comment?.trim() ? { comment: comment.trim() } : {}) }),
+    body: JSON.stringify({ artwork_id: artworkId, ...(analysisId ? { analysis_id: analysisId } : {}), satisfaction, apply: true, ...(comment?.trim() ? { comment: comment.trim() } : {}) }),
   });
   if (result.applied?.length) invalidateCorrections();
   return result;

@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ToastHost } from '@/components/common/toast';
+import { AnalysisFeedbackHost } from '@/components/feedback/analysis-feedback-host';
 import { Colors } from '@/constants/theme';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/hooks/use-auth';
@@ -53,6 +54,7 @@ export default function RootLayout() {
             </Stack.Protected>
           </Stack>
         )}
+        {loaded && profile.loaded && settingsLoaded && session ? <AnalysisFeedbackHost pathname={pathname} /> : null}
         <ToastHost />
         {loaded && profile.loaded && settingsLoaded && session && !pathname.startsWith('/auth') ? <FirstLaunch /> : null}
       </ThemeProvider>

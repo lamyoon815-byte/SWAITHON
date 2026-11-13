@@ -88,6 +88,40 @@ class FeedbackTests(unittest.TestCase):
             row = connection.execute("SELECT satisfaction, comment, intent_json FROM feedback").fetchone()
         self.assertEqual(tuple(row), ("good", None, None))
 
+    def test_unregistered_analysis_feedback_is_saved_without_a_catalog_entry(self):
+        self.gemini.intent = FeedbackIntent(speech_rate="slower")
+        self.set_profile(speech_rate=1.0)
+        response = self.client.post("/me/feedback", headers=self.headers, json={
+            "analysis_id": "capture-session-1", "satisfaction": "bad", "comment": "해설이 빨라요", "apply": True})
+        self.assertEqual(response.status_code, 201, response.text)
+        result = response.json()
+        self.assertIsNone(result["artwork_id"])
+        self.assertEqual(result["analysis_id"], "capture-session-1")
+        self.assertEqual(result["applied"], ["speech_rate"])
+        self.assertEqual(result["profile"]["speech_rate"], 0.75)
+        with self.app.state.accounts.connect() as connection:
+            row = connection.execute("SELECT artwork_id, analysis_id, satisfaction FROM feedback").fetchone()
+        self.assertEqual(tuple(row), ("", "capture-session-1", "bad"))
+        again = self.client.post(f"/me/feedback/{result['id']}/apply", headers=self.headers, json={"fields": ["speech_rate"]})
+        self.assertEqual(again.status_code, 409)
+
+    def test_feedback_requires_exactly_one_registered_or_analysis_target(self):
+        for target in ({}, {"artwork_id": "sample", "analysis_id": "capture-1"}, {"analysis_id": ""}):
+            response = self.client.post("/me/feedback", headers=self.headers, json={**target, "satisfaction": "okay"})
+            self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(self.client.post("/me/feedback", json={"analysis_id": "capture-1", "satisfaction": "okay"}).status_code, 401)
+
+    def test_existing_feedback_database_migrates_without_losing_registered_ratings(self):
+        registered = self.submit(comment=None)
+        with self.app.state.accounts.connect() as connection:
+            connection.execute("ALTER TABLE feedback DROP COLUMN analysis_id")
+        self.app.state.accounts.initialize()
+        response = self.client.post("/me/feedback", headers=self.headers, json={"analysis_id": "capture-2", "satisfaction": "good"})
+        self.assertEqual(response.status_code, 201, response.text)
+        with self.app.state.accounts.connect() as connection:
+            self.assertEqual(connection.execute("SELECT artwork_id FROM feedback WHERE id = ?", (registered["id"],)).fetchone()[0], "sample")
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM feedback").fetchone()[0], 2)
+
     def test_comment_becomes_bounded_one_step_suggestions(self):
         self.set_profile(calibration={"color_type": "deutan", "severity": 0.6, "edge": 0.4}, contrast=0.5, speech_rate=1.0)
         self.gemini.intent = FeedbackIntent(color="weaker", contrast="lower", speech_rate="slower",

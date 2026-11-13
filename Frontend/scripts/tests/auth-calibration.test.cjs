@@ -664,3 +664,14 @@ test('clear screening results skip the picker; only ambiguous results ask to com
   state = run(['protan', 'deutan', 'tritan']);
   assert.equal(state.phase, 'manual');
 });
+
+
+test('analysis feedback sends its own ID without pretending to be a catalog artwork', async () => {
+  const { api, calls } = apiClient(() => ({ ok: true, status: 201, json: async () => ({ applied: [] }) }));
+  await api.submitFeedback(null, 'good', undefined, 'capture-1');
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.artwork_id, null);
+  assert.equal(body.analysis_id, 'capture-1');
+  assert.equal(body.apply, true);
+  assert.equal('comment' in body, false);
+});

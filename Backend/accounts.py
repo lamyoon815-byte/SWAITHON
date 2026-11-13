@@ -170,13 +170,16 @@ class AccountStore:
                     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     artwork_id TEXT NOT NULL, satisfaction TEXT NOT NULL, comment TEXT,
                     intent_json TEXT, profile_json TEXT NOT NULL, created_at TEXT NOT NULL,
-                    applied_json TEXT, applied_at TEXT
+                    applied_json TEXT, applied_at TEXT, analysis_id TEXT
                 );
                 CREATE INDEX IF NOT EXISTS feedback_user_time ON feedback(user_id, created_at DESC);
             """)
             columns = {row[1] for row in connection.execute("PRAGMA table_info(history)")}
             if "ai_profile_json" not in columns:
                 connection.execute("ALTER TABLE history ADD COLUMN ai_profile_json TEXT")
+            feedback_columns = {row[1] for row in connection.execute("PRAGMA table_info(feedback)")}
+            if "analysis_id" not in feedback_columns:
+                connection.execute("ALTER TABLE feedback ADD COLUMN analysis_id TEXT")
 
     def ai_profile(self, user_id: str):
         with closing(self.connect()) as connection:

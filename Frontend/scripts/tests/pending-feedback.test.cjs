@@ -39,3 +39,17 @@ test('the latest finished artwork wins before returning home', () => {
   markFeedbackPending({ artworkId: 'b', title: '침실' });
   assert.equal(takePendingFeedback().artworkId, 'b');
 });
+
+
+test('unregistered sessions are asked once without consuming registered feedback', () => {
+  const { markFeedbackPending, takePendingFeedback } = load();
+  markFeedbackPending({ artworkId: 'a', title: '수련' });
+  assert.equal(takePendingFeedback('analysis'), null);
+  assert.equal(takePendingFeedback().artworkId, 'a');
+  markFeedbackPending({ artworkId: null, analysisId: 'capture-1', title: '촬영한 작품' });
+  assert.equal(takePendingFeedback('analysis').analysisId, 'capture-1');
+  markFeedbackPending({ artworkId: null, analysisId: 'capture-1', title: '촬영한 작품' });
+  assert.equal(takePendingFeedback(), null);
+  markFeedbackPending({ artworkId: null, analysisId: 'capture-2', title: '촬영한 작품' });
+  assert.equal(takePendingFeedback().analysisId, 'capture-2');
+});

@@ -14,7 +14,7 @@ from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
 if __package__:
@@ -53,10 +53,17 @@ NARRATION_PHRASES = {
 
 class FeedbackInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    artwork_id: str = Field(min_length=1, max_length=80)
+    artwork_id: str | None = Field(default=None, min_length=1, max_length=80)
+    analysis_id: str | None = Field(default=None, min_length=1, max_length=80, description="미등록 감상의 임시 ID. 사진 원본은 저장하지 않음")
     satisfaction: Satisfaction
     comment: str | None = Field(default=None, max_length=500, description="음성을 글자로 바꾼 의견. 없으면 생략")
     apply: bool = Field(default=False, description="true면 제안을 바로 내 프로필에 적용한다(앱 기본)")
+
+    @model_validator(mode="after")
+    def one_target(self):
+        if (self.artwork_id is None) == (self.analysis_id is None):
+            raise ValueError("artwork_id와 analysis_id 중 하나만 지정해야 합니다.")
+        return self
 
 
 class FeedbackSuggestion(BaseModel):
@@ -69,7 +76,8 @@ class FeedbackSuggestion(BaseModel):
 
 class FeedbackResult(BaseModel):
     id: str
-    artwork_id: str
+    artwork_id: str | None
+    analysis_id: str | None = None
     satisfaction: Satisfaction
     comment: str | None
     interpreted: bool = Field(description="의견을 AI로 분류했으면 true. 의견이 없거나 AI를 쓸 수 없으면 false")
@@ -185,10 +193,11 @@ class FeedbackStore:
             with connection:
                 connection.execute(
                     "INSERT INTO feedback (id, user_id, artwork_id, satisfaction, comment, intent_json, profile_json, created_at,"
-                    " applied_json, applied_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (row["id"], user_id, data.artwork_id, data.satisfaction, data.comment,
+                    " applied_json, applied_at, analysis_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    # 기존 DB의 NOT NULL 작품 ID는 미등록 감상에서 빈 값으로 유지하고, 실제 식별자는 analysis_id에 분리한다.
+                    (row["id"], user_id, data.artwork_id or "", data.satisfaction, data.comment,
                      intent.model_dump_json() if intent else None, profile.model_dump_json(), row["created_at"],
-                     json.dumps(applied) if applied else None, row["created_at"] if applied else None))
+                     json.dumps(applied) if applied else None, row["created_at"] if applied else None, data.analysis_id))
         return row
 
     def get(self, user_id: str, feedback_id: str):
@@ -238,9 +247,10 @@ def create_feedback_router(accounts, catalog, current_user, gemini):
     @router.post("/me/feedback", response_model=FeedbackResult, status_code=201, tags=["감상 피드백"],
                  summary="감상 만족도와 음성 의견 저장 및 설정 조정 제안",
                  description="의견(comment)이 있으면 AI로 분류해 보정·해설 설정을 한 단계씩 바꾸는 제안을 돌려줍니다. "
-                             "제안은 저장만 하고 적용하지 않습니다. AI를 쓸 수 없어도 피드백은 저장하고 interpreted=false를 돌려줍니다.")
+                             "artwork_id 또는 미등록 감상의 analysis_id 중 하나를 지정합니다. apply=true면 제안을 바로 적용합니다. "
+                             "AI를 쓸 수 없어도 피드백은 저장하고 interpreted=false를 돌려줍니다.")
     async def submit(data: FeedbackInput, user: Annotated[dict, Depends(current_user)]):
-        if await run_in_threadpool(catalog.get, data.artwork_id) is None:
+        if data.artwork_id is not None and await run_in_threadpool(catalog.get, data.artwork_id) is None:
             raise HTTPException(404, "등록된 작품을 찾을 수 없습니다.")
         comment = data.comment or None
         data = data.model_copy(update={"comment": comment})
@@ -268,7 +278,7 @@ def create_feedback_router(accounts, catalog, current_user, gemini):
         else:
             message = _message(data.satisfaction, comment, intent is not None, suggestions, applied=bool(applied))
         row = await run_in_threadpool(store.add, user["id"], data, intent, profile, applied)
-        return {"id": row["id"], "artwork_id": data.artwork_id, "satisfaction": data.satisfaction, "comment": comment,
+        return {"id": row["id"], "artwork_id": data.artwork_id, "analysis_id": data.analysis_id, "satisfaction": data.satisfaction, "comment": comment,
                 "interpreted": intent is not None, "suggestions": suggestions, "applied": applied, "profile": saved,
                 "message": message,
                 "created_at": row["created_at"]}

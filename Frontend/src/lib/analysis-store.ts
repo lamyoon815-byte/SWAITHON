@@ -11,7 +11,7 @@ const entries = new Map<string, AnalysisEntry>();
 let next = 1;
 
 export function putAnalysis(entry: AnalysisEntry): string {
-  const id = String(next++);
+  const id = `${Date.now().toString(36)}-${next++}`;
   entries.set(id, entry);
   // 오래된 결과는 버린다(사진 경로가 계속 쌓이지 않게).
   while (entries.size > 5) entries.delete(entries.keys().next().value!);

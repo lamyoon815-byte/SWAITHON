@@ -166,11 +166,11 @@ function updateProfile(patch: Partial<VisualProfile> | ((profile: VisualProfile)
 }
 
 /** 감상 피드백을 보내면 서버가 의견대로 바로 적용한다. 바뀐 프로필이 오면 공유 상태도 바꾼다. */
-export function sendFeedback(artworkId: string, satisfaction: FeedbackSatisfaction, comment?: string) {
+export function sendFeedback(artworkId: string | null, satisfaction: FeedbackSatisfaction, comment?: string, analysisId?: string) {
   const token = getAccessToken();
   const next = writing.then(async () => {
     if (!token || token !== getAccessToken()) throw new Error('로그인이 필요해요');
-    const result = await submitFeedback(artworkId, satisfaction, comment);
+    const result = await submitFeedback(artworkId, satisfaction, comment, analysisId);
     if (result.profile && token === getAccessToken()) {
       // 먼저 시작된 조회가 늦게 도착해 방금 바꾼 값을 되돌리지 못하게 한다.
       generation++;

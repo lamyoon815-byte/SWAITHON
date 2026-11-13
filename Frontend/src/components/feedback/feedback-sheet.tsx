@@ -1,5 +1,5 @@
 /**
- * 감상 피드백 팝업. 해설을 끝까지 듣고 홈 화면으로 돌아오면 한 번 뜬다(`lib/pending-feedback`).
+ * 감상 피드백 팝업. 해설을 끝까지 듣고 나오면 한 번 뜬다(`lib/pending-feedback`).
  * 저시력 사용자를 위해 글자를 읽고 고르는 단계를 두지 않는다. 누르는 곳은 둘뿐이다.
  * 1) 만족도 큰 버튼 3개 → 2) 누른 채로 말하기(손을 떼면 바로 저장) 또는 "말하지 않고 보내기"
  * → 서버가 의견을 해석해 바로 적용하고, 무엇을 바꿨는지 음성으로 읽은 뒤 팝업이 저절로 닫힌다.
@@ -93,7 +93,7 @@ export function FeedbackSheet({ item, palette, onClose }: Props) {
     stopSpeaking();
     setStep('sending');
     try {
-      const next = await sendFeedback(item.artworkId, satisfaction, comment);
+      const next = await sendFeedback(item.artworkId, satisfaction, comment, item.analysisId);
       setResult(next);
       setStep('done');
       if (next.applied.length > 0) showToast('말씀하신 대로 설정을 바꿨어요', 'success');

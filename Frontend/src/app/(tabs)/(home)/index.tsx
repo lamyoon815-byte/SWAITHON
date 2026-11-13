@@ -308,7 +308,7 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
-      {feedback && <FeedbackSheet key={feedback.artworkId} item={feedback} palette={palette} onClose={() => setFeedback(null)} />}
+      {feedback && <FeedbackSheet key={feedback.artworkId ?? feedback.analysisId} item={feedback} palette={palette} onClose={() => setFeedback(null)} />}
     </SafeAreaView>
   );
 }

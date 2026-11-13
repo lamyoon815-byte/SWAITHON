@@ -22,6 +22,7 @@ import { MaxContentWidth, ScreenPadding, Spacing } from '@/constants/theme';
 import { useNarrationPlayer } from '@/hooks/use-narration-player';
 import { useProfile } from '@/hooks/use-profile';
 import { getAnalysis } from '@/lib/analysis-store';
+import { markFeedbackPending } from '@/lib/pending-feedback';
 
 export default function AnalysisScreen() {
   const palette = getPalette('dark', false);
@@ -33,7 +34,8 @@ export default function AnalysisScreen() {
   const sentences = entry?.result.segments.map((segment) => ({
     kind: segment.type === 'fact' ? '사실' : '해석', text: segment.text,
   })) ?? [];
-  const player = useNarrationPlayer(sentences.map((s) => s.text), profile.speech_rate, false);
+  const player = useNarrationPlayer(sentences.map((s) => s.text), profile.speech_rate, false,
+    () => { if (entry && id) markFeedbackPending({ artworkId: null, analysisId: id, title: '촬영한 작품' }); });
   const retake = () => router.replace('/capture');
 
   return (
