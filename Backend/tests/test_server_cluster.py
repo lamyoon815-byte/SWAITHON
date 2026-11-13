@@ -3,6 +3,7 @@ from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
 from io import BytesIO
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -29,6 +30,15 @@ FAST = replace(LocalConfig(), training_pixels=128, validation_pixels=128,
 class CorrectionModeTests(unittest.TestCase):
     def test_default_and_selective_match_original_float_arrays_and_jpeg_bytes(self):
         golden = json.loads((Path(__file__).parent / "fixtures/correction_selective_v1.json").read_text(encoding="utf-8"))
+        # OpenCV float rounding and JPEG encoders differ across platforms.
+        # Compare with the frozen pre-merge implementation on this platform,
+        # rather than replacing the Windows hashes with current output.
+        reference_path = Path(__file__).parent / "fixtures/correction_selective_original.py"
+        self.assertEqual(sha256(reference_path.read_bytes()).hexdigest(),
+                         "f6b04141bed86f8a66cb81da884db3546c9aa2f35b924161a083db4b190709cc")
+        spec = importlib.util.spec_from_file_location("selective_original", reference_path)
+        reference = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reference)
         image = np.random.default_rng(golden["seed"]).integers(0, 256, golden["shape"], dtype=np.uint8).astype(np.float32) / 255
         content = BytesIO()
         Image.fromarray((image * 255).astype(np.uint8)).save(content, format="JPEG", quality=92)
@@ -40,8 +50,10 @@ class CorrectionModeTests(unittest.TestCase):
                     os.environ["COLOR_CORRECTION_MODE"] = mode
                 for case in golden["cases"]:
                     with self.subTest(mode=mode, profile=case["profile"]):
-                        self.assertEqual(sha256(correct_array(image.copy(), case["profile"]).tobytes()).hexdigest(), case["array_sha256"])
-                        self.assertEqual(sha256(correct_image(content.getvalue(), case["profile"])).hexdigest(), case["jpeg_sha256"])
+                        np.testing.assert_array_equal(correct_array(image.copy(), case["profile"]),
+                                                      reference.correct_array(image.copy(), case["profile"]))
+                        self.assertEqual(correct_image(content.getvalue(), case["profile"]),
+                                         reference.correct_image(content.getvalue(), case["profile"]))
 
     def test_mode_validation_defaults_safely(self):
         for raw, expected in (("", "selective"), ("other", "selective"), ("selective", "selective"), (" CLUSTER ", "cluster")):
