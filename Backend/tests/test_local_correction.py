@@ -32,7 +32,10 @@ class LocalCorrectionTests(unittest.TestCase):
         sample_base = baseline.reshape(-1, 3)[positions][None]
         sample_candidate = apply_local(sample_image, sample_base, basis, parameters, FAST)
         preflight, _ = guard_local(sample_image, sample_base, sample_candidate)
-        np.testing.assert_array_equal(preflight[0], full.reshape(-1, 3)[positions])
+        # The NumPy/OpenCV fallback can round float32 operations differently
+        # for sampled and full arrays (a few float32 ULPs on macOS).
+        # Keep the pixel comparison tighter than the guard's 1e-6 tolerance.
+        np.testing.assert_allclose(preflight[0], full.reshape(-1, 3)[positions], rtol=0, atol=2e-7)
 
     def test_selector_also_requires_continuous_contrast_preservation(self):
         from Backend.ai.local_correction import local_passes
